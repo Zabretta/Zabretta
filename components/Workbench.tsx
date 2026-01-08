@@ -15,7 +15,7 @@ export default function Workbench() {
     { id: "help", label: "Ищут помощи", icon: "❓", color: "#8B7355" },
     { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D" },
     { id: "market", label: "Барахолка", icon: "🛒", color: "#D2691E" },
-    { id: "contests", label: "Конкурсы", icon: "🎯", color: "#CD853F" },
+    { id: "contests", label: "Правила", icon: "🎯", color: "#CD853F" },
   ];
 
   const rightDrawers = [

@@ -1,0 +1,219 @@
+// Workbench.tsx - С увеличенными кнопками и 6 окошками
+"use client";
+
+import { useState, useEffect } from "react";
+import "./Workbench.css";
+
+export default function Workbench() {
+  const [activeDrawer, setActiveDrawer] = useState<string | null>(null);
+
+  const leftDrawers = [
+    { id: "projects", label: "Лента проектов", icon: "📁", color: "#8B4513" },
+    { id: "masters", label: "Мастера рядом", icon: "👥", color: "#A0522D" },
+    { id: "messages", label: "Мои беседы", icon: "💬", color: "#D2691E" },
+    { id: "achievements", label: "Достижения", icon: "🏆", color: "#CD853F" },
+    { id: "help", label: "Ищут помощи", icon: "❓", color: "#8B7355" },
+    { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D" },
+    { id: "market", label: "Барахолка", icon: "🛒", color: "#D2691E" },
+    { id: "contests", label: "Конкурсы", icon: "🎯", color: "#CD853F" },
+  ];
+
+  const rightDrawers = [
+    { id: "profile", label: "Мой профиль", icon: "👤", color: "#8B4513" },
+    { id: "myprojects", label: "Мои проекты", icon: "🛠️", color: "#A0522D" },
+    { id: "liked", label: "Понравилось", icon: "❤️", color: "#D2691E" },
+    { id: "myworkshop", label: "Моя мастерская", icon: "📸", color: "#CD853F" },
+    { id: "meetups", label: "Встречи", icon: "📅", color: "#8B7355" },
+    { id: "settings", label: "Настройки", icon: "⚙️", color: "#A0522D" },
+    { id: "support", label: "Помощь", icon: "🆘", color: "#D2691E" },
+    { id: "logout", label: "Выйти", icon: "🚪", color: "#CD853F" },
+  ];
+
+  const tools = [
+    { id: "hammer", label: "Похвалить", icon: "🔨", action: () => alert("Молодец! Отличная работа!") },
+    { id: "share", label: "Поделиться", icon: "🪚", action: () => alert("Открывается меню 'Поделиться'") },
+    { id: "stats", label: "Статистика", icon: "📏", action: () => alert("Статистика сообщества") },
+    { id: "settings", label: "Настройки", icon: "⚙️", action: () => alert("Настройки сайта") },
+    { id: "pencil", label: "Комментировать", icon: "✏️", action: () => alert("Добавить комментарий") },
+    { id: "paint", label: "Оформить", icon: "🎨", action: () => alert("Настроить внешний вид") },
+    { id: "light", label: "Идеи", icon: "💡", action: () => alert("Генератор идей") },
+    { id: "heart", label: "Избранное", icon: "❤️", action: () => alert("Добавить в избранное") },
+  ];
+
+  // 6 окошек вместо 4
+  const features = [
+    { id: 1, icon: "🔨", text: "Демонстрируйте<br />свои самоделки" },
+    { id: 2, icon: "👨‍🍳", text: "Делитесь<br />кулинарными шедеврами" },
+    { id: 3, icon: "💡", text: "Показывайте<br />творческие планы" },
+    { id: 4, icon: "🤝", text: "Давайте и получайте<br />советы и помощь" },
+    { id: 5, icon: "🧩", text: "Творите и придумывайте<br />вместе" },
+    { id: 6, icon: "💰", text: "Продавайте свои<br />товары и идеи" },
+  ];
+
+  // Принудительное обновление стилей при изменении CSS
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const links = document.querySelectorAll('link[rel="stylesheet"]');
+      links.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && href.includes('Workbench.css')) {
+          const url = new URL(href, window.location.origin);
+          url.searchParams.set('t', Date.now().toString());
+          link.setAttribute('href', url.toString());
+        }
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleDrawerClick = (drawerId: string) => {
+    setActiveDrawer(drawerId);
+    alert(`Открываем: ${drawerId}`);
+  };
+
+  return (
+    <div className="workshop">
+      {/* Верхняя панель с инструментами */}
+      <div className="tools-panel">
+        <div className="tools-container">
+          {/* Кнопки увеличены в 2 раза по ширине */}
+          {tools.map((tool) => (
+            <button
+              key={tool.id}
+              className="tool"
+              title={tool.label}
+              onClick={tool.action}
+              style={{ width: '160px' }}
+            >
+              <span className="tool-icon">{tool.icon}</span>
+              <span className="tool-label">{tool.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="workbench-container">
+        {/* Левая тумба */}
+        <div className="toolbox left-toolbox">
+          <div className="toolbox-label">Инструменты</div>
+          {leftDrawers.map((drawer) => (
+            <button
+              key={drawer.id}
+              className={`drawer ${activeDrawer === drawer.id ? "open" : ""}`}
+              onClick={() => handleDrawerClick(drawer.id)}
+              style={{ borderLeftColor: drawer.color }}
+            >
+              <span className="drawer-handle"></span>
+              <span className="drawer-icon">{drawer.icon}</span>
+              <span className="drawer-label">{drawer.label}</span>
+              <span className="drawer-arrow">→</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Центральный верстак */}
+        <div className="workbench">
+          <div className="workbench-surface">
+            {/* Декоративные элементы верстака */}
+            <div className="vice"></div>
+            <div className="clamp"></div>
+            <div className="wood-grain"></div>
+
+            {/* Заголовок */}
+            <div className="title-container">
+              <h1 className="workshop-title">САМОДЕЛКИН</h1>
+              <p className="workshop-subtitle">
+                Сообщество домашних мастеров
+              </p>
+            </div>
+
+            {/* Контентная область */}
+            <div className="workbench-content">
+              <div className="project-description">
+                <div className="description-icon">🌟</div>
+                <h2>Кулибины Руси — объединяемся!</h2>
+                <p className="description-text">
+                  Всегда Русь славилась изобретателями, толковыми людьми с цепким умом
+                  и золотыми руками. Этот сайт для вас, Кулибины!
+                </p>
+                <p className="description-text">
+                  Первая социальная сеть для творческих и изобретательных людей,
+                  умеющих идею воплотить в жизнь своими руками.
+                </p>
+
+                {/* 6 ОКОШЕК ВМЕСТО 4 - 3 В ВЕРХНЕМ РЯДУ И 3 В НИЖНЕМ */}
+                <div className="features">
+                  {features.map((feature) => (
+                    <div key={feature.id} className="feature">
+                      <span className="feature-icon">{feature.icon}</span>
+                      <span 
+                        className="feature-text" 
+                        dangerouslySetInnerHTML={{ __html: feature.text }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="cta">
+                  <button className="cta-button" onClick={() => alert("Добро пожаловать в сообщество Кулибиных!")}>
+                    Присоединиться к Кулибиным
+                  </button>
+                  <p className="cta-note">Общайтесь с гениями и непоседами с горящими глазами!</p>
+                </div>
+              </div>
+
+              {/* Статистика сообщества */}
+              <div className="community-stats">
+                <div className="stat-item">
+                  <span className="stat-number">1,892</span>
+                  <span className="stat-label">Кулибиных онлайн</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-number">7,543</span>
+                  <span className="stat-label">Самоделок создано</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-number">15,287</span>
+                  <span className="stat-label">Ценных советов</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Декоративные элементы */}
+            <div className="sawdust"></div>
+            <div className="wood-chips"></div>
+            <div className="screw"></div>
+            <div className="nail"></div>
+            <div className="tape-measure"></div>
+          </div>
+        </div>
+
+        {/* Правая тумба */}
+        <div className="toolbox right-toolbox">
+          <div className="toolbox-label">Моя мастерская</div>
+          {rightDrawers.map((drawer) => (
+            <button
+              key={drawer.id}
+              className={`drawer ${activeDrawer === drawer.id ? "open" : ""}`}
+              onClick={() => handleDrawerClick(drawer.id)}
+              style={{ borderRightColor: drawer.color }}
+            >
+              <span className="drawer-handle"></span>
+              <span className="drawer-icon">{drawer.icon}</span>
+              <span className="drawer-label">{drawer.label}</span>
+              <span className="drawer-arrow">←</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Анимация искр */}
+      <div className="sparks">
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="spark"></div>
+        ))}
+      </div>
+    </div>
+  );
+}

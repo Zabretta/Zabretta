@@ -1,0 +1,237 @@
+/* RulesModal.css */
+
+.rules-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 90px; /* Оставляем место для верхней панели инструментов */
+  overflow-y: auto;
+}
+
+.rules-modal-container {
+  background: white;
+  width: 90%;
+  max-width: 1200px;
+  min-height: 600px;
+  border-radius: 15px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rules-modal-header {
+  background: linear-gradient(135deg, #8B4513, #A0522D);
+  padding: 25px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 4px solid #5D4037;
+}
+
+.rules-modal-title {
+  color: white;
+  font-size: 3.5em;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.modal-close-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: white;
+  transform: translateY(-2px);
+}
+
+.rules-modal-content {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+  background: #f9f9f9;
+}
+
+.rules-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 20px;
+}
+
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 5px solid rgba(139, 69, 19, 0.2);
+  border-top-color: #8B4513;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.rules-content {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.api-data-placeholder {
+  background: #fff;
+  border: 2px dashed #8B4513;
+  border-radius: 10px;
+  padding: 25px;
+  margin-bottom: 40px;
+}
+
+.rule-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.rule-number {
+  background: #8B4513;
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-right: 20px;
+  flex-shrink: 0;
+}
+
+.rule-text {
+  font-size: 1.1em;
+  line-height: 1.5;
+  color: #333;
+  padding-top: 8px;
+}
+
+.custom-rules-section {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  border-left: 5px solid #A0522D;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  margin-top: 40px;
+}
+
+.custom-rules-section h2 {
+  color: #8B4513;
+  border-bottom: 2px solid #D2691E;
+  padding-bottom: 10px;
+  margin-top: 30px;
+}
+
+.custom-rules-section p {
+  color: #555;
+  line-height: 1.7;
+  margin: 15px 0;
+}
+
+.rules-modal-footer {
+  background: #f5f5f5;
+  padding: 25px 40px;
+  border-top: 3px solid #ddd;
+}
+
+.rules-modification-note {
+  color: #666;
+  font-style: italic;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.rules-actions {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.rules-action-btn {
+  padding: 15px 35px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.accept-btn {
+  background: linear-gradient(to right, #8B4513, #A0522D);
+  color: white;
+}
+
+.print-btn {
+  background: #f0f0f0;
+  color: #333;
+  border: 2px solid #ccc;
+}
+
+.rules-action-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.accept-btn:hover {
+  background: linear-gradient(to right, #A0522D, #D2691E);
+}
+
+.print-btn:hover {
+  background: #e0e0e0;
+  border-color: #999;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .rules-modal-overlay {
+    padding-top: 70px;
+  }
+  
+  .rules-modal-title {
+    font-size: 2.5em;
+  }
+  
+  .rules-modal-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .rules-actions {
+    flex-direction: column;
+  }
+  
+  .rules-action-btn {
+    width: 100%;
+  }
+}

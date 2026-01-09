@@ -1,11 +1,22 @@
-// Workbench.tsx - С увеличенными кнопками и 6 окошками
+// Workbench.tsx - С увеличенными кнопками, 6 окошками и модалкой Правил
 "use client";
 
 import { useState, useEffect } from "react";
 import "./Workbench.css";
+import RulesModal from "./RulesModal"; // Импорт нового компонента
 
 export default function Workbench() {
   const [activeDrawer, setActiveDrawer] = useState<string | null>(null);
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false); // Состояние для модалки
+
+  // Функции для управления модалкой
+  const handleRulesClick = () => {
+    setIsRulesModalOpen(true);
+  };
+
+  const handleCloseRulesModal = () => {
+    setIsRulesModalOpen(false);
+  };
 
   const leftDrawers = [
     { id: "projects", label: "Лента проектов", icon: "📁", color: "#8B4513" },
@@ -15,7 +26,13 @@ export default function Workbench() {
     { id: "help", label: "Ищут помощи", icon: "❓", color: "#8B7355" },
     { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D" },
     { id: "market", label: "Барахолка", icon: "🛒", color: "#D2691E" },
-    { id: "contests", label: "Правила", icon: "🎯", color: "#CD853F" },
+    { 
+      id: "contests", 
+      label: "Правила", 
+      icon: "🎯", 
+      color: "#CD853F",
+      action: handleRulesClick // Добавлено специальное действие
+    },
   ];
 
   const rightDrawers = [
@@ -31,7 +48,7 @@ export default function Workbench() {
 
   const tools = [
     { id: "hammer", label: "Похвалить", icon: "🔨", action: () => alert("Молодец! Отличная работа!") },
-    { id: "share", label: "Поделиться", icon: "📤", action: () => alert("Открывается меню 'Поделиться'") }, // <-- Исправлено здесь
+    { id: "share", label: "Поделиться", icon: "📤", action: () => alert("Открывается меню 'Поделиться'") },
     { id: "stats", label: "Статистика", icon: "📏", action: () => alert("Статистика сообщества") },
     { id: "settings", label: "Настройки", icon: "⚙️", action: () => alert("Настройки сайта") },
     { id: "pencil", label: "Комментировать", icon: "✏️", action: () => alert("Добавить комментарий") },
@@ -69,6 +86,13 @@ export default function Workbench() {
 
   const handleDrawerClick = (drawerId: string) => {
     setActiveDrawer(drawerId);
+    
+    // Специальная обработка для кнопки "Правила"
+    if (drawerId === "contests") {
+      handleRulesClick();
+      return;
+    }
+    
     alert(`Открываем: ${drawerId}`);
   };
 
@@ -147,8 +171,8 @@ export default function Workbench() {
                   {features.map((feature) => (
                     <div key={feature.id} className="feature">
                       <span className="feature-icon">{feature.icon}</span>
-                      <span 
-                        className="feature-text" 
+                      <span
+                        className="feature-text"
                         dangerouslySetInnerHTML={{ __html: feature.text }}
                       />
                     </div>
@@ -214,6 +238,12 @@ export default function Workbench() {
           <div key={i} className="spark"></div>
         ))}
       </div>
+
+      {/* Модальное окно Правил */}
+      <RulesModal 
+        isOpen={isRulesModalOpen} 
+        onClose={handleCloseRulesModal} 
+      />
     </div>
   );
 }

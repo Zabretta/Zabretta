@@ -33,6 +33,332 @@ npm run dev
 Правая панель "Моя мастерская" состоит из восьми ящиков (мой профиль) (мои проекты) (понравилось)(моя мастерская) (встречи)(настройки) (помощь) (выйти)
 25 кнопок каждая со своим фунционалом:
 1. "Присоедениться к кулибиным"- кнопка регистрации пользователя, регистрация по электронной почте, логин, пароль, фиксация IP-адреса чтобы не создавали мультиаккаунты.
+ТЗ-1: Кнопка «Присоединиться к Кулибиным» (Система регистрации и авторизации)
+
+1. Общее описание
+
+Кнопка запускает процесс регистрации нового пользователя или авторизации существующего в социальной сети «Самоделкин». Основная цель — создать учётную запись пользователя, привязанную к email, с фиксацией IP для предотвращения мультиаккаунтов.
+
+2. Пользовательские сценарии (User Flow)
+
+Сценарий 2.1: Первичная регистрация нового пользователя
+
+1. Триггер: Пользователь нажимает кнопку «Присоединиться к Кулибиным».
+2. Шаг 1: Открытие модального окна. Появляется модальное окно с двумя табами: «Регистрация» (активен по умолчанию) и «Уже есть аккаунт».
+3. Шаг 2: Заполнение формы регистрации. Поля:
+   · email (обязательно, валидация на формат)
+   · login (обязательно, уникальный, 3-20 символов)
+   · password (обязательно, минимум 8 символов, цифра+буква)
+   · passwordConfirm (обязательно, должно совпадать с password)
+   · agreement (чекбокс "Принимаю правила сайта", обязательно).
+4. Шаг 3: Отправка данных. Кнопка «Создать аккаунт». На этом этапе фронтенд отправляет IP-адрес пользователя (определяется на бэкенде) вместе с формой.
+5. Шаг 4: Обработка на бэкенде. Сервер:
+   · Проверяет уникальность email и login.
+   · Анализирует IP-адрес (запись в signup_attempts для лимитирования попыток с одного IP, например, не более 3 аккаунтов в сутки).
+   · Хэширует пароль.
+   · Создает запись пользователя в статусе pending (неактивен).
+   · Генерирует код подтверждения и отправляет письмо на email.
+6. Шаг 5: Подтверждение email. Пользователь получает письмо со ссылкой вида /api/auth/confirm?token=abc123. Переход по ссылке активирует аккаунт (статус active).
+7. Шаг 6: Автоматический вход. После подтверждения email пользователь автоматически логинится и перенаправляется на главную. Кнопка в интерфейсе меняется на «Мой профиль».
+
+Сценарий 2.2: Вход существующего пользователя
+
+1. Триггер: В модальном окне пользователь переключается на таб «Уже есть аккаунт».
+2. Шаг 1: Заполнение формы входа. Поля: login (или email) и password.
+3. Шаг 2: Отправка данных. Кнопка «Войти». IP-адрес также отправляется для логирования.
+4. Шаг 3: Успешный вход. Создается сессия, пользователь перенаправляется на главную. Кнопка меняется на «Мой профиль».
+
+Сценарий 2.3: Восстановление пароля
+
+1. Триггер: Ссылка «Забыли пароль?» под формой входа.
+2. Шаг 1: Открывается форма для ввода email.
+3. Шаг 2: На email отправляется ссылка для сброса пароля с одноразовым токеном.
+4. Шаг 3: Переход по ссылке открывает форму для ввода нового пароля.
+
+---
+
+3. Модель данных (Database Schema)
+
+```javascript
+// Модель User (Пользователь)
+{
+  _id: ObjectId,
+  email: { type: String, unique: true, required: true },
+  login: { type: String, unique: true, required: true },
+  passwordHash: { type: String, required: true }, // bcrypt hash
+  status: { type: String, enum: ['pending', 'active', 'banned'], default: 'pending' },
+  ipHistory: [ // История IP-адресов для входа
+    {
+      ip: String,
+      userAgent: String,
+      timestamp: Date
+    }
+  ],
+  profile: {
+    displayName: String,
+    avatarUrl: String,
+    bio: String,
+    city: String
+  },
+  emailConfirmationToken: String,
+  emailConfirmationExpires: Date,
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
+  createdAt: Date,
+  lastLoginAt: Date
+}
+
+// Модель SignupAttempt (Попытка регистрации - для контроля по IP)
+{
+  _id: ObjectId,
+  ipAddress: String,
+  attemptCount: Number,
+  lastAttempt: Date,
+  blockedUntil: Date // Если превышен лимит
+}
+```
+
+---
+
+4. API-эндпоинты (Backend Specification)
+
+Все эндпоинты находятся по пути /api/auth/.
+
+POST /api/auth/register — Регистрация
+
+Запрос (Request Body):
+
+```json
+{
+  "email": "user@example.com",
+  "login": "master_ivan",
+  "password": "SecurePass123",
+  "passwordConfirm": "SecurePass123",
+  "agreement": true
+}
+```
+
+Успешный ответ (201 Created):
+
+```json
+{
+  "success": true,
+  "message": "Письмо с подтверждением отправлено на ваш email.",
+  "userId": "507f1f77bcf86cd799439011"
+}
+```
+
+Заглушка для фронтенда (Frontend Mock):
+
+```javascript
+// Временно эмулируем успешную регистрацию без бэкенда
+const mockRegister = async (userData) => {
+  console.log('Заглушка: Регистрация', userData);
+  // Сохраняем данные в localStorage для демо
+  localStorage.setItem('demo_user', JSON.stringify({
+    ...userData,
+    id: 'demo_' + Date.now(),
+    status: 'pending'
+  }));
+  return { success: true, message: 'Регистрация успешна (демо-режим)' };
+};
+```
+
+POST /api/auth/login — Вход
+
+Запрос:
+
+```json
+{
+  "login": "master_ivan или user@example.com",
+  "password": "SecurePass123"
+}
+```
+
+Успешный ответ (200 OK):
+
+```json
+{
+  "success": true,
+  "token": "jwt_token_here", // Или sessionId
+  "user": {
+    "id": "507f1f77bcf86cd799439011",
+    "login": "master_ivan",
+    "email": "user@example.com"
+  }
+}
+```
+
+GET /api/auth/confirm?token=abc123 — Подтверждение email
+
+(Бэкенд, фронтенд лишь переходит по ссылке из письма)
+
+POST /api/auth/logout — Выход
+
+POST /api/auth/forgot-password — Запрос на сброс пароля
+
+POST /api/auth/reset-password — Сброс пароля по токену
+
+---
+
+5. Интерфейс и состояние (Frontend UI/UX)
+
+· До нажатия кнопки: Кнопка «Присоединиться к Кулибиным» в центре главной панели.
+· После нажатия: Модальное окно (AuthModal.tsx) с табами.
+· После успешного входа: Кнопка меняется на «Мой профиль» (ведет в личный кабинет).
+
+Состояние (React State):
+
+```typescript
+// В Workbench.tsx или контексте приложения
+const [authState, setAuthState] = useState<{
+  isAuthenticated: boolean;
+  user: null | { id: string; login: string; email: string };
+  authModalOpen: boolean;
+}>({
+  isAuthenticated: false,
+  user: null,
+  authModalOpen: false
+});
+```
+
+---
+
+6. Меры безопасности (Security)
+
+1. Пароли: Хранение только bcrypt-хеша.
+2. IP-контроль: Ограничение регистраций (например, 3 аккаунта/IP/24ч). Таблица SignupAttempt.
+3. Сессии: Использование httpOnly cookies или JWT в localStorage с коротким сроком жизни.
+4. Email-подтверждение: Обязательный шаг для активации.
+5. Защита от ботов: Простая капча или Cloudflare Turnstile на этапе регистрации (можно добавить позже).
+
+---
+
+7. Пошаговый план реализации (Milestones)
+
+1. Неделя 1: Проектирование и создание модального окна AuthModal.tsx с формами (UI только).
+2. Неделя 2: Реализация логики состояния (React) и заглушек API (все работает на фронтенде с localStorage).
+3. Неделя 3: Разработка бэкенд-API (Node.js + Express + MongoDB) с эндпоинтами регистрации/логина.
+4. Неделя 4: Интеграция фронтенда с реальным API, добавление подтверждения email, восстановления пароля.
+
+---
+
+8. Готовый фрагмент кода для начала (AuthModal.tsx)
+
+```tsx
+"use client";
+
+import { useState } from 'react';
+
+type AuthMode = 'register' | 'login';
+
+export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [mode, setMode] = useState<AuthMode>('register');
+  const [formData, setFormData] = useState({
+    email: '',
+    login: '',
+    password: '',
+    passwordConfirm: '',
+    agreement: false,
+  });
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    // Заглушка API
+    if (mode === 'register') {
+      console.log('Регистрация:', formData);
+      // ВРЕМЕННО: сохраняем в localStorage
+      localStorage.setItem('samodelkin_demo_user', JSON.stringify({
+        email: formData.email,
+        login: formData.login,
+        status: 'pending'
+      }));
+      alert('Демо-режим: регистрация прошла успешно! Проверьте консоль.');
+    } else {
+      console.log('Вход:', { login: formData.login, password: formData.password });
+      alert('Демо-режим: вход успешен!');
+    }
+    
+    setIsLoading(false);
+    onClose(); // Закрываем модалку после "успешной" отправки
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="auth-modal-overlay">
+      <div className="auth-modal">
+        <div className="auth-modal-tabs">
+          <button className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>
+            Регистрация
+          </button>
+          <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>
+            Уже есть аккаунт
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          {mode === 'register' && (
+            <input
+              type="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              required
+            />
+          )}
+          
+          <input
+            type="text"
+            placeholder="Логин"
+            value={formData.login}
+            onChange={(e) => setFormData({...formData, login: e.target.value})}
+            required
+          />
+          
+          <input
+            type="password"
+            placeholder="Пароль"
+            value={formData.password}
+            onChange={(e) => setFormData({...formData, password: e.target.value})}
+            required
+          />
+          
+          {mode === 'register' && (
+            <>
+              <input
+                type="password"
+                placeholder="Повторите пароль"
+                value={formData.passwordConfirm}
+                onChange={(e) => setFormData({...formData, passwordConfirm: e.target.value})}
+                required
+              />
+              <label>
+                <input
+                  type="checkbox"
+                  checked={formData.agreement}
+                  onChange={(e) => setFormData({...formData, agreement: e.target.checked})}
+                  required
+                />
+                Принимаю правила сайта
+              </label>
+            </>
+          )}
+
+          <button type="submit" disabled={isLoading}>
+            {isLoading ? 'Отправка...' : mode === 'register' ? 'Создать аккаунт' : 'Войти'}
+          </button>
+        </form>
+
+        <button className="close-modal" onClick={onClose}>✕</button>
+      </div>
+    </div>
+  );
+}
+`
 2. "Правила"- кнопка для информации о правилах поведения, общения и пользования сайтом.
 3. "Барахолка"- кнопка открытия магазина где можно продать свои самоделки, поделки, кулинарные изделия а так же предложить свои услуги. Должно быть что то вроде доски обьявления 
 по несколким разделам с удобным интерфейсом "продам" "куплю" "услуги" ползователь сможет через сайт заказать и оплатить товар или услугу с доставкой курьером или почтой.

@@ -1,21 +1,37 @@
-// Workbench.tsx - С увеличенными кнопками, 6 окошками и модалкой Правил
+// Workbench.tsx - С системой аутентификации, 6 окошками и модалкой Правил
 "use client";
 
 import { useState, useEffect } from "react";
 import "./Workbench.css";
-import RulesModal from "./RulesModal"; // Импорт нового компонента
+import RulesModal from "./RulesModal";
+import AuthModal from "./AuthModal"; // Импорт модального окна аутентификации
+import { useAuth } from "./useAuth"; // Импорт хука для работы с аутентификацией
 
 export default function Workbench() {
   const [activeDrawer, setActiveDrawer] = useState<string | null>(null);
-  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false); // Состояние для модалки
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  
+  // Используем глобальное состояние аутентификации
+  const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen } = useAuth();
 
-  // Функции для управления модалкой
   const handleRulesClick = () => {
     setIsRulesModalOpen(true);
   };
 
   const handleCloseRulesModal = () => {
     setIsRulesModalOpen(false);
+  };
+
+  // Обработчик для открытия модального окна регистрации/входа
+  const handleAuthButtonClick = () => {
+    if (isAuthenticated) {
+      // Если пользователь авторизован, кнопка ведет в профиль.
+      // Здесь можно добавить навигацию, например: router.push('/profile');
+      alert("Переход в личный кабинет (профиль)");
+    } else {
+      // Если гость — открываем окно регистрации/входа
+      setAuthModalOpen(true);
+    }
   };
 
   const leftDrawers = [
@@ -31,7 +47,7 @@ export default function Workbench() {
       label: "Правила", 
       icon: "🎯", 
       color: "#CD853F",
-      action: handleRulesClick // Добавлено специальное действие
+      action: handleRulesClick
     },
   ];
 
@@ -43,7 +59,13 @@ export default function Workbench() {
     { id: "meetups", label: "Встречи", icon: "📅", color: "#8B7355" },
     { id: "settings", label: "Настройки", icon: "⚙️", color: "#A0522D" },
     { id: "support", label: "Помощь", icon: "🆘", color: "#D2691E" },
-    { id: "logout", label: "Выйти", icon: "🚪", color: "#CD853F" },
+    { 
+      id: "logout", 
+      label: "Выйти", 
+      icon: "🚪", 
+      color: "#CD853F",
+      action: () => logout() // Специальное действие для выхода
+    },
   ];
 
   const tools = [
@@ -57,7 +79,6 @@ export default function Workbench() {
     { id: "heart", label: "Избранное", icon: "❤️", action: () => alert("Добавить в избранное") },
   ];
 
-  // 6 окошек вместо 4
   const features = [
     { id: 1, icon: "🔨", text: "Демонстрируйте<br />свои самоделки" },
     { id: 2, icon: "👨‍🍳", text: "Делитесь<br />кулинарными шедеврами" },
@@ -67,7 +88,6 @@ export default function Workbench() {
     { id: 6, icon: "💰", text: "Продавайте свои<br />товары и идеи" },
   ];
 
-  // Принудительное обновление стилей при изменении CSS
   useEffect(() => {
     const interval = setInterval(() => {
       const links = document.querySelectorAll('link[rel="stylesheet"]');
@@ -87,9 +107,15 @@ export default function Workbench() {
   const handleDrawerClick = (drawerId: string) => {
     setActiveDrawer(drawerId);
     
-    // Специальная обработка для кнопки "Правила"
     if (drawerId === "contests") {
       handleRulesClick();
+      return;
+    }
+    
+    // Обработка специальных действий для правой тумбы
+    const drawer = rightDrawers.find(d => d.id === drawerId);
+    if (drawer && drawer.action) {
+      drawer.action(); // Например, вызов logout для "Выйти"
       return;
     }
     
@@ -98,10 +124,8 @@ export default function Workbench() {
 
   return (
     <div className="workshop">
-      {/* Верхняя панель с инструментами */}
       <div className="tools-panel">
         <div className="tools-container">
-          {/* Кнопки увеличены в 2 раза по ширине */}
           {tools.map((tool) => (
             <button
               key={tool.id}
@@ -118,7 +142,6 @@ export default function Workbench() {
       </div>
 
       <div className="workbench-container">
-        {/* Левая тумба */}
         <div className="toolbox left-toolbox">
           <div className="toolbox-label">Инструменты</div>
           {leftDrawers.map((drawer) => (
@@ -136,23 +159,21 @@ export default function Workbench() {
           ))}
         </div>
 
-        {/* Центральный верстак */}
         <div className="workbench">
           <div className="workbench-surface">
-            {/* Декоративные элементы верстака */}
             <div className="vice"></div>
             <div className="clamp"></div>
             <div className="wood-grain"></div>
 
-            {/* Заголовок */}
             <div className="title-container">
               <h1 className="workshop-title">САМОДЕЛКИН</h1>
-              <p className="workshop-subtitle">
-                Сообщество домашних мастеров
-              </p>
+              <p className="workshop-subtitle">Сообщество домашних мастеров</p>
+              {/* Отображение логина авторизованного пользователя */}
+              {isAuthenticated && user && (
+                <p className="user-greeting">Добро пожаловать, {user.login}!</p>
+              )}
             </div>
 
-            {/* Контентная область */}
             <div className="workbench-content">
               <div className="project-description">
                 <div className="description-icon">🌟</div>
@@ -166,7 +187,6 @@ export default function Workbench() {
                   умеющих идею воплотить в жизнь своими руками.
                 </p>
 
-                {/* 6 ОКОШЕК ВМЕСТО 4 - 3 В ВЕРХНЕМ РЯДУ И 3 В НИЖНЕМ */}
                 <div className="features">
                   {features.map((feature) => (
                     <div key={feature.id} className="feature">
@@ -180,14 +200,21 @@ export default function Workbench() {
                 </div>
 
                 <div className="cta">
-                  <button className="cta-button" onClick={() => alert("Добро пожаловать в сообщество Кулибиных!")}>
-                    Присоединиться к Кулибиным
+                  {/* Динамическая кнопка регистрации/профиля */}
+                  <button 
+                    className="cta-button" 
+                    onClick={handleAuthButtonClick}
+                  >
+                    {isAuthenticated ? "Мой профиль" : "Присоединиться к Кулибиным"}
                   </button>
-                  <p className="cta-note">Общайтесь с гениями и непоседами с горящими глазами!</p>
+                  <p className="cta-note">
+                    {isAuthenticated 
+                      ? "Рады видеть вас в сообществе!" 
+                      : "Общайтесь с гениями и непоседами с горящими глазами!"}
+                  </p>
                 </div>
               </div>
 
-              {/* Статистика сообщества */}
               <div className="community-stats">
                 <div className="stat-item">
                   <span className="stat-number">1,892</span>
@@ -204,7 +231,6 @@ export default function Workbench() {
               </div>
             </div>
 
-            {/* Декоративные элементы */}
             <div className="sawdust"></div>
             <div className="wood-chips"></div>
             <div className="screw"></div>
@@ -213,7 +239,6 @@ export default function Workbench() {
           </div>
         </div>
 
-        {/* Правая тумба */}
         <div className="toolbox right-toolbox">
           <div className="toolbox-label">Моя мастерская</div>
           {rightDrawers.map((drawer) => (
@@ -232,17 +257,21 @@ export default function Workbench() {
         </div>
       </div>
 
-      {/* Анимация искр */}
       <div className="sparks">
         {[...Array(8)].map((_, i) => (
           <div key={i} className="spark"></div>
         ))}
       </div>
 
-      {/* Модальное окно Правил */}
       <RulesModal 
         isOpen={isRulesModalOpen} 
         onClose={handleCloseRulesModal} 
+      />
+      
+      {/* Модальное окно регистрации и входа */}
+      <AuthModal 
+        isOpen={authModalOpen} 
+        onClose={() => setAuthModalOpen(false)} 
       />
     </div>
   );

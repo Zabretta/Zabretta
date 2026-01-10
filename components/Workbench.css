@@ -458,65 +458,62 @@
   border: none;
   border-radius: 50px;
   padding: 16px 45px;
-  font-size: 1.1em;
+  font-size: 1.2em;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 5px 15px rgba(139, 69, 19, 0.4);
 }
 
-.cta-button:hover {
+.cta-button:hover:not(:disabled) {
+  background: linear-gradient(to right, #A0522D, #D2691E);
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(139, 69, 19, 0.6);
-  background: linear-gradient(to right, #A0522D, #D2691E);
 }
 
-.cta-button:active {
-  transform: translateY(0);
-  box-shadow: 0 3px 10px rgba(139, 69, 19, 0.4);
+.cta-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .cta-note {
   color: #8B7355;
   font-size: 0.9em;
-  margin-top: 12px;
-  font-style: italic;
+  margin-top: 10px;
 }
 
 .community-stats {
   display: flex;
   justify-content: center;
   gap: 40px;
-  margin-top: 40px;
-  flex-wrap: wrap;
+  margin-top: 30px;
 }
 
 .stat-item {
   text-align: center;
-  padding: 15px 25px;
-  background: rgba(139, 115, 85, 0.8);
-  border-radius: 10px;
-  border: 2px solid #8B4513;
-  min-width: 120px;
 }
 
 .stat-number {
   display: block;
   color: #8B4513;
   font-size: 2.2em;
-  font-weight: bold;
+  font-weight: 900;
   margin-bottom: 5px;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .stat-label {
-  display: block;
   color: #5D4037;
   font-size: 0.9em;
   font-weight: 600;
 }
 
-/* Анимация искр */
+.user-greeting {
+  color: #A0522D;
+  font-size: 1.1em;
+  margin-top: 10px;
+  font-weight: 600;
+}
+
 .sparks {
   position: fixed;
   top: 0;
@@ -524,194 +521,291 @@
   right: 0;
   bottom: 0;
   pointer-events: none;
-  z-index: 999;
+  z-index: 1;
 }
 
 .spark {
   position: absolute;
-  width: 3px;
-  height: 20px;
-  background: linear-gradient(to top, transparent, #FFD700);
-  animation: spark-fall 3s linear infinite;
+  width: 4px;
+  height: 4px;
+  background: #FFD700;
+  border-radius: 50%;
+  opacity: 0;
+  animation: sparkle 3s infinite;
 }
 
-.spark:nth-child(1) { left: 10%; animation-delay: 0s; }
-.spark:nth-child(2) { left: 20%; animation-delay: 0.5s; }
-.spark:nth-child(3) { left: 30%; animation-delay: 1s; }
-.spark:nth-child(4) { left: 40%; animation-delay: 1.5s; }
-.spark:nth-child(5) { left: 50%; animation-delay: 2s; }
-.spark:nth-child(6) { left: 60%; animation-delay: 2.5s; }
-.spark:nth-child(7) { left: 70%; animation-delay: 3s; }
-.spark:nth-child(8) { left: 80%; animation-delay: 3.5s; }
-
-@keyframes spark-fall {
+@keyframes sparkle {
   0% {
-    transform: translateY(-100vh) rotate(0deg);
+    opacity: 0;
+    transform: translateY(0) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
     opacity: 1;
   }
   100% {
-    transform: translateY(100vh) rotate(360deg);
     opacity: 0;
+    transform: translateY(-100px) rotate(360deg);
   }
 }
 
-/* Адаптивность для 6 окошек и широкого дизайна */
-@media (min-width: 1600px) {
-  .workshop {
-    min-width: 100%;
-  }
-  
-  .tools-panel {
-    min-width: 100%;
-  }
-  
-  .tools-container {
-    max-width: 1550px;
-    margin: 0 auto;
-  }
-  
-  .workbench-content {
-    max-width: 1000px;
-  }
+/* Стили для системы настроек (ДОБАВЛЕНО) */
+
+/* CSS переменные для тем */
+:root {
+  --settings-brightness: 100%;
+  --font-size-scale: 1;
 }
 
-@media (max-width: 1599px) {
-  .workshop {
-    min-width: 1550px;
-  }
+/* Темы */
+.theme-light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --border-color: #e0e0e0;
 }
 
-@media (max-width: 1200px) {
-  .workshop {
-    min-width: 1400px;
-  }
-  
-  .tool {
-    width: 145px;
-    min-width: 145px;
-  }
-  
-  .tools-panel {
-    min-width: 1400px;
-    padding: 15px 30px;
-  }
-  
-  .workbench-container {
-    min-width: 1350px;
-  }
-  
-  .workbench {
-    min-width: 700px;
-  }
-  
-  /* На планшетах - 2 окошка в ряд */
-  .features {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 18px;
-  }
-  
-  .feature {
-    min-height: 100px;
-    padding: 18px 12px;
-  }
-  
-  .workbench-content {
-    max-width: 800px;
-  }
+.theme-dark {
+  --bg-primary: #1a0f0a;
+  --bg-secondary: #2c1810;
+  --text-primary: #F5DEB3;
+  --text-secondary: #BCAAA4;
+  --border-color: #5D4037;
 }
 
+/* Применение яркости ВО ВСЕХ элементах */
+.workshop,
+.workshop * {
+  filter: brightness(var(--settings-brightness, 100%)) !important;
+}
+
+/* Применение размера шрифта */
+.workshop {
+  font-size: calc(1em * var(--font-size-scale, 1));
+}
+
+/* Отключение анимаций */
+.no-animations * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.reduced-motion * {
+  transition-duration: 0.1s !important;
+  animation-duration: 0.1s !important;
+}
+
+/* Применение цветов темы к конкретным элементам */
+.theme-light .workbench {
+  background: linear-gradient(to bottom, #e0e0e0, #d0d0d0) !important;
+}
+
+.theme-dark .workbench {
+  background: linear-gradient(to bottom, #5D4037, #4E342E) !important;
+}
+
+.theme-light .tool {
+  background: linear-gradient(135deg, #b0b0b0, #909090) !important;
+  border-color: #808080 !important;
+}
+
+.theme-dark .tool {
+  background: linear-gradient(135deg, #A0522D, #8B4513) !important;
+  border-color: #8B4513 !important;
+}
+
+/* Анимация для искр (уже есть выше, оставляем) */
+
+/* Стили для мобильных устройств (если нужно добавить) */
 @media (max-width: 768px) {
-  /* На мобильных - горизонтальный скролл */
   .workshop {
-    min-width: 1200px;
-  }
-  
-  .tool {
-    width: 130px;
-    min-width: 130px;
-    height: 55px;
-  }
-  
-  .tools-panel {
-    min-width: 1200px;
-    padding: 15px 20px;
-  }
-  
-  .tools-container {
-    gap: 12px;
+    min-width: 100%;
+    overflow-x: hidden;
   }
   
   .workbench-container {
-    min-width: 1150px;
     flex-direction: column;
+    min-width: 100%;
+    padding: 10px;
   }
   
   .toolbox {
     width: 100%;
-    max-width: 500px;
-    margin: 0 auto;
   }
   
   .workbench {
-    min-width: auto;
-    order: 1;
-    margin-bottom: 20px;
+    min-width: 100%;
+    padding: 15px;
   }
   
-  .left-toolbox,
-  .right-toolbox {
-    order: 2;
-  }
-  
-  .workshop-title {
-    font-size: 2.5em;
-  }
-  
-  /* На мобильных - 1 окошко в ряд */
   .features {
-    grid-template-columns: 1fr;
-    gap: 15px;
-  }
-  
-  .feature {
-    min-height: 90px;
-    padding: 15px 10px;
-  }
-  
-  .feature-icon {
-    font-size: 2em;
-  }
-  
-  .workbench-content {
-    max-width: 600px;
-  }
-}
-
-@media (max-width: 480px) {
-  .workshop {
-    min-width: 1050px;
-  }
-  
-  .tool {
-    width: 115px;
-    min-width: 115px;
-    height: 50px;
-  }
-  
-  .tools-panel {
-    min-width: 1050px;
-    padding: 10px 15px;
+    grid-template-columns: repeat(2, 1fr);
   }
   
   .tools-container {
-    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   
-  .workbench-container {
-    min-width: 1000px;
+  .tool {
+    min-width: 120px;
+    width: 120px;
   }
-  
-  .feature-text {
-    font-size: 0.85em;
-  }
+}
+
+/* Стили для системы настроек */
+
+/* CSS переменные для тем */
+:root {
+  --settings-brightness: 100%;
+  --font-size-scale: 1;
+}
+
+/* Темы */
+.theme-light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --border-color: #e0e0e0;
+}
+
+.theme-dark {
+  --bg-primary: #1a0f0a;
+  --bg-secondary: #2c1810;
+  --text-primary: #F5DEB3;
+  --text-secondary: #BCAAA4;
+  --border-color: #5D4037;
+}
+
+/* Применение яркости ТОЛЬКО к основным элементам, но не к модалкам! */
+.workshop {
+  filter: brightness(var(--settings-brightness, 100%)) !important;
+}
+
+/* НЕ применяем яркость к модальным окнам */
+.settings-modal-overlay,
+.rules-modal-overlay,
+.auth-modal-overlay,
+.marketplace-overlay {
+  filter: brightness(100%) !important;
+}
+
+/* Применение размера шрифта к основному контенту */
+.workshop {
+  font-size: calc(1em * var(--font-size-scale, 1));
+}
+
+/* Размер шрифта не должен меняться в модалках */
+.settings-modal-container,
+.rules-modal-container,
+.auth-modal,
+.marketplace-container {
+  font-size: 1em !important;
+}
+
+/* Отключение анимаций */
+.no-animations * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.reduced-motion * {
+  transition-duration: 0.1s !important;
+  animation-duration: 0.1s !important;
+}
+
+/* Применение цветов темы к конкретным элементам */
+.theme-light .workbench {
+  background: linear-gradient(to bottom, #e0e0e0, #d0d0d0) !important;
+}
+
+.theme-dark .workbench {
+  background: linear-gradient(to bottom, #5D4037, #4E342E) !important;
+}
+
+.theme-light .tool {
+  background: linear-gradient(135deg, #b0b0b0, #909090) !important;
+  border-color: #808080 !important;
+}
+
+.theme-dark .tool {
+  background: linear-gradient(135deg, #A0522D, #8B4513) !important;
+  border-color: #8B4513 !important;
+}
+
+/* Яркость для отдельных элементов внутри workshop */
+.theme-light .toolbox {
+  background: linear-gradient(to right, #f0f0f0, #e0e0e0) !important;
+}
+
+.theme-dark .toolbox {
+  background: linear-gradient(to right, #3a2518, #2c1810) !important;
+}
+
+/* Для project-description */
+.theme-light .project-description {
+  background: rgba(240, 240, 240, 0.9) !important;
+  color: #333333 !important;
+}
+
+.theme-dark .project-description {
+  background: rgba(60, 40, 30, 0.9) !important;
+  color: #F5DEB3 !important;
+}
+
+/* Для текста в project-description */
+.theme-light .description-text {
+  color: #333333 !important;
+}
+
+.theme-dark .description-text {
+  color: #D7CCC8 !important;
+}
+
+.theme-light .feature-text {
+  color: #333333 !important;
+}
+
+.theme-dark .feature-text {
+  color: #D7CCC8 !important;
+}
+
+/* Для community-stats */
+.theme-light .stat-number {
+  color: #8B4513 !important;
+}
+
+.theme-dark .stat-number {
+  color: #D2691E !important;
+}
+
+.theme-light .stat-label {
+  color: #666666 !important;
+}
+
+.theme-dark .stat-label {
+  color: #BCAAA4 !important;
+}
+
+/* Важное добавление: защита модального окна настроек от изменений яркости */
+.settings-modal-container *,
+.settings-modal-overlay * {
+  filter: brightness(100%) !important;
+}
+
+/* Особо защищаем содержимое модалки */
+.settings-modal-container,
+.settings-modal-container .modal-content,
+.settings-modal-container .settings-item,
+.settings-modal-container .setting-control,
+.settings-modal-container .slider-container,
+.settings-modal-container input,
+.settings-modal-container select,
+.settings-modal-container button {
+  filter: brightness(100%) !important;
+  -webkit-filter: brightness(100%) !important;
 }

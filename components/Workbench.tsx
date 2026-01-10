@@ -1,4 +1,4 @@
-// Workbench.tsx - С системой аутентификации, 6 окошками и модалкой Правил
+// components/Workbench.tsx - полный исправленный файл
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,6 +6,7 @@ import "./Workbench.css";
 import RulesModal from "./RulesModal";
 import AuthModal from "./AuthModal";
 import Marketplace from "./Marketplace";
+import SettingsModal from "./SettingsModal"; // Импорт должен работать
 import { useAuth } from "./useAuth";
 
 export default function Workbench() {
@@ -13,19 +14,16 @@ export default function Workbench() {
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen } = useAuth();
 
-  // Определение мобильного устройства и обработка ресайза
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
     
-    // Проверяем при загрузке
     checkMobile();
-    
-    // Слушаем изменения размера окна
     window.addEventListener('resize', checkMobile);
     
     return () => {
@@ -49,6 +47,7 @@ export default function Workbench() {
     }
   };
 
+  // МАССИВЫ ДОЛЖНЫ БЫТЬ ЗДЕСЬ:
   const leftDrawers = [
     { id: "projects", label: "Лента проектов", icon: "📁", color: "#8B4513" },
     { id: "masters", label: "Мастера рядом", icon: "👥", color: "#A0522D" },
@@ -109,12 +108,6 @@ export default function Workbench() {
     { id: 6, icon: "💰", text: "Продавайте свои<br />товары и идеи" },
   ];
 
-  // УДАЛЕН принудительный перезагруз стилей (мешал медиа-запросам)
-  useEffect(() => {
-    // Можно добавить другую логику инициализации здесь
-    console.log("Workbench component mounted");
-  }, []);
-
   const handleDrawerClick = (drawerId: string) => {
     setActiveDrawer(drawerId);
     
@@ -125,6 +118,12 @@ export default function Workbench() {
     
     if (drawerId === "market") {
       setIsMarketplaceOpen(true);
+      return;
+    }
+    
+    // Обработчик для настроек
+    if (drawerId === "settings") {
+      setIsSettingsOpen(true);
       return;
     }
     
@@ -147,7 +146,7 @@ export default function Workbench() {
               className="tool"
               title={tool.label}
               onClick={tool.action}
-              style={{ width: isMobile ? '140px' : '160px' }} // Адаптивная ширина
+              style={{ width: isMobile ? '140px' : '160px' }}
             >
               <span className="tool-icon">{tool.icon}</span>
               <span className="tool-label">{tool.label}</span>
@@ -289,6 +288,10 @@ export default function Workbench() {
         isOpen={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 
       />
+      
+      {isSettingsOpen && (
+        <SettingsModal onClose={() => setIsSettingsOpen(false)} />
+      )}
     </div>
   );
 }

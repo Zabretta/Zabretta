@@ -215,3 +215,107 @@
   margin-bottom: 20px;
   font-size: 0.9em;
 }
+
+/* Медиа-запросы для адаптации под мобильные устройства */
+@media (max-width: 768px) {
+  .auth-modal-overlay {
+    padding: 10px;
+    align-items: flex-start; /* Выравнивание модалки вверху на мобильных */
+    padding-top: 60px; /* Отступ сверху для учёта верхней панели */
+  }
+
+  .auth-modal {
+    padding: 20px;
+    max-width: 100%; /* На мобильных модалка занимает почти всю ширину */
+    margin: 0 10px;
+    border-radius: 10px;
+  }
+
+  .auth-modal-tabs {
+    flex-direction: column; /* Табы в столбик на узких экранах */
+    border-bottom: none;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .auth-modal-tabs button {
+    padding: 15px;
+    font-size: 1em;
+    border: 1px solid #8B7355;
+    border-radius: 6px;
+    background: rgba(245, 222, 179, 0.05);
+  }
+
+  .auth-modal-tabs button.active {
+    background: rgba(139, 69, 19, 0.3);
+    border-color: #D2691E;
+  }
+
+  .auth-modal-tabs button.active::after {
+    display: none; /* Убираем нижнюю полоску, так как табы в столбик */
+  }
+
+  .auth-modal form {
+    gap: 12px;
+  }
+
+  .auth-modal input[type="email"],
+  .auth-modal input[type="text"],
+  .auth-modal input[type="password"] {
+    padding: 15px;
+    font-size: 16px; /* Увеличение для лучшего касания на мобильных */
+  }
+
+  .auth-modal button[type="submit"],
+  .auth-form-actions button[type="submit"] {
+    padding: 16px;
+    font-size: 1em;
+  }
+
+  .auth-form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .auth-form-actions .secondary-btn {
+    margin-top: 5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-modal {
+    padding: 15px;
+  }
+
+  .auth-modal-tabs button {
+    padding: 12px;
+    font-size: 0.95em;
+  }
+
+  .auth-modal form h3 {
+    font-size: 1.3em;
+  }
+
+  .auth-modal form p {
+    font-size: 0.85em;
+  }
+
+  .agreement-checkbox {
+    font-size: 0.85em;
+  }
+
+  .auth-message {
+    font-size: 0.85em;
+    padding: 10px;
+  }
+}
+
+/* Отключение анимации для людей, предпочитающих уменьшенное движение */
+@media (prefers-reduced-motion: reduce) {
+  .auth-modal button,
+  .auth-modal input,
+  .close-modal {
+    transition: none;
+  }
+}

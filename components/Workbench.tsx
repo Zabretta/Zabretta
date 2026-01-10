@@ -4,15 +4,32 @@
 import { useState, useEffect } from "react";
 import "./Workbench.css";
 import RulesModal from "./RulesModal";
-import AuthModal from "./AuthModal"; // Импорт модального окна аутентификации
-import { useAuth } from "./useAuth"; // Импорт хука для работы с аутентификацией
+import AuthModal from "./AuthModal";
+import { useAuth } from "./useAuth";
 
 export default function Workbench() {
   const [activeDrawer, setActiveDrawer] = useState<string | null>(null);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
-  // Используем глобальное состояние аутентификации
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen } = useAuth();
+
+  // Определение мобильного устройства и обработка ресайза
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    // Проверяем при загрузке
+    checkMobile();
+    
+    // Слушаем изменения размера окна
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   const handleRulesClick = () => {
     setIsRulesModalOpen(true);
@@ -22,14 +39,10 @@ export default function Workbench() {
     setIsRulesModalOpen(false);
   };
 
-  // Обработчик для открытия модального окна регистрации/входа
   const handleAuthButtonClick = () => {
     if (isAuthenticated) {
-      // Если пользователь авторизован, кнопка ведет в профиль.
-      // Здесь можно добавить навигацию, например: router.push('/profile');
       alert("Переход в личный кабинет (профиль)");
     } else {
-      // Если гость — открываем окно регистрации/входа
       setAuthModalOpen(true);
     }
   };
@@ -64,7 +77,7 @@ export default function Workbench() {
       label: "Выйти", 
       icon: "🚪", 
       color: "#CD853F",
-      action: () => logout() // Специальное действие для выхода
+      action: () => logout()
     },
   ];
 
@@ -88,20 +101,10 @@ export default function Workbench() {
     { id: 6, icon: "💰", text: "Продавайте свои<br />товары и идеи" },
   ];
 
+  // УДАЛЕН принудительный перезагруз стилей (мешал медиа-запросам)
   useEffect(() => {
-    const interval = setInterval(() => {
-      const links = document.querySelectorAll('link[rel="stylesheet"]');
-      links.forEach(link => {
-        const href = link.getAttribute('href');
-        if (href && href.includes('Workbench.css')) {
-          const url = new URL(href, window.location.origin);
-          url.searchParams.set('t', Date.now().toString());
-          link.setAttribute('href', url.toString());
-        }
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
+    // Можно добавить другую логику инициализации здесь
+    console.log("Workbench component mounted");
   }, []);
 
   const handleDrawerClick = (drawerId: string) => {
@@ -112,10 +115,9 @@ export default function Workbench() {
       return;
     }
     
-    // Обработка специальных действий для правой тумбы
     const drawer = rightDrawers.find(d => d.id === drawerId);
     if (drawer && drawer.action) {
-      drawer.action(); // Например, вызов logout для "Выйти"
+      drawer.action();
       return;
     }
     
@@ -132,7 +134,7 @@ export default function Workbench() {
               className="tool"
               title={tool.label}
               onClick={tool.action}
-              style={{ width: '160px' }}
+              style={{ width: isMobile ? '140px' : '160px' }} // Адаптивная ширина
             >
               <span className="tool-icon">{tool.icon}</span>
               <span className="tool-label">{tool.label}</span>
@@ -168,7 +170,6 @@ export default function Workbench() {
             <div className="title-container">
               <h1 className="workshop-title">САМОДЕЛКИН</h1>
               <p className="workshop-subtitle">Сообщество домашних мастеров</p>
-              {/* Отображение логина авторизованного пользователя */}
               {isAuthenticated && user && (
                 <p className="user-greeting">Добро пожаловать, {user.login}!</p>
               )}
@@ -200,7 +201,6 @@ export default function Workbench() {
                 </div>
 
                 <div className="cta">
-                  {/* Динамическая кнопка регистрации/профиля */}
                   <button 
                     className="cta-button" 
                     onClick={handleAuthButtonClick}
@@ -268,7 +268,6 @@ export default function Workbench() {
         onClose={handleCloseRulesModal} 
       />
       
-      {/* Модальное окно регистрации и входа */}
       <AuthModal 
         isOpen={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 

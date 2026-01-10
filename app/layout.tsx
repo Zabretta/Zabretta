@@ -1,4 +1,5 @@
-import { AuthProvider } from '@/components/useAuth';
+import { AuthProvider } from '../components/useAuth';
+import { SettingsProvider } from '../components/SettingsContext'; // Импорт из ../components
 
 export const metadata = {
   title: 'Самоделкин - Сообщество домашних мастеров',
@@ -14,7 +15,9 @@ export default function RootLayout({
     <html lang="ru">
       <body>
         <AuthProvider>
-          {children}
+          <SettingsProvider> {/* Новый провайдер */}
+            {children}
+          </SettingsProvider>
         </AuthProvider>
       </body>
     </html>

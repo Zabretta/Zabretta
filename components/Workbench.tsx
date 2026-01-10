@@ -5,12 +5,14 @@ import { useState, useEffect } from "react";
 import "./Workbench.css";
 import RulesModal from "./RulesModal";
 import AuthModal from "./AuthModal";
+import Marketplace from "./Marketplace";
 import { useAuth } from "./useAuth";
 
 export default function Workbench() {
   const [activeDrawer, setActiveDrawer] = useState<string | null>(null);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
   
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen } = useAuth();
 
@@ -54,7 +56,13 @@ export default function Workbench() {
     { id: "achievements", label: "Достижения", icon: "🏆", color: "#CD853F" },
     { id: "help", label: "Ищут помощи", icon: "❓", color: "#8B7355" },
     { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D" },
-    { id: "market", label: "Барахолка", icon: "🛒", color: "#D2691E" },
+    { 
+      id: "market", 
+      label: "Барахолка", 
+      icon: "🛒", 
+      color: "#D2691E",
+      action: () => setIsMarketplaceOpen(true)
+    },
     { 
       id: "contests", 
       label: "Правила", 
@@ -115,7 +123,12 @@ export default function Workbench() {
       return;
     }
     
-    const drawer = rightDrawers.find(d => d.id === drawerId);
+    if (drawerId === "market") {
+      setIsMarketplaceOpen(true);
+      return;
+    }
+    
+    const drawer = leftDrawers.find(d => d.id === drawerId) || rightDrawers.find(d => d.id === drawerId);
     if (drawer && drawer.action) {
       drawer.action();
       return;
@@ -262,6 +275,10 @@ export default function Workbench() {
           <div key={i} className="spark"></div>
         ))}
       </div>
+
+      {isMarketplaceOpen && (
+        <Marketplace onClose={() => setIsMarketplaceOpen(false)} />
+      )}
 
       <RulesModal 
         isOpen={isRulesModalOpen} 

@@ -77,7 +77,7 @@ export default function Workbench() {
     { id: "liked", label: "Понравилось", icon: "❤️", color: "#D2691E" },
     { id: "myworkshop", label: "Моя мастерская", icon: "📸", color: "#CD853F" },
     { id: "meetups", label: "Встречи", icon: "📅", color: "#8B7355" },
-    { id: "settings", label: "Настройки", icon: "⚙️", color: "#A0522D" },
+    { id: "settings", label: "Настройки", icon: "⚙️", color: "#A0522D", action: () => alert("Настройки(заглушка)") },
     { id: "support", label: "Помощь", icon: "🆘", color: "#D2691E" },
     { 
       id: "logout", 
@@ -92,7 +92,7 @@ export default function Workbench() {
     { id: "hammer", label: "Похвалить", icon: "🔨", action: () => alert("Молодец! Отличная работа!") },
     { id: "share", label: "Поделиться", icon: "📤", action: () => alert("Открывается меню 'Поделиться'") },
     { id: "stats", label: "Статистика", icon: "📏", action: () => alert("Статистика сообщества") },
-    { id: "settings", label: "Настройки", icon: "⚙️", action: () => alert("Настройки сайта") },
+    { id: "settings", label: "Настройки", icon: "⚙️", action: () => setIsSettingsOpen(true) },
     { id: "pencil", label: "Комментировать", icon: "✏️", action: () => alert("Добавить комментарий") },
     { id: "paint", label: "Оформить", icon: "🎨", action: () => alert("Настроить внешний вид") },
     { id: "light", label: "Идеи", icon: "💡", action: () => alert("Генератор идей") },

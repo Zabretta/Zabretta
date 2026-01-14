@@ -1,4 +1,4 @@
-// components/Workbench.tsx - полный исправленный файл
+// components/Workbench.tsx - с удалёнными кнопками "Настройки" (боковая панель) и "Мои беседы"
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,7 +6,7 @@ import "./Workbench.css";
 import RulesModal from "./RulesModal";
 import AuthModal from "./AuthModal";
 import Marketplace from "./Marketplace";
-import SettingsModal from "./SettingsModal"; // Импорт должен работать
+import SettingsModal from "./SettingsModal";
 import { useAuth } from "./useAuth";
 
 export default function Workbench() {
@@ -51,7 +51,7 @@ export default function Workbench() {
   const leftDrawers = [
     { id: "projects", label: "Лента проектов", icon: "📁", color: "#8B4513" },
     { id: "masters", label: "Мастера рядом", icon: "👥", color: "#A0522D" },
-    { id: "messages", label: "Мои беседы", icon: "💬", color: "#D2691E" },
+    // Кнопка "Мои беседы" удалена отсюда (была на этой строке)
     { id: "achievements", label: "Достижения", icon: "🏆", color: "#CD853F" },
     { id: "help", label: "Ищут помощи", icon: "❓", color: "#8B7355" },
     { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D" },
@@ -77,7 +77,7 @@ export default function Workbench() {
     { id: "liked", label: "Понравилось", icon: "❤️", color: "#D2691E" },
     { id: "myworkshop", label: "Моя мастерская", icon: "📸", color: "#CD853F" },
     { id: "meetups", label: "Встречи", icon: "📅", color: "#8B7355" },
-    { id: "settings", label: "Настройки", icon: "⚙️", color: "#A0522D", action: () => alert("Настройки(заглушка)") },
+    // Кнопка "Настройки" удалена отсюда (была на этой строке)
     { id: "support", label: "Помощь", icon: "🆘", color: "#D2691E" },
     { 
       id: "logout", 
@@ -92,6 +92,7 @@ export default function Workbench() {
     { id: "hammer", label: "Похвалить", icon: "🔨", action: () => alert("Молодец! Отличная работа!") },
     { id: "share", label: "Поделиться", icon: "📤", action: () => alert("Открывается меню 'Поделиться'") },
     { id: "stats", label: "Статистика", icon: "📏", action: () => alert("Статистика сообщества") },
+    // ИСПРАВЛЕНО: Теперь кнопка "Настройки" в верхней панели открывает модальное окно
     { id: "settings", label: "Настройки", icon: "⚙️", action: () => setIsSettingsOpen(true) },
     { id: "pencil", label: "Комментировать", icon: "✏️", action: () => alert("Добавить комментарий") },
     { id: "paint", label: "Оформить", icon: "🎨", action: () => alert("Настроить внешний вид") },
@@ -121,11 +122,7 @@ export default function Workbench() {
       return;
     }
     
-    // Обработчик для настроек
-    if (drawerId === "settings") {
-      setIsSettingsOpen(true);
-      return;
-    }
+    // УДАЛЕНО: Специальная обработка для ящика "settings", так как его больше нет
     
     const drawer = leftDrawers.find(d => d.id === drawerId) || rightDrawers.find(d => d.id === drawerId);
     if (drawer && drawer.action) {

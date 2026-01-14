@@ -6,8 +6,8 @@
   min-height: 100vh;
   background: #2c1810;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  min-width: 1550px;
-  overflow-x: auto;
+  /* УДАЛЕНО: min-width: 1550px; */
+  overflow-x: hidden; /* Изменено с auto на hidden */
 }
 
 /* Верхняя панель инструментов - ШИРОКАЯ ДЛЯ 8 КНОПОК В РЯД */
@@ -18,22 +18,22 @@
   background: rgba(44, 24, 16, 0.95);
   backdrop-filter: blur(10px);
   border-bottom: 3px solid #8B4513;
-  padding: 15px 50px;
+  padding: 15px 20px; /* Уменьшено с 50px */
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-  min-width: 1520px;
+  /* УДАЛЕНО: min-width: 1520px; */
   width: 100%;
   box-sizing: border-box;
-  overflow-x: visible;
+  overflow-x: auto; /* Добавлена горизонтальная прокрутка для самой панели */
 }
 
 .tools-container {
   display: flex;
-  justify-content: center;
-  gap: 18px;
+  justify-content: flex-start; /* Изменено с center на flex-start */
+  gap: 12px; /* Уменьшено с 18px */
   flex-wrap: nowrap;
   margin: 0 auto;
-  width: 100%;
-  max-width: none;
+  width: max-content; /* Изменено с 100% */
+  min-width: 100%; /* Контейнер не меньше ширины панели */
 }
 
 /* УВЕЛИЧЕННЫЕ КНОПКИ - ВСЕ В ОДНОМ РЯДУ */
@@ -42,7 +42,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 155px;
+  width: 140px; /* Уменьшено с 155px */
   height: 60px;
   background: linear-gradient(135deg, #A0522D, #8B4513);
   border: 2px solid #8B4513;
@@ -54,7 +54,7 @@
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
-  min-width: 155px;
+  min-width: 140px; /* Уменьшено с 155px */
 }
 
 .tool::before {
@@ -101,21 +101,22 @@
 /* Контейнер верстака */
 .workbench-container {
   display: flex;
+  flex-direction: column; /* По умолчанию колонка для мобильных */
   min-height: calc(100vh - 100px);
-  padding: 20px;
-  gap: 20px;
+  padding: 15px; /* Уменьшено с 20px */
+  gap: 15px; /* Уменьшено с 20px */
   position: relative;
   z-index: 2;
-  min-width: 1500px;
+  /* УДАЛЕНО: min-width: 1500px; */
 }
 
 /* Тумбы с ящиками */
 .toolbox {
-  width: 260px;
+  width: 100%; /* Изменено с 260px */
   background: linear-gradient(to right, #3a2518, #2c1810);
   border: 3px solid #8B4513;
   border-radius: 12px;
-  padding: 25px;
+  padding: 20px; /* Уменьшено с 25px */
   box-shadow: 
     inset 0 0 25px rgba(0, 0, 0, 0.5),
     5px 5px 20px rgba(0, 0, 0, 0.4);
@@ -149,7 +150,7 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 24px 20px;
+  padding: 20px 15px; /* Уменьшено с 24px 20px */
   background: linear-gradient(to right, #5D4037, #4E342E);
   border: none;
   border-left: 6px solid;
@@ -220,14 +221,15 @@
   background: linear-gradient(to bottom, #5D4037, #4E342E);
   border: 4px solid #8B4513;
   border-radius: 15px;
-  padding: 25px;
+  padding: 20px; /* Уменьшено с 25px */
   box-shadow: 
     inset 0 0 30px rgba(0, 0, 0, 0.4),
     0 10px 30px rgba(0, 0, 0, 0.4);
   position: relative;
   overflow: hidden;
-  min-height: 600px;
-  min-width: 800px;
+  min-height: 500px; /* Уменьшено с 600px */
+  /* УДАЛЕНО: min-width: 800px; */
+  order: 2; /* Порядок в колонке: после левой панели */
 }
 
 .workbench-surface {
@@ -235,9 +237,9 @@
   background: linear-gradient(135deg, #8B7355, #A0522D);
   border: 3px solid #5D4037;
   border-radius: 10px;
-  padding: 30px;
+  padding: 20px; /* Уменьшено с 30px */
   height: 100%;
-  min-height: 550px;
+  min-height: 450px; /* Уменьшено с 550px */
   box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
 }
 
@@ -342,15 +344,15 @@
 /* Заголовок и контент */
 .title-container {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 20px; /* Уменьшено с 30px */
 }
 
 .workshop-title {
   color: #8B4513;
-  font-size: 3.5em;
+  font-size: 2.5em; /* Уменьшено с 3.5em */
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 3px;
+  letter-spacing: 2px; /* Уменьшено с 3px */
   margin: 0 0 10px 0;
   text-shadow: 
     3px 3px 0 #5D4037,
@@ -359,62 +361,64 @@
 
 .workshop-subtitle {
   color: #A0522D;
-  font-size: 1.2em;
+  font-size: 1.1em; /* Уменьшено с 1.2em */
   font-weight: 600;
   margin: 0;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .workbench-content {
-  max-width: 900px; /* УВЕЛИЧЕНО для 6 окошек */
+  max-width: 100%; /* Изменено с 900px */
   margin: 0 auto;
+  padding: 0 10px; /* Добавлены боковые отступы */
+  box-sizing: border-box;
 }
 
 .project-description {
   background: rgba(245, 222, 179, 0.9);
   border: 3px solid #8B4513;
   border-radius: 12px;
-  padding: 30px; /* УВЕЛИЧЕНО */
-  margin-bottom: 30px;
+  padding: 20px; /* Уменьшено с 30px */
+  margin-bottom: 20px; /* Уменьшено с 30px */
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 .description-icon {
-  font-size: 2.5em;
+  font-size: 2em; /* Уменьшено с 2.5em */
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 15px; /* Уменьшено с 20px */
 }
 
 .project-description h2 {
   color: #8B4513;
-  font-size: 1.8em;
+  font-size: 1.5em; /* Уменьшено с 1.8em */
   text-align: center;
-  margin: 0 0 25px 0;
+  margin: 0 0 15px 0; /* Уменьшено с 25px */
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .description-text {
   color: #5D4037;
   line-height: 1.6;
-  margin-bottom: 20px;
-  font-size: 1.05em;
+  margin-bottom: 15px; /* Уменьшено с 20px */
+  font-size: 1em; /* Уменьшено с 1.05em */
 }
 
 /* 6 ОКОШЕК (3 в ряд, 2 ряда) */
 .features {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 3 В РЯДУ */
-  gap: 20px;
-  margin: 35px 0;
+  grid-template-columns: repeat(2, 1fr); /* Изменено с 3 на 2 в ряд по умолчанию */
+  gap: 15px; /* Уменьшено с 20px */
+  margin: 25px 0; /* Уменьшено с 35px */
 }
 
 .feature {
   text-align: center;
-  padding: 20px 15px;
+  padding: 15px 10px; /* Уменьшено с 20px 15px */
   background: rgba(139, 69, 19, 0.1);
   border-radius: 10px;
   border: 2px solid rgba(139, 69, 19, 0.3);
-  min-height: 110px;
+  min-height: 90px; /* Уменьшено с 110px */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -431,15 +435,15 @@
 }
 
 .feature-icon {
-  font-size: 2.2em;
+  font-size: 1.8em; /* Уменьшено с 2.2em */
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 8px; /* Уменьшено с 12px */
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
 }
 
 .feature-text {
   color: #5D4037;
-  font-size: 0.95em;
+  font-size: 0.9em; /* Уменьшено с 0.95em */
   line-height: 1.4;
   font-weight: 600;
   text-align: center;
@@ -447,8 +451,8 @@
 
 .cta {
   text-align: center;
-  margin-top: 35px;
-  padding-top: 20px;
+  margin-top: 25px; /* Уменьшено с 35px */
+  padding-top: 15px; /* Уменьшено с 20px */
   border-top: 2px dashed rgba(139, 69, 19, 0.3);
 }
 
@@ -457,12 +461,16 @@
   color: white;
   border: none;
   border-radius: 50px;
-  padding: 16px 45px;
-  font-size: 1.2em;
+  padding: 14px 30px; /* Уменьшено с 16px 45px */
+  font-size: 1.1em;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 5px 15px rgba(139, 69, 19, 0.4);
+  display: inline-block;
+  width: auto;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .cta-button:hover:not(:disabled) {
@@ -478,40 +486,47 @@
 
 .cta-note {
   color: #8B7355;
-  font-size: 0.9em;
+  font-size: 0.85em; /* Уменьшено с 0.9em */
   margin-top: 10px;
+  line-height: 1.4;
 }
 
 .community-stats {
   display: flex;
+  flex-direction: column; /* По умолчанию колонка */
   justify-content: center;
-  gap: 40px;
-  margin-top: 30px;
+  gap: 20px; /* Уменьшено с 40px */
+  margin-top: 25px; /* Уменьшено с 30px */
+  align-items: center;
 }
 
 .stat-item {
   text-align: center;
+  min-width: 120px;
 }
 
 .stat-number {
   display: block;
   color: #8B4513;
-  font-size: 2.2em;
+  font-size: 2em; /* Уменьшено с 2.2em */
   font-weight: 900;
   margin-bottom: 5px;
 }
 
 .stat-label {
   color: #5D4037;
-  font-size: 0.9em;
+  font-size: 0.85em; /* Уменьшено с 0.9em */
   font-weight: 600;
+  line-height: 1.3;
 }
 
 .user-greeting {
   color: #A0522D;
-  font-size: 1.1em;
-  margin-top: 10px;
+  font-size: 1em; /* Уменьшено с 1.1em */
+  margin-top: 15px; /* Уменьшено с 10px */
   font-weight: 600;
+  text-align: center;
+  padding: 0 10px;
 }
 
 .sparks {
@@ -551,261 +566,172 @@
   }
 }
 
-/* Стили для системы настроек (ДОБАВЛЕНО) */
+/* ====================== */
+/* МЕДИА-ЗАПРОСЫ ДЛЯ АДАПТИВНОСТИ */
+/* ====================== */
 
-/* CSS переменные для тем */
-:root {
-  --settings-brightness: 100%;
-  --font-size-scale: 1;
-}
-
-/* Темы */
-.theme-light {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --border-color: #e0e0e0;
-}
-
-.theme-dark {
-  --bg-primary: #1a0f0a;
-  --bg-secondary: #2c1810;
-  --text-primary: #F5DEB3;
-  --text-secondary: #BCAAA4;
-  --border-color: #5D4037;
-}
-
-/* Применение яркости ВО ВСЕХ элементах */
-.workshop,
-.workshop * {
-  filter: brightness(var(--settings-brightness, 100%)) !important;
-}
-
-/* Применение размера шрифта */
-.workshop {
-  font-size: calc(1em * var(--font-size-scale, 1));
-}
-
-/* Отключение анимаций */
-.no-animations * {
-  transition: none !important;
-  animation: none !important;
-}
-
-.reduced-motion * {
-  transition-duration: 0.1s !important;
-  animation-duration: 0.1s !important;
-}
-
-/* Применение цветов темы к конкретным элементам */
-.theme-light .workbench {
-  background: linear-gradient(to bottom, #e0e0e0, #d0d0d0) !important;
-}
-
-.theme-dark .workbench {
-  background: linear-gradient(to bottom, #5D4037, #4E342E) !important;
-}
-
-.theme-light .tool {
-  background: linear-gradient(135deg, #b0b0b0, #909090) !important;
-  border-color: #808080 !important;
-}
-
-.theme-dark .tool {
-  background: linear-gradient(135deg, #A0522D, #8B4513) !important;
-  border-color: #8B4513 !important;
-}
-
-/* Анимация для искр (уже есть выше, оставляем) */
-
-/* Стили для мобильных устройств (если нужно добавить) */
-@media (max-width: 768px) {
-  .workshop {
-    min-width: 100%;
-    overflow-x: hidden;
-  }
-  
+/* Планшеты (ширина от 769px) */
+@media (min-width: 769px) {
   .workbench-container {
-    flex-direction: column;
-    min-width: 100%;
-    padding: 10px;
+    flex-direction: row; /* Возвращаем строку */
+    padding: 20px;
+    gap: 20px;
   }
   
   .toolbox {
-    width: 100%;
+    width: 260px; /* Возвращаем фиксированную ширину */
   }
   
   .workbench {
-    min-width: 100%;
-    padding: 15px;
+    order: 0; /* Сбрасываем порядок */
+    min-height: 600px;
+  }
+  
+  .workbench-surface {
+    padding: 30px;
+    min-height: 550px;
+  }
+  
+  .workshop-title {
+    font-size: 3.5em;
+    letter-spacing: 3px;
+  }
+  
+  .workshop-subtitle {
+    font-size: 1.2em;
   }
   
   .features {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr); /* 3 в ряд */
+    gap: 20px;
+    margin: 35px 0;
   }
   
+  .feature {
+    padding: 20px 15px;
+    min-height: 110px;
+  }
+  
+  .community-stats {
+    flex-direction: row; /* Статистика в строку */
+    gap: 40px;
+  }
+}
+
+/* Большие планшеты и маленькие ноутбуки (ширина от 1024px) */
+@media (min-width: 1024px) {
   .tools-container {
-    flex-wrap: wrap;
-    justify-content: center;
+    justify-content: center; /* Центрируем кнопки */
+    width: 100%;
+  }
+  
+  .tools-panel {
+    padding: 15px 50px;
+    overflow-x: visible; /* Убираем прокрутку панели */
   }
   
   .tool {
-    min-width: 120px;
-    width: 120px;
+    width: 155px;
+    min-width: 155px;
+  }
+  
+  .project-description {
+    padding: 30px;
+  }
+  
+  .cta-button {
+    padding: 16px 45px;
   }
 }
 
-/* Стили для системы настроек */
-
-/* CSS переменные для тем */
-:root {
-  --settings-brightness: 100%;
-  --font-size-scale: 1;
+/* Очень маленькие телефоны (ширина до 480px) */
+@media (max-width: 480px) {
+  .tools-panel {
+    padding: 10px 15px;
+  }
+  
+  .tool {
+    width: 120px;
+    min-width: 120px;
+    height: 55px;
+  }
+  
+  .tool-icon {
+    font-size: 1.3em;
+  }
+  
+  .tool-label {
+    font-size: 0.65em;
+  }
+  
+  .workbench-container {
+    padding: 10px;
+    gap: 10px;
+  }
+  
+  .toolbox {
+    padding: 15px;
+  }
+  
+  .drawer {
+    padding: 15px 10px;
+    gap: 12px;
+    min-height: 60px;
+  }
+  
+  .drawer-icon {
+    font-size: 1.7em;
+  }
+  
+  .drawer-label {
+    font-size: 1em;
+  }
+  
+  .workshop-title {
+    font-size: 2em;
+    letter-spacing: 1px;
+  }
+  
+  .workshop-subtitle {
+    font-size: 1em;
+  }
+  
+  .features {
+    grid-template-columns: 1fr; /* 1 в ряд на очень маленьких экранах */
+    gap: 10px;
+  }
+  
+  .feature {
+    padding: 12px 8px;
+    min-height: 80px;
+  }
+  
+  .feature-icon {
+    font-size: 1.6em;
+  }
+  
+  .feature-text {
+    font-size: 0.85em;
+  }
+  
+  .community-stats {
+    gap: 15px;
+  }
+  
+  .stat-number {
+    font-size: 1.8em;
+  }
 }
 
-/* Темы */
-.theme-light {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --border-color: #e0e0e0;
-}
-
-.theme-dark {
-  --bg-primary: #1a0f0a;
-  --bg-secondary: #2c1810;
-  --text-primary: #F5DEB3;
-  --text-secondary: #BCAAA4;
-  --border-color: #5D4037;
-}
-
-/* Применение яркости ТОЛЬКО к основным элементам, но не к модалкам! */
-.workshop {
-  filter: brightness(var(--settings-brightness, 100%)) !important;
-}
-
-/* НЕ применяем яркость к модальным окнам */
-.settings-modal-overlay,
-.rules-modal-overlay,
-.auth-modal-overlay,
-.marketplace-overlay {
-  filter: brightness(100%) !important;
-}
-
-/* Применение размера шрифта к основному контенту */
-.workshop {
-  font-size: calc(1em * var(--font-size-scale, 1));
-}
-
-/* Размер шрифта не должен меняться в модалках */
-.settings-modal-container,
-.rules-modal-container,
-.auth-modal,
-.marketplace-container {
-  font-size: 1em !important;
-}
-
-/* Отключение анимаций */
-.no-animations * {
-  transition: none !important;
-  animation: none !important;
-}
-
-.reduced-motion * {
-  transition-duration: 0.1s !important;
-  animation-duration: 0.1s !important;
-}
-
-/* Применение цветов темы к конкретным элементам */
-.theme-light .workbench {
-  background: linear-gradient(to bottom, #e0e0e0, #d0d0d0) !important;
-}
-
-.theme-dark .workbench {
-  background: linear-gradient(to bottom, #5D4037, #4E342E) !important;
-}
-
-.theme-light .tool {
-  background: linear-gradient(135deg, #b0b0b0, #909090) !important;
-  border-color: #808080 !important;
-}
-
-.theme-dark .tool {
-  background: linear-gradient(135deg, #A0522D, #8B4513) !important;
-  border-color: #8B4513 !important;
-}
-
-/* Яркость для отдельных элементов внутри workshop */
-.theme-light .toolbox {
-  background: linear-gradient(to right, #f0f0f0, #e0e0e0) !important;
-}
-
-.theme-dark .toolbox {
-  background: linear-gradient(to right, #3a2518, #2c1810) !important;
-}
-
-/* Для project-description */
-.theme-light .project-description {
-  background: rgba(240, 240, 240, 0.9) !important;
-  color: #333333 !important;
-}
-
-.theme-dark .project-description {
-  background: rgba(60, 40, 30, 0.9) !important;
-  color: #F5DEB3 !important;
-}
-
-/* Для текста в project-description */
-.theme-light .description-text {
-  color: #333333 !important;
-}
-
-.theme-dark .description-text {
-  color: #D7CCC8 !important;
-}
-
-.theme-light .feature-text {
-  color: #333333 !important;
-}
-
-.theme-dark .feature-text {
-  color: #D7CCC8 !important;
-}
-
-/* Для community-stats */
-.theme-light .stat-number {
-  color: #8B4513 !important;
-}
-
-.theme-dark .stat-number {
-  color: #D2691E !important;
-}
-
-.theme-light .stat-label {
-  color: #666666 !important;
-}
-
-.theme-dark .stat-label {
-  color: #BCAAA4 !important;
-}
-
-/* Важное добавление: защита модального окна настроек от изменений яркости */
-.settings-modal-container *,
-.settings-modal-overlay * {
-  filter: brightness(100%) !important;
-}
-
-/* Особо защищаем содержимое модалки */
-.settings-modal-container,
-.settings-modal-container .modal-content,
-.settings-modal-container .settings-item,
-.settings-modal-container .setting-control,
-.settings-modal-container .slider-container,
-.settings-modal-container input,
-.settings-modal-container select,
-.settings-modal-container button {
-  filter: brightness(100%) !important;
-  -webkit-filter: brightness(100%) !important;
+/* Скрываем декоративные элементы на мобильных */
+@media (max-width: 768px) {
+  .vice,
+  .clamp,
+  .sawdust,
+  .wood-chips,
+  .screw,
+  .nail,
+  .tape-measure {
+    display: none;
+  }
 }

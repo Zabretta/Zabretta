@@ -6,7 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "format": "prettier --write .",
+    "check": "npm run lint && npm run build",
+    "preview": "npm run build && npm run start",
+    "clean": "rm -rf .next node_modules",
+    "reinstall": "npm run clean && npm install",
+    "open:dev": "npm run dev && (xdg-open http://localhost:3000 || echo 'Open http://localhost:3000 in browser')",
+    "studio": "npx @next/bundle-analyzer"
   },
   "dependencies": {
     "next": "14.2.5",
@@ -22,6 +29,7 @@
     "autoprefixer": "^10.0.1",
     "postcss": "^8",
     "eslint": "^8",
-    "eslint-config-next": "14.2.5"
+    "eslint-config-next": "14.2.5",
+    "prettier": "^3.2.5"
   }
 }

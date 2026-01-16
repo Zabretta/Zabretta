@@ -1,48 +1,124 @@
-/* Workbench.css - Полная версия с 6 окошками */
+/* Workbench.css - черный фон, кастомные скроллбары */
 
-/* Основные стили - ОДИН РОВНЫЙ ФОН */
+/* Сброс отступов и установка черного фона */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  background-color: #000000; /* Абсолютно черный фон */
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Стили скроллбаров для всего сайта */
+::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a; /* Темно-серый фон трека */
+  border-radius: 8px;
+  border: 2px solid #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #A0522D, #8B4513);
+  border-radius: 8px;
+  border: 2px solid #5D4037;
+  min-height: 40px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  border-color: #D2691E;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(135deg, #5D4037, #8B4513);
+}
+
+::-webkit-scrollbar-corner {
+  background: #000000;
+}
+
+/* Для Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #A0522D #1a1a1a;
+}
+
+/* Основной контейнер - черный фон */
 .workshop {
   position: relative;
   min-height: 100vh;
-  background: #2c1810;
+  background: #000000; /* Черный фон вместо #2c1810 */
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  /* УДАЛЕНО: min-width: 1550px; */
-  overflow-x: hidden; /* Изменено с auto на hidden */
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #A0522D #1a1a1a;
 }
 
-/* Верхняя панель инструментов - ШИРОКАЯ ДЛЯ 8 КНОПОК В РЯД */
+/* Верхняя панель инструментов */
 .tools-panel {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(44, 24, 16, 0.95);
+  background: rgba(0, 0, 0, 0.95); /* Полупрозрачный черный */
   backdrop-filter: blur(10px);
   border-bottom: 3px solid #8B4513;
-  padding: 15px 20px; /* Уменьшено с 50px */
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-  /* УДАЛЕНО: min-width: 1520px; */
+  padding: 12px 15px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.8);
   width: 100%;
   box-sizing: border-box;
-  overflow-x: auto; /* Добавлена горизонтальная прокрутка для самой панели */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #D2691E rgba(0, 0, 0, 0.9);
+}
+
+/* Стили скроллбара только для верхней панели */
+.tools-panel::-webkit-scrollbar {
+  height: 12px;
+}
+
+.tools-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 6px;
+  margin: 0 15px;
+  border: 1px solid #5D4037;
+}
+
+.tools-panel::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #A0522D, #D2691E);
+  border-radius: 6px;
+  border: 2px solid #8B4513;
+}
+
+.tools-panel::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #D2691E, #FF8C00);
 }
 
 .tools-container {
   display: flex;
-  justify-content: flex-start; /* Изменено с center на flex-start */
-  gap: 12px; /* Уменьшено с 18px */
+  justify-content: flex-start;
+  gap: 10px;
   flex-wrap: nowrap;
-  margin: 0 auto;
-  width: max-content; /* Изменено с 100% */
-  min-width: 100%; /* Контейнер не меньше ширины панели */
+  min-width: min-content;
 }
 
-/* УВЕЛИЧЕННЫЕ КНОПКИ - ВСЕ В ОДНОМ РЯДУ */
+/* Кнопки верхней панели */
 .tool {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 140px; /* Уменьшено с 155px */
+  width: 140px;
   height: 60px;
   background: linear-gradient(135deg, #A0522D, #8B4513);
   border: 2px solid #8B4513;
@@ -54,7 +130,16 @@
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
-  min-width: 140px; /* Уменьшено с 155px */
+}
+
+/* Мобильный вид кнопок */
+.tool.mobile {
+  width: 110px;
+  height: 50px;
+}
+
+.tool.mobile .tool-label {
+  font-size: 0.65em;
 }
 
 .tool::before {
@@ -98,39 +183,106 @@
   z-index: 1;
 }
 
-/* Контейнер верстака */
+/* Основной контейнер верстака - Grid */
 .workbench-container {
-  display: flex;
-  flex-direction: column; /* По умолчанию колонка для мобильных */
+  display: grid;
+  grid-template-areas: 
+    "left-toolbox"
+    "workbench"
+    "right-toolbox";
+  grid-template-columns: 1fr;
+  gap: 15px;
+  padding: 15px;
   min-height: calc(100vh - 100px);
-  padding: 15px; /* Уменьшено с 20px */
-  gap: 15px; /* Уменьшено с 20px */
   position: relative;
   z-index: 2;
-  /* УДАЛЕНО: min-width: 1500px; */
+  background: #000000; /* Черный фон контейнера */
 }
 
-/* Тумбы с ящиками */
+/* Десктопный макет */
+@media (min-width: 1024px) {
+  .workbench-container {
+    grid-template-areas: "left-toolbox workbench right-toolbox";
+    grid-template-columns: 260px 1fr 260px;
+  }
+}
+
+/* Боковые панели с горизонтальной прокруткой */
 .toolbox {
-  width: 100%; /* Изменено с 260px */
-  background: linear-gradient(to right, #3a2518, #2c1810);
+  background: linear-gradient(to right, #1a120b, #000000); /* Темнее градиент */
   border: 3px solid #8B4513;
   border-radius: 12px;
-  padding: 20px; /* Уменьшено с 25px */
+  padding: 15px;
   box-shadow: 
-    inset 0 0 25px rgba(0, 0, 0, 0.5),
-    5px 5px 20px rgba(0, 0, 0, 0.4);
+    inset 0 0 25px rgba(0, 0, 0, 0.8),
+    5px 5px 20px rgba(0, 0, 0, 0.6);
   display: flex;
-  flex-direction: column;
-  gap: 15px;
-  flex-shrink: 0;
+  flex-direction: row;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: #CD853F rgba(26, 18, 11, 0.9);
+}
+
+/* Стили скроллбара для боковых панелей */
+.toolbox::-webkit-scrollbar {
+  height: 10px;
+}
+
+.toolbox::-webkit-scrollbar-track {
+  background: rgba(26, 18, 11, 0.9);
+  border-radius: 5px;
+  margin: 5px 0;
+  border: 1px solid #5D4037;
+}
+
+.toolbox::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #CD853F, #A0522D);
+  border-radius: 5px;
+  border: 1px solid #8B4513;
+}
+
+.toolbox::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #D2691E, #CD853F);
+}
+
+@media (min-width: 1024px) {
+  .toolbox {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    gap: 15px;
+    scrollbar-width: thin;
+    scrollbar-color: #A0522D rgba(26, 18, 11, 0.9);
+  }
+  
+  .toolbox::-webkit-scrollbar {
+    width: 10px;
+    height: auto;
+  }
+  
+  .toolbox::-webkit-scrollbar-track {
+    background: rgba(26, 18, 11, 0.9);
+    border-radius: 5px;
+    margin: 0 5px;
+  }
+  
+  .toolbox::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #A0522D, #8B4513);
+    border-radius: 5px;
+    border: 1px solid #5D4037;
+  }
 }
 
 .toolbox.left-toolbox {
+  grid-area: left-toolbox;
   border-right: 6px solid #5D4037;
 }
 
 .toolbox.right-toolbox {
+  grid-area: right-toolbox;
   border-left: 6px solid #5D4037;
 }
 
@@ -139,97 +291,188 @@
   font-size: 1.4em;
   font-weight: bold;
   text-align: center;
-  margin-bottom: 25px;
-  padding-bottom: 15px;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
   border-bottom: 3px solid #8B4513;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  flex-shrink: 0;
+  width: 100%;
 }
 
-/* Ящики тумб */
+@media (min-width: 1024px) {
+  .toolbox-label {
+    margin-bottom: 25px;
+  }
+}
+
+/* Кнопки боковых панелей */
 .drawer {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 18px;
-  padding: 20px 15px; /* Уменьшено с 24px 20px */
+  justify-content: center;
+  gap: 8px;
+  padding: 15px 10px;
   background: linear-gradient(to right, #5D4037, #4E342E);
   border: none;
-  border-left: 6px solid;
   border-radius: 10px;
   color: #F5DEB3;
   cursor: pointer;
   transition: all 0.3s ease;
-  position: relative;
-  text-align: left;
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
-  min-height: 70px;
+  text-align: center;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.5);
+  min-width: 80px;
+  min-height: 80px;
+  flex-shrink: 0;
 }
 
-.right-toolbox .drawer {
-  border-left: none;
-  border-right: 6px solid;
+@media (min-width: 1024px) {
+  .drawer {
+    flex-direction: row;
+    text-align: left;
+    min-width: auto;
+    min-height: 70px;
+    padding: 20px 15px;
+    gap: 18px;
+  }
+  
+  .drawer {
+    border-left: 6px solid;
+  }
+  
+  .right-toolbox .drawer {
+    border-left: none;
+    border-right: 6px solid;
+  }
+}
+
+/* Скрытие текста на мобильных */
+.drawer.mobile .drawer-label {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .drawer.mobile .drawer-label {
+    display: block;
+  }
 }
 
 .drawer:hover {
-  transform: translateX(8px);
-  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+  transform: translateY(-5px);
   background: linear-gradient(to right, #6D4C41, #5D4037);
 }
 
-.right-toolbox .drawer:hover {
-  transform: translateX(-8px);
+@media (min-width: 1024px) {
+  .drawer:hover {
+    transform: translateX(8px);
+  }
+  
+  .right-toolbox .drawer:hover {
+    transform: translateX(-8px);
+  }
 }
 
 .drawer.open {
   background: linear-gradient(to right, #8B4513, #A0522D);
-  transform: translateX(15px);
-  box-shadow: 0 10px 20px rgba(139, 69, 19, 0.5);
 }
 
-.right-toolbox .drawer.open {
-  transform: translateX(-15px);
+@media (min-width: 1024px) {
+  .drawer.open {
+    transform: translateX(15px);
+  }
+  
+  .right-toolbox .drawer.open {
+    transform: translateX(-15px);
+  }
 }
 
+/* Декоративные элементы кнопок */
 .drawer-handle {
-  width: 30px;
-  height: 8px;
-  background: #D7CCC8;
-  border-radius: 4px;
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .drawer-handle {
+    display: block;
+    width: 30px;
+    height: 8px;
+    background: #D7CCC8;
+    border-radius: 4px;
+  }
 }
 
 .drawer-icon {
-  font-size: 2em;
-  min-width: 40px;
-  text-align: center;
+  font-size: 1.8em;
+}
+
+@media (min-width: 1024px) {
+  .drawer-icon {
+    font-size: 2em;
+    min-width: 40px;
+  }
 }
 
 .drawer-label {
-  flex: 1;
-  font-size: 1.2em;
+  font-size: 0.85em;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.2;
+}
+
+@media (min-width: 1024px) {
+  .drawer-label {
+    font-size: 1.2em;
+    flex: 1;
+  }
 }
 
 .drawer-arrow {
-  font-size: 1.8em;
-  opacity: 0.7;
-  min-width: 25px;
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .drawer-arrow {
+    display: block;
+    font-size: 1.8em;
+    opacity: 0.7;
+    min-width: 25px;
+  }
 }
 
 /* Центральный верстак */
 .workbench {
-  flex: 1;
+  grid-area: workbench;
   background: linear-gradient(to bottom, #5D4037, #4E342E);
   border: 4px solid #8B4513;
   border-radius: 15px;
-  padding: 20px; /* Уменьшено с 25px */
+  padding: 20px;
   box-shadow: 
-    inset 0 0 30px rgba(0, 0, 0, 0.4),
-    0 10px 30px rgba(0, 0, 0, 0.4);
-  position: relative;
-  overflow: hidden;
-  min-height: 500px; /* Уменьшено с 600px */
-  /* УДАЛЕНО: min-width: 800px; */
-  order: 2; /* Порядок в колонке: после левой панели */
+    inset 0 0 30px rgba(0, 0, 0, 0.6),
+    0 10px 30px rgba(0, 0, 0, 0.8);
+  min-height: 500px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #8B7355 rgba(94, 52, 46, 0.9);
+}
+
+/* Стили скроллбара для центрального верстака */
+.workbench::-webkit-scrollbar {
+  width: 12px;
+}
+
+.workbench::-webkit-scrollbar-track {
+  background: rgba(94, 52, 46, 0.9);
+  border-radius: 6px;
+  border: 1px solid #5D4037;
+}
+
+.workbench::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #8B7355, #A0522D);
+  border-radius: 6px;
+  border: 2px solid #5D4037;
+}
+
+.workbench::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #A0522D, #D2691E);
 }
 
 .workbench-surface {
@@ -237,12 +480,13 @@
   background: linear-gradient(135deg, #8B7355, #A0522D);
   border: 3px solid #5D4037;
   border-radius: 10px;
-  padding: 20px; /* Уменьшено с 30px */
+  padding: 20px;
   height: 100%;
-  min-height: 450px; /* Уменьшено с 550px */
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+  min-height: 450px;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
+/* Текстура дерева */
 .wood-grain {
   position: absolute;
   top: 0;
@@ -264,6 +508,171 @@
   border-radius: 7px;
 }
 
+/* Заголовок */
+.title-container {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.workshop-title {
+  color: #8B4513;
+  font-size: 2.5em;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0 0 10px 0;
+  text-shadow: 
+    3px 3px 0 #5D4037,
+    6px 6px 0 rgba(0, 0, 0, 0.5);
+}
+
+.workshop-subtitle {
+  color: #A0522D;
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 0;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.user-greeting {
+  color: #F5DEB3;
+  font-size: 1em;
+  margin-top: 10px;
+  font-style: italic;
+}
+
+/* Контент верстака */
+.workbench-content {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+.project-description {
+  background: rgba(245, 222, 179, 0.95);
+  border: 3px solid #8B4513;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.description-icon {
+  font-size: 2em;
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.project-description h2 {
+  color: #8B4513;
+  font-size: 1.5em;
+  text-align: center;
+  margin: 0 0 15px 0;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.description-text {
+  color: #5D4037;
+  line-height: 1.6;
+  margin-bottom: 15px;
+  font-size: 1em;
+}
+
+/* Особенности (6 окон) */
+.features {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin: 25px 0;
+}
+
+.feature {
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #8B4513;
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.feature-icon {
+  font-size: 2.5em;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.feature-text {
+  color: #5D4037;
+  font-size: 1em;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+/* Кнопка CTA */
+.cta {
+  text-align: center;
+  margin-top: 25px;
+}
+
+.cta-button {
+  background: linear-gradient(135deg, #A0522D, #8B4513);
+  border: 3px solid #8B4513;
+  border-radius: 8px;
+  color: white;
+  padding: 15px 40px;
+  font-size: 1.2em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 5px 15px rgba(139, 69, 19, 0.4);
+}
+
+.cta-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(139, 69, 19, 0.6);
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+}
+
+.cta-note {
+  color: #5D4037;
+  font-size: 0.9em;
+  margin-top: 10px;
+  font-style: italic;
+}
+
+/* Статистика сообщества */
+.community-stats {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #8B4513;
+  border-radius: 10px;
+  padding: 15px;
+  min-width: 120px;
+}
+
+.stat-number {
+  color: #8B4513;
+  font-size: 2em;
+  font-weight: bold;
+}
+
+.stat-label {
+  color: #5D4037;
+  font-size: 0.9em;
+  text-align: center;
+}
+
 /* Декоративные элементы верстака */
 .vice {
   position: absolute;
@@ -273,7 +682,7 @@
   height: 60px;
   background: #708090;
   border-radius: 4px;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
 }
 
 .clamp {
@@ -284,7 +693,7 @@
   height: 20px;
   background: #A9A9A9;
   border-radius: 3px;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
 }
 
 .sawdust {
@@ -341,200 +750,13 @@
   opacity: 0.7;
 }
 
-/* Заголовок и контент */
-.title-container {
-  text-align: center;
-  margin-bottom: 20px; /* Уменьшено с 30px */
-}
-
-.workshop-title {
-  color: #8B4513;
-  font-size: 2.5em; /* Уменьшено с 3.5em */
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 2px; /* Уменьшено с 3px */
-  margin: 0 0 10px 0;
-  text-shadow: 
-    3px 3px 0 #5D4037,
-    6px 6px 0 rgba(0, 0, 0, 0.2);
-}
-
-.workshop-subtitle {
-  color: #A0522D;
-  font-size: 1.1em; /* Уменьшено с 1.2em */
-  font-weight: 600;
-  margin: 0;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-.workbench-content {
-  max-width: 100%; /* Изменено с 900px */
-  margin: 0 auto;
-  padding: 0 10px; /* Добавлены боковые отступы */
-  box-sizing: border-box;
-}
-
-.project-description {
-  background: rgba(245, 222, 179, 0.9);
-  border: 3px solid #8B4513;
-  border-radius: 12px;
-  padding: 20px; /* Уменьшено с 30px */
-  margin-bottom: 20px; /* Уменьшено с 30px */
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-}
-
-.description-icon {
-  font-size: 2em; /* Уменьшено с 2.5em */
-  text-align: center;
-  margin-bottom: 15px; /* Уменьшено с 20px */
-}
-
-.project-description h2 {
-  color: #8B4513;
-  font-size: 1.5em; /* Уменьшено с 1.8em */
-  text-align: center;
-  margin: 0 0 15px 0; /* Уменьшено с 25px */
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.description-text {
-  color: #5D4037;
-  line-height: 1.6;
-  margin-bottom: 15px; /* Уменьшено с 20px */
-  font-size: 1em; /* Уменьшено с 1.05em */
-}
-
-/* 6 ОКОШЕК (3 в ряд, 2 ряда) */
-.features {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr); /* Изменено с 3 на 2 в ряд по умолчанию */
-  gap: 15px; /* Уменьшено с 20px */
-  margin: 25px 0; /* Уменьшено с 35px */
-}
-
-.feature {
-  text-align: center;
-  padding: 15px 10px; /* Уменьшено с 20px 15px */
-  background: rgba(139, 69, 19, 0.1);
-  border-radius: 10px;
-  border: 2px solid rgba(139, 69, 19, 0.3);
-  min-height: 90px; /* Уменьшено с 110px */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-}
-
-.feature:hover {
-  transform: translateY(-5px);
-  background: rgba(139, 69, 19, 0.15);
-  box-shadow: 0 8px 20px rgba(139, 69, 19, 0.25);
-  border-color: #8B4513;
-}
-
-.feature-icon {
-  font-size: 1.8em; /* Уменьшено с 2.2em */
-  display: block;
-  margin-bottom: 8px; /* Уменьшено с 12px */
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
-}
-
-.feature-text {
-  color: #5D4037;
-  font-size: 0.9em; /* Уменьшено с 0.95em */
-  line-height: 1.4;
-  font-weight: 600;
-  text-align: center;
-}
-
-.cta {
-  text-align: center;
-  margin-top: 25px; /* Уменьшено с 35px */
-  padding-top: 15px; /* Уменьшено с 20px */
-  border-top: 2px dashed rgba(139, 69, 19, 0.3);
-}
-
-.cta-button {
-  background: linear-gradient(to right, #8B4513, #A0522D);
-  color: white;
-  border: none;
-  border-radius: 50px;
-  padding: 14px 30px; /* Уменьшено с 16px 45px */
-  font-size: 1.1em;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 5px 15px rgba(139, 69, 19, 0.4);
-  display: inline-block;
-  width: auto;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.cta-button:hover:not(:disabled) {
-  background: linear-gradient(to right, #A0522D, #D2691E);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(139, 69, 19, 0.6);
-}
-
-.cta-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.cta-note {
-  color: #8B7355;
-  font-size: 0.85em; /* Уменьшено с 0.9em */
-  margin-top: 10px;
-  line-height: 1.4;
-}
-
-.community-stats {
-  display: flex;
-  flex-direction: column; /* По умолчанию колонка */
-  justify-content: center;
-  gap: 20px; /* Уменьшено с 40px */
-  margin-top: 25px; /* Уменьшено с 30px */
-  align-items: center;
-}
-
-.stat-item {
-  text-align: center;
-  min-width: 120px;
-}
-
-.stat-number {
-  display: block;
-  color: #8B4513;
-  font-size: 2em; /* Уменьшено с 2.2em */
-  font-weight: 900;
-  margin-bottom: 5px;
-}
-
-.stat-label {
-  color: #5D4037;
-  font-size: 0.85em; /* Уменьшено с 0.9em */
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.user-greeting {
-  color: #A0522D;
-  font-size: 1em; /* Уменьшено с 1.1em */
-  margin-top: 15px; /* Уменьшено с 10px */
-  font-weight: 600;
-  text-align: center;
-  padding: 0 10px;
-}
-
+/* Искры (анимация) */
 .sparks {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   z-index: 1;
 }
@@ -545,193 +767,175 @@
   height: 4px;
   background: #FFD700;
   border-radius: 50%;
-  opacity: 0;
-  animation: sparkle 3s infinite;
+  animation: sparkAnimation 1.5s infinite;
 }
 
-@keyframes sparkle {
+@keyframes sparkAnimation {
   0% {
+    transform: translateY(0) scale(1);
     opacity: 0;
-    transform: translateY(0) rotate(0deg);
   }
-  10% {
-    opacity: 1;
-  }
-  90% {
+  50% {
     opacity: 1;
   }
   100% {
+    transform: translateY(-100px) scale(0);
     opacity: 0;
-    transform: translateY(-100px) rotate(360deg);
   }
 }
 
-/* ====================== */
-/* МЕДИА-ЗАПРОСЫ ДЛЯ АДАПТИВНОСТИ */
-/* ====================== */
+.spark:nth-child(1) { top: 20%; left: 10%; animation-delay: 0s; }
+.spark:nth-child(2) { top: 40%; left: 20%; animation-delay: 0.2s; }
+.spark:nth-child(3) { top: 60%; left: 30%; animation-delay: 0.4s; }
+.spark:nth-child(4) { top: 80%; left: 40%; animation-delay: 0.6s; }
+.spark:nth-child(5) { top: 30%; left: 60%; animation-delay: 0.8s; }
+.spark:nth-child(6) { top: 50%; left: 70%; animation-delay: 1s; }
+.spark:nth-child(7) { top: 70%; left: 80%; animation-delay: 1.2s; }
+.spark:nth-child(8) { top: 90%; left: 90%; animation-delay: 1.4s; }
 
-/* Планшеты (ширина от 769px) */
-@media (min-width: 769px) {
-  .workbench-container {
-    flex-direction: row; /* Возвращаем строку */
-    padding: 20px;
-    gap: 20px;
-  }
-  
-  .toolbox {
-    width: 260px; /* Возвращаем фиксированную ширину */
-  }
-  
-  .workbench {
-    order: 0; /* Сбрасываем порядок */
-    min-height: 600px;
-  }
-  
-  .workbench-surface {
-    padding: 30px;
-    min-height: 550px;
-  }
-  
-  .workshop-title {
-    font-size: 3.5em;
-    letter-spacing: 3px;
-  }
-  
-  .workshop-subtitle {
-    font-size: 1.2em;
-  }
-  
-  .features {
-    grid-template-columns: repeat(3, 1fr); /* 3 в ряд */
-    gap: 20px;
-    margin: 35px 0;
-  }
-  
-  .feature {
-    padding: 20px 15px;
-    min-height: 110px;
-  }
-  
-  .community-stats {
-    flex-direction: row; /* Статистика в строку */
-    gap: 40px;
-  }
-}
-
-/* Большие планшеты и маленькие ноутбуки (ширина от 1024px) */
-@media (min-width: 1024px) {
-  .tools-container {
-    justify-content: center; /* Центрируем кнопки */
-    width: 100%;
-  }
-  
+/* Адаптация для планшетов */
+@media (min-width: 768px) and (max-width: 1023px) {
   .tools-panel {
-    padding: 15px 50px;
-    overflow-x: visible; /* Убираем прокрутку панели */
+    padding: 15px 20px;
   }
   
   .tool {
-    width: 155px;
-    min-width: 155px;
-  }
-  
-  .project-description {
-    padding: 30px;
-  }
-  
-  .cta-button {
-    padding: 16px 45px;
-  }
-}
-
-/* Очень маленькие телефоны (ширина до 480px) */
-@media (max-width: 480px) {
-  .tools-panel {
-    padding: 10px 15px;
-  }
-  
-  .tool {
-    width: 120px;
-    min-width: 120px;
+    width: 130px;
     height: 55px;
   }
   
-  .tool-icon {
-    font-size: 1.3em;
-  }
-  
-  .tool-label {
-    font-size: 0.65em;
+  .tool.mobile {
+    width: 120px;
+    height: 50px;
   }
   
   .workbench-container {
-    padding: 10px;
-    gap: 10px;
-  }
-  
-  .toolbox {
-    padding: 15px;
-  }
-  
-  .drawer {
-    padding: 15px 10px;
-    gap: 12px;
-    min-height: 60px;
-  }
-  
-  .drawer-icon {
-    font-size: 1.7em;
-  }
-  
-  .drawer-label {
-    font-size: 1em;
-  }
-  
-  .workshop-title {
-    font-size: 2em;
-    letter-spacing: 1px;
-  }
-  
-  .workshop-subtitle {
-    font-size: 1em;
-  }
-  
-  .features {
-    grid-template-columns: 1fr; /* 1 в ряд на очень маленьких экранах */
-    gap: 10px;
-  }
-  
-  .feature {
-    padding: 12px 8px;
-    min-height: 80px;
-  }
-  
-  .feature-icon {
-    font-size: 1.6em;
-  }
-  
-  .feature-text {
-    font-size: 0.85em;
-  }
-  
-  .community-stats {
+    grid-template-areas: 
+      "left-toolbox workbench"
+      "right-toolbox workbench";
+    grid-template-columns: 200px 1fr;
     gap: 15px;
   }
   
-  .stat-number {
-    font-size: 1.8em;
+  .toolbox {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    gap: 12px;
+  }
+  
+  .drawer.mobile .drawer-label {
+    display: block;
+    font-size: 0.75em;
+  }
+  
+  .drawer {
+    min-width: auto;
+    min-height: 65px;
+    padding: 12px 10px;
+    gap: 10px;
+  }
+  
+  .features {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-/* Скрываем декоративные элементы на мобильных */
-@media (max-width: 768px) {
-  .vice,
-  .clamp,
-  .sawdust,
-  .wood-chips,
-  .screw,
-  .nail,
-  .tape-measure {
-    display: none;
+/* Адаптация для очень маленьких экранов */
+@media (max-width: 480px) {
+  .workshop-title {
+    font-size: 1.8em;
   }
+  
+  .workshop-subtitle {
+    font-size: 0.9em;
+  }
+  
+  .tool {
+    width: 100px;
+    height: 45px;
+  }
+  
+  .tool.mobile {
+    width: 90px;
+    height: 40px;
+  }
+  
+  .tool-icon {
+    font-size: 1.2em;
+    margin-bottom: 2px;
+  }
+  
+  .tool-label {
+    font-size: 0.6em;
+  }
+  
+  .drawer {
+    min-width: 70px;
+    min-height: 70px;
+    padding: 12px 8px;
+  }
+  
+  .drawer-icon {
+    font-size: 1.5em;
+  }
+  
+  .features {
+    grid-template-columns: 1fr;
+  }
+  
+  .feature {
+    padding: 15px;
+  }
+  
+  .community-stats {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .stat-item {
+    width: 100%;
+    max-width: 200px;
+  }
+}
+
+/* Стили для модальных окон */
+.modal-content, .marketplace-container, .settings-modal {
+  scrollbar-width: thin !important;
+  scrollbar-color: #A0522D #1a1a1a !important;
+  background: #000000 !important; /* Черный фон для модалок */
+}
+
+.modal-content::-webkit-scrollbar,
+.marketplace-container::-webkit-scrollbar,
+.settings-modal::-webkit-scrollbar {
+  width: 10px !important;
+}
+
+.modal-content::-webkit-scrollbar-track,
+.marketplace-container::-webkit-scrollbar-track,
+.settings-modal::-webkit-scrollbar-track {
+  background: #1a1a1a !important;
+  border-radius: 5px !important;
+}
+
+.modal-content::-webkit-scrollbar-thumb,
+.marketplace-container::-webkit-scrollbar-thumb,
+.settings-modal::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #A0522D, #8B4513) !important;
+  border-radius: 5px !important;
+  border: 1px solid #5D4037 !important;
+}
+
+/* Гарантия черного фона во всех углах */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000000;
+  z-index: -9999;
+  pointer-events: none;
 }

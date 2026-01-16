@@ -1,4 +1,4 @@
-// components/Workbench.tsx - с удалёнными кнопками "Настройки" (боковая панель) и "Мои беседы"
+// components/Workbench.tsx - Адаптирован для мобильных
 "use client";
 
 import { useState, useEffect } from "react";
@@ -18,6 +18,7 @@ export default function Workbench() {
   
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen } = useAuth();
 
+  // Определяем мобильное устройство
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -31,44 +32,21 @@ export default function Workbench() {
     };
   }, []);
 
-  const handleRulesClick = () => {
-    setIsRulesModalOpen(true);
-  };
-
-  const handleCloseRulesModal = () => {
-    setIsRulesModalOpen(false);
-  };
-
+  const handleRulesClick = () => setIsRulesModalOpen(true);
+  const handleCloseRulesModal = () => setIsRulesModalOpen(false);
   const handleAuthButtonClick = () => {
-    if (isAuthenticated) {
-      alert("Переход в личный кабинет (профиль)");
-    } else {
-      setAuthModalOpen(true);
-    }
+    isAuthenticated ? alert("Переход в личный кабинет (профиль)") : setAuthModalOpen(true);
   };
 
-  // МАССИВЫ ДОЛЖНЫ БЫТЬ ЗДЕСЬ:
+  // Массивы данных
   const leftDrawers = [
     { id: "projects", label: "Лента проектов", icon: "📁", color: "#8B4513" },
     { id: "masters", label: "Мастера рядом", icon: "👥", color: "#A0522D" },
-    // Кнопка "Мои беседы" удалена отсюда (была на этой строке)
     { id: "achievements", label: "Достижения", icon: "🏆", color: "#CD853F" },
     { id: "help", label: "Ищут помощи", icon: "❓", color: "#8B7355" },
     { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D" },
-    { 
-      id: "market", 
-      label: "Барахолка", 
-      icon: "🛒", 
-      color: "#D2691E",
-      action: () => setIsMarketplaceOpen(true)
-    },
-    { 
-      id: "contests", 
-      label: "Правила", 
-      icon: "🎯", 
-      color: "#CD853F",
-      action: handleRulesClick
-    },
+    { id: "market", label: "Барахолка", icon: "🛒", color: "#D2691E", action: () => setIsMarketplaceOpen(true) },
+    { id: "contests", label: "Правила", icon: "🎯", color: "#CD853F", action: handleRulesClick },
   ];
 
   const rightDrawers = [
@@ -77,22 +55,14 @@ export default function Workbench() {
     { id: "liked", label: "Понравилось", icon: "❤️", color: "#D2691E" },
     { id: "myworkshop", label: "Моя мастерская", icon: "📸", color: "#CD853F" },
     { id: "meetups", label: "Встречи", icon: "📅", color: "#8B7355" },
-    // Кнопка "Настройки" удалена отсюда (была на этой строке)
     { id: "support", label: "Помощь", icon: "🆘", color: "#D2691E" },
-    { 
-      id: "logout", 
-      label: "Выйти", 
-      icon: "🚪", 
-      color: "#CD853F",
-      action: () => logout()
-    },
+    { id: "logout", label: "Выйти", icon: "🚪", color: "#CD853F", action: () => logout() },
   ];
 
   const tools = [
     { id: "hammer", label: "Похвалить", icon: "🔨", action: () => alert("Молодец! Отличная работа!") },
     { id: "share", label: "Поделиться", icon: "📤", action: () => alert("Открывается меню 'Поделиться'") },
     { id: "stats", label: "Статистика", icon: "📏", action: () => alert("Статистика сообщества") },
-    // ИСПРАВЛЕНО: Теперь кнопка "Настройки" в верхней панели открывает модальное окно
     { id: "settings", label: "Настройки", icon: "⚙️", action: () => setIsSettingsOpen(true) },
     { id: "pencil", label: "Комментировать", icon: "✏️", action: () => alert("Добавить комментарий") },
     { id: "paint", label: "Оформить", icon: "🎨", action: () => alert("Настроить внешний вид") },
@@ -111,39 +81,25 @@ export default function Workbench() {
 
   const handleDrawerClick = (drawerId: string) => {
     setActiveDrawer(drawerId);
-    
-    if (drawerId === "contests") {
-      handleRulesClick();
-      return;
-    }
-    
-    if (drawerId === "market") {
-      setIsMarketplaceOpen(true);
-      return;
-    }
-    
-    // УДАЛЕНО: Специальная обработка для ящика "settings", так как его больше нет
-    
     const drawer = leftDrawers.find(d => d.id === drawerId) || rightDrawers.find(d => d.id === drawerId);
-    if (drawer && drawer.action) {
+    if (drawer?.action) {
       drawer.action();
       return;
     }
-    
     alert(`Открываем: ${drawerId}`);
   };
 
   return (
     <div className="workshop">
+      {/* Верхняя панель с прокруткой */}
       <div className="tools-panel">
         <div className="tools-container">
           {tools.map((tool) => (
             <button
               key={tool.id}
-              className="tool"
+              className={`tool ${isMobile ? 'mobile' : ''}`}
               title={tool.label}
               onClick={tool.action}
-              style={{ width: isMobile ? '140px' : '160px' }}
             >
               <span className="tool-icon">{tool.icon}</span>
               <span className="tool-label">{tool.label}</span>
@@ -152,15 +108,18 @@ export default function Workbench() {
         </div>
       </div>
 
+      {/* Основной контейнер с боковыми панелями и верстаком */}
       <div className="workbench-container">
+        {/* Левая панель */}
         <div className="toolbox left-toolbox">
           <div className="toolbox-label">Инструменты</div>
           {leftDrawers.map((drawer) => (
             <button
               key={drawer.id}
-              className={`drawer ${activeDrawer === drawer.id ? "open" : ""}`}
+              className={`drawer ${isMobile ? 'mobile' : ''} ${activeDrawer === drawer.id ? "open" : ""}`}
               onClick={() => handleDrawerClick(drawer.id)}
-              style={{ borderLeftColor: drawer.color }}
+              style={!isMobile ? { borderLeftColor: drawer.color } : undefined}
+              title={drawer.label} // Всплывающая подсказка на мобильных
             >
               <span className="drawer-handle"></span>
               <span className="drawer-icon">{drawer.icon}</span>
@@ -170,8 +129,10 @@ export default function Workbench() {
           ))}
         </div>
 
+        {/* Центральный верстак */}
         <div className="workbench">
           <div className="workbench-surface">
+            {/* Декоративные элементы верстака */}
             <div className="vice"></div>
             <div className="clamp"></div>
             <div className="wood-grain"></div>
@@ -248,14 +209,16 @@ export default function Workbench() {
           </div>
         </div>
 
+        {/* Правая панель */}
         <div className="toolbox right-toolbox">
           <div className="toolbox-label">Моя мастерская</div>
           {rightDrawers.map((drawer) => (
             <button
               key={drawer.id}
-              className={`drawer ${activeDrawer === drawer.id ? "open" : ""}`}
+              className={`drawer ${isMobile ? 'mobile' : ''} ${activeDrawer === drawer.id ? "open" : ""}`}
               onClick={() => handleDrawerClick(drawer.id)}
-              style={{ borderRightColor: drawer.color }}
+              style={!isMobile ? { borderRightColor: drawer.color } : undefined}
+              title={drawer.label}
             >
               <span className="drawer-handle"></span>
               <span className="drawer-icon">{drawer.icon}</span>
@@ -266,26 +229,25 @@ export default function Workbench() {
         </div>
       </div>
 
+      {/* Декоративные искры */}
       <div className="sparks">
         {[...Array(8)].map((_, i) => (
           <div key={i} className="spark"></div>
         ))}
       </div>
 
+      {/* Модальные окна */}
       {isMarketplaceOpen && (
         <Marketplace onClose={() => setIsMarketplaceOpen(false)} />
       )}
-
       <RulesModal 
         isOpen={isRulesModalOpen} 
         onClose={handleCloseRulesModal} 
       />
-      
       <AuthModal 
         isOpen={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 
       />
-      
       {isSettingsOpen && (
         <SettingsModal onClose={() => setIsSettingsOpen(false)} />
       )}

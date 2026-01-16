@@ -72,7 +72,7 @@ html, body {
   background: rgba(0, 0, 0, 0.95); /* Полупрозрачный черный */
   backdrop-filter: blur(10px);
   border-bottom: 3px solid #8B4513;
-  padding: 12px 15px;
+  padding: 12px 10px; /* Уменьшено с 15px */
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.8);
   width: 100%;
   box-sizing: border-box;
@@ -90,7 +90,7 @@ html, body {
 .tools-panel::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.9);
   border-radius: 6px;
-  margin: 0 15px;
+  margin: 0 10px; /* Уменьшено с 15px */
   border: 1px solid #5D4037;
 }
 
@@ -107,8 +107,9 @@ html, body {
 .tools-container {
   display: flex;
   justify-content: space-between; /* Равномерное распределение для 5 кнопок */
-  gap: 10px;
+  gap: 6px; /* Уменьшено с 10px - меньше расстояния между кнопками */
   flex-wrap: nowrap;
+  width: 100%;
 }
 
 /* Кнопки верхней панели */
@@ -118,8 +119,8 @@ html, body {
   align-items: center;
   justify-content: center;
   flex: 1; /* Равномерное распределение ширины */
-  min-width: 110px; /* Минимальная ширина */
-  max-width: 160px; /* Максимальная ширина */
+  min-width: 120px; /* Увеличено с 110px */
+  max-width: 200px; /* Увеличено с 160px */
   height: 60px;
   background: linear-gradient(135deg, #A0522D, #8B4513);
   border: 2px solid #8B4513;
@@ -131,16 +132,18 @@ html, body {
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
+  padding: 0 5px; /* Добавлены внутренние отступы */
 }
 
 /* Мобильный вид кнопок */
 .tool.mobile {
-  min-width: 90px;
+  min-width: 100px; /* Увеличено с 90px */
   height: 50px;
+  padding: 0 4px; /* Добавлены внутренние отступы */
 }
 
 .tool.mobile .tool-label {
-  font-size: 0.65em;
+  font-size: 0.7em; /* Немного увеличено с 0.65em */
 }
 
 .tool::before {
@@ -178,10 +181,14 @@ html, body {
 }
 
 .tool-label {
-  font-size: 0.75em;
+  font-size: 0.8em; /* Увеличено с 0.75em */
   font-weight: 600;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   z-index: 1;
+  white-space: nowrap; /* Текст не переносится */
+  overflow: hidden;
+  text-overflow: ellipsis; /* Многоточие если не помещается */
+  max-width: 100%;
 }
 
 /* Основной контейнер верстака - Grid */

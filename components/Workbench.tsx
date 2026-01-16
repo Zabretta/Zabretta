@@ -38,11 +38,11 @@ export default function Workbench() {
     isAuthenticated ? alert("Переход в личный кабинет (профиль)") : setAuthModalOpen(true);
   };
 
-  // Массивы данных
+  // Массивы данных ДЛЯ БОКОВЫХ ПАНЕЛЕЙ
   const leftDrawers = [
     { id: "projects", label: "Лента проектов", icon: "📁", color: "#8B4513" },
     { id: "masters", label: "Мастера рядом", icon: "👥", color: "#A0522D" },
-    { id: "achievements", label: "Достижения", icon: "🏆", color: "#CD853F" },
+    // Кнопка "Достижения" удалена отсюда
     { id: "help", label: "Ищут помощи", icon: "❓", color: "#8B7355" },
     { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D" },
     { id: "market", label: "Барахолка", icon: "🛒", color: "#D2691E", action: () => setIsMarketplaceOpen(true) },
@@ -54,20 +54,18 @@ export default function Workbench() {
     { id: "myprojects", label: "Мои проекты", icon: "🛠️", color: "#A0522D" },
     { id: "liked", label: "Понравилось", icon: "❤️", color: "#D2691E" },
     { id: "myworkshop", label: "Моя мастерская", icon: "📸", color: "#CD853F" },
-    { id: "meetups", label: "Встречи", icon: "📅", color: "#8B7355" },
+    // Кнопка "Встречи" удалена отсюда
     { id: "support", label: "Помощь", icon: "🆘", color: "#D2691E" },
     { id: "logout", label: "Выйти", icon: "🚪", color: "#CD853F", action: () => logout() },
   ];
 
+  // Массив ДЛЯ ВЕРХНЕЙ ПАНЕЛИ: 5 кнопок, равномерно распределенных, "Настройки" - крайняя справа
   const tools = [
     { id: "hammer", label: "Похвалить", icon: "🔨", action: () => alert("Молодец! Отличная работа!") },
     { id: "share", label: "Поделиться", icon: "📤", action: () => alert("Открывается меню 'Поделиться'") },
-    { id: "stats", label: "Статистика", icon: "📏", action: () => alert("Статистика сообщества") },
-    { id: "settings", label: "Настройки", icon: "⚙️", action: () => setIsSettingsOpen(true) },
-    { id: "pencil", label: "Комментировать", icon: "✏️", action: () => alert("Добавить комментарий") },
-    { id: "paint", label: "Оформить", icon: "🎨", action: () => alert("Настроить внешний вид") },
-    { id: "light", label: "Идеи", icon: "💡", action: () => alert("Генератор идей") },
     { id: "heart", label: "Избранное", icon: "❤️", action: () => alert("Добавить в избранное") },
+    { id: "pencil", label: "Комментировать", icon: "✏️", action: () => alert("Добавить комментарий") },
+    { id: "settings", label: "Настройки", icon: "⚙️", action: () => setIsSettingsOpen(true) }, // Крайняя правая
   ];
 
   const features = [
@@ -100,6 +98,12 @@ export default function Workbench() {
               className={`tool ${isMobile ? 'mobile' : ''}`}
               title={tool.label}
               onClick={tool.action}
+              style={{
+                // Для равномерного распределения на десктопе
+                flex: isMobile ? '0 0 auto' : '1 1 0',
+                // Минимальная ширина для мобильных
+                minWidth: isMobile ? '90px' : 'auto'
+              }}
             >
               <span className="tool-icon">{tool.icon}</span>
               <span className="tool-label">{tool.label}</span>

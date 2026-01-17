@@ -8,6 +8,7 @@ import AuthModal from "./AuthModal";
 import Marketplace from "./Marketplace";
 import SettingsModal from "./SettingsModal";
 import { useAuth } from "./useAuth";
+import { useSettings } from "./SettingsContext"; // <-- Добавлен импорт
 
 export default function Workbench() {
   const [activeDrawer, setActiveDrawer] = useState<string | null>(null);
@@ -17,6 +18,7 @@ export default function Workbench() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen } = useAuth();
+  const { settings } = useSettings(); // <-- Получаем настройки
 
   // Определяем мобильное устройство
   useEffect(() => {
@@ -73,7 +75,7 @@ export default function Workbench() {
     { id: 2, icon: "👨‍🍳", text: "Делитесь<br />кулинарными шедеврами" },
     { id: 3, icon: "💡", text: "Показывайте<br />творческие планы" },
     { id: 4, icon: "🤝", text: "Давайте и получайте<br />советы и помощь" },
-    { id: 5, icon: "🧩", text: "Творите и придумывайте<br />вместе" },
+    { id: 5, icon: "🧩", text: "Творите и придумывайте<br />вместо" },
     { id: 6, icon: "💰", text: "Продавайте свои<br />товары и идеи" },
   ];
 

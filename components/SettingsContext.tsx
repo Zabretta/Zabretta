@@ -1,212 +1,102 @@
 // components/SettingsContext.tsx
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useAuth } from './useAuth';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-// Типы настроек (синхронизированы с будущим бэкендом)
-export interface AppSettings {
-  // Внешний вид
-  theme: 'light' | 'dark' | 'auto';
-  brightness: number;      // 80-120%
-  fontSize: 'small' | 'normal' | 'large' | 'xlarge';
-  
-  // Звуки и уведомления
-  soundsEnabled: boolean;
-  soundVolume: number;     // 0-100%
-  notificationsEnabled: boolean;
-  
-  // Производительность
-  animations: 'full' | 'reduced' | 'none';
-  
-  // Конфиденциальность
-  ratingVisibility: 'full' | 'level' | 'hidden';
-  
-  // Язык и регион
-  language: string;
-  dateFormat: 'ru' | 'iso';
-}
-
-// Настройки по умолчанию
-const DEFAULT_SETTINGS: AppSettings = {
-  theme: 'light',
-  brightness: 100,
-  fontSize: 'normal',
-  soundsEnabled: true,
-  soundVolume: 70,
-  notificationsEnabled: true,
-  animations: 'full',
-  ratingVisibility: 'full',
-  language: 'ru',
-  dateFormat: 'ru'
+// Типы только для трех настроек
+type ThemeType = 'light' | 'dark' | 'auto';
+type SettingsType = {
+  theme: ThemeType;
+  brightness: number;
+  fontSize: number; // в процентах для гибкости
 };
 
-// Контекст настроек
+// Значения по умолчанию
+const defaultSettings: SettingsType = {
+  theme: 'auto',
+  brightness: 100,
+  fontSize: 100, // 100% от базового
+};
+
 interface SettingsContextType {
-  settings: AppSettings;
-  updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
-  resetSettings: () => Promise<void>;
-  isLoading: boolean;
-  error: string | null;
+  settings: SettingsType;
+  updateSettings: (newSettings: Partial<SettingsType>) => void;
+  resetSettings: () => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-// Заглушки API для демо-режима
-const demoApi = {
-  getSettings: async (): Promise<AppSettings> => {
-    const saved = localStorage.getItem('samodelkin_settings');
-    return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
-  },
-  
-  updateSettings: async (updates: Partial<AppSettings>): Promise<AppSettings> => {
-    const current = await demoApi.getSettings();
-    const updated = { ...current, ...updates };
-    localStorage.setItem('samodelkin_settings', JSON.stringify(updated));
-    return updated;
-  },
-  
-  resetSettings: async (): Promise<AppSettings> => {
-    localStorage.setItem('samodelkin_settings', JSON.stringify(DEFAULT_SETTINGS));
-    return DEFAULT_SETTINGS;
-  }
-};
-
-// Применение настроек к DOM
-function applySettingsToDOM(settings: AppSettings) {
-  const root = document.documentElement;
-  
-  // Тема
-  root.classList.remove('theme-light', 'theme-dark', 'theme-auto');
-  
-  if (settings.theme === 'auto') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.classList.toggle('theme-dark', prefersDark);
-    root.classList.toggle('theme-light', !prefersDark);
-  } else {
-    root.classList.add(`theme-${settings.theme}`);
-  }
-  
-  // Яркость
-  root.style.setProperty('--settings-brightness', `${settings.brightness}%`);
-  
-  // Размер шрифта
-  const fontSizeMap = {
-    'small': '0.9',
-    'normal': '1',
-    'large': '1.1',
-    'xlarge': '1.25'
-  };
-  root.style.setProperty('--font-size-scale', fontSizeMap[settings.fontSize]);
-  
-  // Анимации
-  if (settings.animations === 'none') {
-    root.classList.add('no-animations');
-    root.classList.remove('reduced-motion');
-  } else if (settings.animations === 'reduced') {
-    root.classList.add('reduced-motion');
-    root.classList.remove('no-animations');
-  } else {
-    root.classList.remove('no-animations', 'reduced-motion');
-  }
-  
-  // Сохранение настроек в meta-тегах
-  const metaTheme = document.querySelector('meta[name="theme-color"]');
-  if (metaTheme) {
-    metaTheme.setAttribute('content', settings.theme === 'dark' ? '#1a0f0a' : '#ffffff');
-  }
-  
-  // Диспатч события для других компонентов
-  window.dispatchEvent(new CustomEvent('settingsChanged', { detail: settings }));
+interface SettingsProviderProps {
+  children: ReactNode;
 }
 
-// Провайдер настроек
-export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { user, isAuthenticated } = useAuth();
+export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
+  const [settings, setSettings] = useState<SettingsType>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('samodelkin-settings');
+      return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+    }
+    return defaultSettings;
+  });
 
-  // Загрузка настроек при монтировании
+  const updateSettings = (newSettings: Partial<SettingsType>) => {
+    setSettings(prev => {
+      const updated = { ...prev, ...newSettings };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('samodelkin-settings', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const resetSettings = () => {
+    setSettings(defaultSettings);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('samodelkin-settings');
+    }
+  };
+
+  // Применяем настройки к корню документа через CSS переменные
   useEffect(() => {
-    const loadSettings = async () => {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        // В демо-режиме используем localStorage
-        // В будущем здесь будет реальный API запрос
-        const data = await demoApi.getSettings();
-        setSettings(data);
-        applySettingsToDOM(data);
-      } catch (err) {
-        console.error('Ошибка загрузки настроек:', err);
-        setError('Не удалось загрузить настройки');
-        // Используем настройки по умолчанию
-        applySettingsToDOM(DEFAULT_SETTINGS);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const root = document.documentElement;
 
-    loadSettings();
-    
-    // Слушаем системные изменения темы
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleSystemThemeChange = () => {
+    // 1. Применяем тему
+    const applyTheme = () => {
       if (settings.theme === 'auto') {
-        applySettingsToDOM(settings);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+      } else {
+        root.setAttribute('data-theme', settings.theme);
       }
     };
-    
-    mediaQuery.addEventListener('change', handleSystemThemeChange);
-    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
-  }, []);
+    applyTheme();
 
-  // Обновление настроек
-  const updateSettings = async (updates: Partial<AppSettings>) => {
-    try {
-      // В демо-режиме используем localStorage
-      // В будущем здесь будет реальный API запрос
-      const updated = await demoApi.updateSettings(updates);
-      setSettings(updated);
-      applySettingsToDOM(updated);
-    } catch (err) {
-      console.error('Ошибка обновления настроек:', err);
-      throw new Error('Не удалось сохранить настройки');
-    }
-  };
+    // 2. Применяем яркость (фильтр на весь документ)
+    root.style.filter = `brightness(${settings.brightness}%)`;
 
-  // Сброс настроек
-  const resetSettings = async () => {
-    try {
-      const reset = await demoApi.resetSettings();
-      setSettings(reset);
-      applySettingsToDOM(reset);
-    } catch (err) {
-      console.error('Ошибка сброса настроек:', err);
-      throw new Error('Не удалось сбросить настройки');
-    }
-  };
+    // 3. Применяем размер шрифта через CSS переменную
+    root.style.setProperty('--font-size-multiplier', `${settings.fontSize / 100}`);
+
+    // Слушатель для авто-темы
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleThemeChange = () => {
+      if (settings.theme === 'auto') applyTheme();
+    };
+    mediaQuery.addEventListener('change', handleThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleThemeChange);
+  }, [settings]);
 
   return (
-    <SettingsContext.Provider value={{
-      settings,
-      updateSettings,
-      resetSettings,
-      isLoading,
-      error
-    }}>
+    <SettingsContext.Provider value={{ settings, updateSettings, resetSettings }}>
       {children}
     </SettingsContext.Provider>
   );
-}
+};
 
-// Хук для использования настроек
-export function useSettings() {
+export const useSettings = () => {
   const context = useContext(SettingsContext);
-  if (!context) {
-    throw new Error('useSettings must be used within SettingsProvider');
+  if (context === undefined) {
+    throw new Error('useSettings must be used within a SettingsProvider');
   }
   return context;
-}
+};

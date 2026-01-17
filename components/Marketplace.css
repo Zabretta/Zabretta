@@ -5,7 +5,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #2c1810, #1a0f0a);
+  background: var(--workshop-bg, #000000); /* Используем переменную */
   z-index: 3000;
   overflow-y: auto;
   padding: 20px;
@@ -14,7 +14,7 @@
 .marketplace-container {
   max-width: 1200px;
   margin: 0 auto;
-  background: linear-gradient(to bottom, #3a2518, #2c1810);
+  background: var(--workshop-container-bg, #000000); /* Используем переменную */
   border: 3px solid #8B4513;
   border-radius: 15px;
   padding: 25px;
@@ -531,125 +531,5 @@
 @media (max-width: 1024px) {
   .items-grid {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .marketplace-overlay {
-    padding: 10px;
-  }
-
-  .marketplace-container {
-    padding: 20px;
-    border-width: 2px;
-  }
-
-  .marketplace-title {
-    font-size: 2.2em;
-  }
-
-  .form-row {
-    flex-direction: column;
-    gap: 15px;
-  }
-
-  .type-selector {
-    flex-direction: column;
-  }
-
-  .marketplace-filters {
-    flex-direction: column;
-  }
-
-  .filter-btn {
-    min-width: 100%;
-  }
-
-  .items-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-
-  .item-image {
-    height: 180px;
-  }
-
-  .close-marketplace {
-    width: 35px;
-    height: 35px;
-  }
-
-  .item-type-badge {
-    top: 10px;
-    left: 10px;
-    padding: 6px 10px;
-    font-size: 0.8em;
-    background: #8B4513 !important; /* То же исправление для мобильных */
-  }
-}
-
-@media (max-width: 480px) {
-  .marketplace-title {
-    font-size: 1.8em;
-  }
-
-  .marketplace-subtitle {
-    font-size: 1em;
-  }
-
-  .create-ad-btn {
-    padding: 14px 30px;
-    font-size: 1.1em;
-    width: 100%;
-  }
-
-  .create-ad-form-container {
-    padding: 20px;
-  }
-
-  .item-content {
-    padding: 15px;
-  }
-
-  .item-title {
-    font-size: 1.2em;
-  }
-
-  .item-footer {
-    flex-direction: column;
-    gap: 15px;
-    align-items: stretch;
-  }
-
-  .contact-btn {
-    width: 100%;
-    padding: 12px;
-  }
-
-  .form-actions {
-    flex-direction: column;
-  }
-
-  .submit-btn,
-  .cancel-btn {
-    width: 100%;
-  }
-
-  .item-type-badge {
-    font-size: 0.75em;
-    padding: 5px 8px;
-    background: #8B4513 !important; /* И для самых маленьких экранов */
-  }
-
-  .badge-icon {
-    font-size: 1em;
-  }
-}
-
-/* Для очень высоких экранов */
-@media (min-height: 1000px) {
-  .marketplace-container {
-    max-height: 95vh;
-    overflow-y: auto;
   }
 }

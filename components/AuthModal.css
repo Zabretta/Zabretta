@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: rgba(0, 0, 0, 0.8); /* Полупрозрачный оверлей - оставляем как есть */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -13,7 +13,8 @@
 }
 
 .auth-modal {
-  background: linear-gradient(135deg, #5D4037, #3E2723);
+  /* ИЗМЕНЕНО: Заменён градиент на переменную, чтобы фон менялся с темой */
+  background: var(--workshop-bg, #000000);
   border: 3px solid #8B4513;
   border-radius: 12px;
   padding: 30px;

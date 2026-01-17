@@ -6,7 +6,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.85);
+  background-color: rgba(0, 0, 0, 0.85); /* Полупрозрачный - оставляем */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -16,7 +16,7 @@
 }
 
 .settings-modal {
-  background: rgba(0, 0, 0, 0.95);
+  background: rgba(0, 0, 0, 0.95); /* Используем переменную */
   border: 3px solid #8B4513;
   border-radius: 12px;
   width: 100%;
@@ -59,7 +59,7 @@
 }
 
 .settings-close-btn {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.3); /* Полупрозрачный - оставляем */
   border: 1px solid #D2691E;
   color: #F5DEB3;
   font-size: 1.3em;
@@ -77,7 +77,7 @@
 }
 
 .settings-section {
-  background: rgba(26, 18, 11, 0.7);
+  background: rgba(26, 18, 11, 0.7); /* Полупрозрачный - оставляем */
   border: 1px solid #5D4037;
   border-radius: 10px;
   padding: 20px;
@@ -104,7 +104,7 @@
   align-items: center;
   gap: 10px;
   padding: 18px 10px;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5); /* Полупрозрачный - оставляем */
   border: 2px solid #5D4037;
   border-radius: 8px;
   color: #F5DEB3;
@@ -277,7 +277,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.7); /* Полупрозрачный - оставляем */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -286,7 +286,7 @@
 }
 
 .confirm-modal {
-  background: rgba(0, 0, 0, 0.95);
+  background: var(--workshop-bg, #000000); /* ИСПРАВЛЕНО: Используем переменную */
   border: 3px solid #8B4513;
   border-radius: 12px;
   padding: 30px;

@@ -1,102 +1,151 @@
 // components/SettingsContext.tsx
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-// Типы только для трех настроек
-type ThemeType = 'light' | 'dark' | 'auto';
-type SettingsType = {
-  theme: ThemeType;
+// Типы для настроек
+type Theme = 'dark' | 'light' | 'brown';
+type FontSize = 'small' | 'medium' | 'large';
+
+interface Settings {
+  theme: Theme;
+  fontSize: FontSize;
   brightness: number;
-  fontSize: number; // в процентах для гибкости
-};
-
-// Значения по умолчанию
-const defaultSettings: SettingsType = {
-  theme: 'auto',
-  brightness: 100,
-  fontSize: 100, // 100% от базового
-};
+  showAnimations: boolean;
+}
 
 interface SettingsContextType {
-  settings: SettingsType;
-  updateSettings: (newSettings: Partial<SettingsType>) => void;
+  settings: Settings;
+  updateSettings: (newSettings: Partial<Settings>) => void;
   resetSettings: () => void;
 }
 
+// Значения по умолчанию
+const defaultSettings: Settings = {
+  theme: 'dark',
+  fontSize: 'medium',
+  brightness: 100,
+  showAnimations: true,
+};
+
+// Создание контекста
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-interface SettingsProviderProps {
-  children: ReactNode;
-}
+// Хук для использования контекста
+export const useSettings = () => {
+  const context = useContext(SettingsContext);
+  if (!context) {
+    throw new Error('useSettings must be used within a SettingsProvider');
+  }
+  return context;
+};
 
-export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
-  const [settings, setSettings] = useState<SettingsType>(() => {
+// Провайдер контекста
+export function SettingsProvider({ children }: { children: ReactNode }) {
+  const [settings, setSettings] = useState<Settings>(() => {
+    // Загрузка из localStorage при инициализации
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('samodelkin-settings');
-      return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+      const saved = localStorage.getItem('app-settings');
+      if (saved) {
+        try {
+          return { ...defaultSettings, ...JSON.parse(saved) };
+        } catch (e) {
+          console.error('Failed to parse saved settings:', e);
+        }
+      }
     }
     return defaultSettings;
   });
 
-  const updateSettings = (newSettings: Partial<SettingsType>) => {
+  // Применение настроек к документу
+  const applySettings = (currentSettings: Settings) => {
+    const root = document.documentElement;
+    
+    // 1. ТЕМА: устанавливаем data-атрибут и CSS-переменные для фона
+    root.setAttribute('data-theme', currentSettings.theme);
+    
+    // Определяем цвета фона в зависимости от темы
+    let workshopBg, workshopContainerBg, toolboxGradientStart;
+    
+    switch (currentSettings.theme) {
+      case 'light':
+        workshopBg = '#f5f5f5'; // Светло-серый
+        workshopContainerBg = '#ffffff'; // Белый
+        toolboxGradientStart = '#e0e0e0'; // Светлый градиент
+        break;
+      case 'brown':
+        workshopBg = '#3a2c1a'; // Коричневый
+        workshopContainerBg = '#4a3a2a'; // Темно-коричневый
+        toolboxGradientStart = '#2a1f12'; // Темный коричневый градиент
+        break;
+      case 'dark':
+      default:
+        workshopBg = '#000000'; // Чёрный (оригинальный)
+        workshopContainerBg = '#000000'; // Чёрный
+        toolboxGradientStart = '#1a120b'; // Тёмный градиент (оригинальный)
+    }
+    
+    // Устанавливаем CSS-переменные для фонов
+    root.style.setProperty('--workshop-bg', workshopBg);
+    root.style.setProperty('--workshop-container-bg', workshopContainerBg);
+    root.style.setProperty('--toolbox-gradient-start', toolboxGradientStart);
+
+    // 2. ЯРКОСТЬ: применяем фильтр
+    root.style.filter = `brightness(${currentSettings.brightness}%)`;
+
+    // 3. РАЗМЕР ШРИФТА: устанавливаем множитель
+    const fontSizeMultipliers = {
+      small: 0.9,
+      medium: 1,
+      large: 1.2,
+    };
+    const multiplier = fontSizeMultipliers[currentSettings.fontSize];
+    root.style.setProperty('--font-size-multiplier', multiplier.toString());
+
+    // 4. АНИМАЦИИ: добавляем или удаляем класс
+    if (currentSettings.showAnimations) {
+      root.classList.remove('no-animations');
+    } else {
+      root.classList.add('no-animations');
+    }
+  };
+
+  // Обновление настроек
+  const updateSettings = (newSettings: Partial<Settings>) => {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
+      // Сохраняем в localStorage
       if (typeof window !== 'undefined') {
-        localStorage.setItem('samodelkin-settings', JSON.stringify(updated));
+        localStorage.setItem('app-settings', JSON.stringify(updated));
       }
+      // Применяем новые настройки
+      applySettings(updated);
       return updated;
     });
   };
 
+  // Сброс настроек
   const resetSettings = () => {
     setSettings(defaultSettings);
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('samodelkin-settings');
+      localStorage.setItem('app-settings', JSON.stringify(defaultSettings));
     }
+    applySettings(defaultSettings);
   };
 
-  // Применяем настройки к корню документа через CSS переменные
+  // Применяем настройки при монтировании и изменении
   useEffect(() => {
-    const root = document.documentElement;
+    applySettings(settings);
+  }, []); // Пустой массив зависимостей - только при монтировании
 
-    // 1. Применяем тему
-    const applyTheme = () => {
-      if (settings.theme === 'auto') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-      } else {
-        root.setAttribute('data-theme', settings.theme);
-      }
-    };
-    applyTheme();
-
-    // 2. Применяем яркость (фильтр на весь документ)
-    root.style.filter = `brightness(${settings.brightness}%)`;
-
-    // 3. Применяем размер шрифта через CSS переменную
-    root.style.setProperty('--font-size-multiplier', `${settings.fontSize / 100}`);
-
-    // Слушатель для авто-темы
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleThemeChange = () => {
-      if (settings.theme === 'auto') applyTheme();
-    };
-    mediaQuery.addEventListener('change', handleThemeChange);
-    return () => mediaQuery.removeEventListener('change', handleThemeChange);
-  }, [settings]);
+  // Ещё один эффект для отслеживания изменений settings
+  useEffect(() => {
+    applySettings(settings);
+  }, [settings]); // Срабатывает при каждом изменении settings
 
   return (
     <SettingsContext.Provider value={{ settings, updateSettings, resetSettings }}>
       {children}
     </SettingsContext.Provider>
   );
-};
-
-export const useSettings = () => {
-  const context = useContext(SettingsContext);
-  if (context === undefined) {
-    throw new Error('useSettings must be used within a SettingsProvider');
-  }
-  return context;
-};
+}

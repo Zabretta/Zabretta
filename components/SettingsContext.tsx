@@ -3,29 +3,27 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-// Типы для настроек - ДОБАВЛЕН 'auto'
+// Типы для настроек
 type Theme = 'dark' | 'light' | 'brown' | 'auto';
-type FontSize = 'small' | 'medium' | 'large';
 
 interface Settings {
   theme: Theme;
-  fontSize: FontSize;
+  fontSize: number; // ЧИСЛО (проценты: 75, 100, 150 и т.д.)
   brightness: number;
   showAnimations: boolean;
 }
 
-// ДОБАВЛЕН forceThemeUpdate в интерфейс
 interface SettingsContextType {
   settings: Settings;
   updateSettings: (newSettings: Partial<Settings>) => void;
   resetSettings: () => void;
-  forceThemeUpdate: () => void; // НОВАЯ ФУНКЦИЯ
+  forceThemeUpdate: () => void;
 }
 
-// Значения по умолчанию
+// Значения по умолчанию - fontSize в ПРОЦЕНТАХ (как в SettingsModal.tsx)
 const defaultSettings: Settings = {
   theme: 'dark',
-  fontSize: 'medium',
+  fontSize: 100, // 100% = нормальный размер
   brightness: 100,
   showAnimations: true,
 };
@@ -42,15 +40,11 @@ export const useSettings = () => {
   return context;
 };
 
-// Функция для определения авто-темы (ИНВЕРСИЯ)
+// Функция для определения авто-темы
 const getAutoTheme = (): 'dark' | 'light' => {
-  // ИНВЕРСИЯ: ночью (20:00 - 8:00) = СВЕТЛАЯ тема, днём = ТЁМНАЯ
   const hour = new Date().getHours();
   const isNightTime = hour >= 20 || hour < 8;
-  
-  console.log(`🕐 getAutoTheme: час=${hour}, ночное время=${isNightTime}, тема=${isNightTime ? 'light' : 'dark'}`);
-  
-  return isNightTime ? 'light' : 'dark'; // ИНВЕРСИЯ!
+  return isNightTime ? 'light' : 'dark';
 };
 
 // Провайдер контекста
@@ -61,7 +55,26 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem('app-settings');
       if (saved) {
         try {
-          return { ...defaultSettings, ...JSON.parse(saved) };
+          const parsed = JSON.parse(saved);
+          
+          // Конвертация старого формата fontSize
+          if (parsed.fontSize) {
+            // Если старое значение было строкой (small/medium/large)
+            if (typeof parsed.fontSize === 'string') {
+              const fontSizeMap = { 
+                small: 80,    // 80%
+                medium: 100,  // 100%
+                large: 120    // 120%
+              };
+              parsed.fontSize = fontSizeMap[parsed.fontSize as keyof typeof fontSizeMap] || 100;
+            }
+            // Если старое значение было множителем (0.8, 1.0, 1.2)
+            else if (typeof parsed.fontSize === 'number' && parsed.fontSize <= 2.0) {
+              parsed.fontSize = Math.round(parsed.fontSize * 100); // Конвертируем в проценты
+            }
+          }
+          
+          return { ...defaultSettings, ...parsed };
         } catch (e) {
           console.error('Failed to parse saved settings:', e);
         }
@@ -79,40 +92,35 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       ? getAutoTheme() 
       : currentSettings.theme;
     
-    console.log(`🎨 applySettings: выбранная тема=${currentSettings.theme}, актуальная тема=${effectiveTheme}`);
-    
-    // Устанавливаем data-атрибут (фактическая тема + режим выбора)
+    // Устанавливаем data-атрибут
     root.setAttribute('data-theme', effectiveTheme);
     root.setAttribute('data-theme-mode', currentSettings.theme);
     
-    // Определяем цвета фона в зависимости от актуальной темы
+    // Определяем цвета фона
     let workshopBg, workshopContainerBg, toolboxGradientStart, panelBackground;
     
     switch (effectiveTheme) {
       case 'light':
-        workshopBg = '#f5f5f5'; // Светло-серый
-        workshopContainerBg = '#ffffff'; // Белый
-        toolboxGradientStart = '#e0e0e0'; // Светлый градиент
-        panelBackground = 'rgba(245, 245, 245, 0.95)'; // Светлый полупрозрачный
+        workshopBg = '#f5f5f5';
+        workshopContainerBg = '#ffffff';
+        toolboxGradientStart = '#e0e0e0';
+        panelBackground = 'rgba(245, 245, 245, 0.95)';
         break;
       case 'brown':
-        workshopBg = '#3a2c1a'; // Коричневый
-        workshopContainerBg = '#4a3a2a'; // Темно-коричневый
-        toolboxGradientStart = '#2a1f12'; // Темный коричневый градиент
-        panelBackground = 'rgba(58, 44, 26, 0.95)'; // Коричневый полупрозрачный
+        workshopBg = '#3a2c1a';
+        workshopContainerBg = '#4a3a2a';
+        toolboxGradientStart = '#2a1f12';
+        panelBackground = 'rgba(58, 44, 26, 0.95)';
         break;
       case 'dark':
       default:
-        // ВАЖНО: явно задаем переменные для темной темы
-        workshopBg = '#000000'; // Чёрный
-        workshopContainerBg = '#000000'; // Чёрный
-        toolboxGradientStart = '#1a120b'; // Тёмный градиент
-        panelBackground = 'rgba(0, 0, 0, 0.95)'; // Чёрный полупрозрачный
+        workshopBg = '#000000';
+        workshopContainerBg = '#000000';
+        toolboxGradientStart = '#1a120b';
+        panelBackground = 'rgba(0, 0, 0, 0.95)';
     }
     
-    console.log(`🎨 Устанавливаем переменные: --workshop-bg=${workshopBg}`);
-    
-    // Устанавливаем CSS-переменные для фонов (для всех тем)
+    // Устанавливаем CSS-переменные для фонов
     root.style.setProperty('--workshop-bg', workshopBg);
     root.style.setProperty('--workshop-container-bg', workshopContainerBg);
     root.style.setProperty('--toolbox-gradient-start', toolboxGradientStart);
@@ -121,14 +129,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     // 2. ЯРКОСТЬ: применяем фильтр
     root.style.filter = `brightness(${currentSettings.brightness}%)`;
 
-    // 3. РАЗМЕР ШРИФТА: устанавливаем множитель
-    const multiplier = typeof currentSettings.fontSize === 'number' 
-      ? currentSettings.fontSize / 100 
-      : { small: 0.9, medium: 1, large: 1.2 }[currentSettings.fontSize] || 1;
-
-    root.style.setProperty('--font-size-multiplier', multiplier.toString());
+    // 3. РАЗМЕР ШРИФТА: КРИТИЧНО ВАЖНЫЙ ИСПРАВЛЕННЫЙ КОД!
+    // fontSize хранится в ПРОЦЕНТАХ (75, 100, 150 и т.д.)
+    // Нужно преобразовать проценты в множитель (75% = 0.75, 100% = 1.0, 150% = 1.5)
+    const fontSizeMultiplier = currentSettings.fontSize / 100;
+    
+    console.log(`🔤 Размер шрифта: ${currentSettings.fontSize}% -> множитель ${fontSizeMultiplier}`);
+    
+    // Устанавливаем переменную на элементе <html>
+    root.style.setProperty('--font-size-multiplier', fontSizeMultiplier.toString());
+    
+    // Для отладки: добавляем атрибут к body
+    document.body.setAttribute('data-debug-font-size', `${currentSettings.fontSize}% (x${fontSizeMultiplier})`);
      
-    // 4. АНИМАЦИИ: добавляем или удаляем класс
+    // 4. АНИМАЦИИ
     if (currentSettings.showAnimations) {
       root.classList.remove('no-animations');
     } else {
@@ -136,14 +150,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // НОВАЯ ФУНКЦИЯ: принудительное обновление темы
+  // Принудительное обновление темы
   const forceThemeUpdate = () => {
-    console.log('🔄 forceThemeUpdate вызван');
     if (settings.theme === 'auto') {
-      applySettings(settings); // Принудительно переприменяем настройки
+      applySettings(settings);
       return true;
     }
-    console.log('⚠️  forceThemeUpdate: тема не в режиме "auto", пропускаем');
     return false;
   };
 
@@ -173,39 +185,33 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   // Применяем настройки при монтировании
   useEffect(() => {
     applySettings(settings);
-  }, []); // Пустой массив зависимостей - только при монтировании
+  }, []);
 
   // Применяем настройки при их изменении
   useEffect(() => {
     applySettings(settings);
-  }, [settings]); // Срабатывает при каждом изменении settings
+  }, [settings]);
 
-  // Таймер для авто-темы (проверяем каждую минуту для тестирования)
+  // Таймер для авто-темы
   useEffect(() => {
     if (settings.theme !== 'auto') return;
 
     const checkAutoTheme = () => {
-      console.log('⏰ Таймер авто-темы: проверяем...');
       applySettings(settings);
     };
 
-    // Проверяем сразу
     checkAutoTheme();
-
-    // Устанавливаем интервал проверки (каждую минуту для тестирования)
-    const intervalId = setInterval(checkAutoTheme, 60 * 1000); // 1 минута
-
+    const intervalId = setInterval(checkAutoTheme, 60 * 1000);
     return () => clearInterval(intervalId);
   }, [settings.theme, settings]);
 
-  // Отслеживание изменения системной темы (опционально)
+  // Отслеживание изменения системной темы
   useEffect(() => {
     if (settings.theme !== 'auto') return;
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     
     const handleSystemThemeChange = () => {
-      console.log('🖥️  Системная тема изменилась');
       applySettings(settings);
     };
 
@@ -219,3 +225,4 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     </SettingsContext.Provider>
   );
 }
+

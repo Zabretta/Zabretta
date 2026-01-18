@@ -4,16 +4,18 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8); /* Полупрозрачный оверлей - оставляем как есть */
+  background-color: rgba(0, 0, 0, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 2000;
   padding: 20px;
+  /* ИСПРАВЛЕНИЕ 1: Включаем прокрутку для оверлея */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .auth-modal {
-  /* ИЗМЕНЕНО: Заменён градиент на переменную, чтобы фон менялся с темой */
   background: var(--workshop-bg, #000000);
   border: 3px solid #8B4513;
   border-radius: 12px;
@@ -22,6 +24,9 @@
   max-width: 400px;
   position: relative;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  /* ИСПРАВЛЕНИЕ 2: Ограничиваем высоту и добавляем прокрутку */
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .close-modal {
@@ -40,6 +45,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* ИСПРАВЛЕНИЕ 3: Повышаем z-index для кнопки */
+  z-index: 10;
 }
 
 .close-modal:hover {
@@ -221,19 +228,33 @@
 @media (max-width: 768px) {
   .auth-modal-overlay {
     padding: 10px;
-    align-items: flex-start; /* Выравнивание модалки вверху на мобильных */
-    padding-top: 60px; /* Отступ сверху для учёта верхней панели */
+    align-items: flex-start;
+    padding-top: 60px;
+    /* ИСПРАВЛЕНИЕ 4: Гарантируем прокрутку на мобильных */
+    overflow-y: auto;
   }
 
   .auth-modal {
     padding: 20px;
-    max-width: 100%; /* На мобильных модалка занимает почти всю ширину */
+    max-width: 100%;
     margin: 0 10px;
     border-radius: 10px;
+    /* ИСПРАВЛЕНИЕ 5: Добавляем отступ сверху для кнопки закрытия */
+    margin-top: 40px;
+    /* ИСПРАВЛЕНИЕ 6: Уменьшаем максимальную высоту */
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  
+  /* ИСПРАВЛЕНИЕ 7: Делаем кнопку закрытия более доступной */
+  .close-modal {
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
   }
 
   .auth-modal-tabs {
-    flex-direction: column; /* Табы в столбик на узких экранах */
+    flex-direction: column;
     border-bottom: none;
     gap: 10px;
     margin-bottom: 20px;
@@ -253,7 +274,7 @@
   }
 
   .auth-modal-tabs button.active::after {
-    display: none; /* Убираем нижнюю полоску, так как табы в столбик */
+    display: none;
   }
 
   .auth-modal form {
@@ -264,7 +285,7 @@
   .auth-modal input[type="text"],
   .auth-modal input[type="password"] {
     padding: 15px;
-    font-size: 16px; /* Увеличение для лучшего касания на мобильных */
+    font-size: 16px;
   }
 
   .auth-modal button[type="submit"],
@@ -287,6 +308,10 @@
 @media (max-width: 480px) {
   .auth-modal {
     padding: 15px;
+    /* ИСПРАВЛЕНИЕ 8: Ещё меньше на очень маленьких экранах */
+    margin: 0 5px;
+    margin-top: 40px;
+    max-height: 80vh;
   }
 
   .auth-modal-tabs button {

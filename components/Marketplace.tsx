@@ -1,7 +1,8 @@
-// Marketplace.tsx - с поиском и центрированным заголовком
+// Marketplace.tsx - с поиском, центрированным заголовком и API из mocks.ts
 "use client";
 
-import { useState, useMemo, ChangeEvent } from "react";
+import { useState, useMemo, ChangeEvent, useEffect } from "react";
+import { mockAPI } from "../api/mocks";
 import "./Marketplace.css";
 
 interface MarketplaceProps {
@@ -28,110 +29,9 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
   const [isCreatingAd, setIsCreatingAd] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
-  const [items, setItems] = useState<MarketItem[]>([
-    {
-      id: 1,
-      title: "Набор инструментов для начинающего мастера",
-      description: "Полный набор инструментов: молоток, отвертки, пассатижи, уровень. Отличное состояние.",
-      price: 2500,
-      location: "Москва",
-      author: "Иван Кулибин",
-      rating: 4.8,
-      type: "sell"
-    },
-    {
-      id: 2,
-      title: "Ищу помощника для ремонта мебели",
-      description: "Нужен помощник с опытом работы с деревом. Оплата договорная.",
-      price: "free",
-      location: "Санкт-Петербург",
-      author: "Мария Столярова",
-      rating: 4.9,
-      type: "buy"
-    },
-    {
-      id: 3,
-      title: "Электролобзик Bosch в отличном состоянии",
-      description: "Мощный, мало использовался. Есть все насадки и инструкция.",
-      price: 3500,
-      location: "Новосибирск",
-      author: "Алексей Мастеров",
-      rating: 4.7,
-      type: "sell",
-      negotiable: true
-    },
-    {
-      id: 4,
-      title: "Отдам дрова для печки/камина",
-      description: "Сухие березовые дрова, около 2 кубов. Самовывоз.",
-      price: "free",
-      location: "Казань",
-      author: "Дмитрий Лесной",
-      rating: 4.6,
-      type: "free"
-    },
-    {
-      id: 5,
-      title: "Обмен: дрель на шуруповерт",
-      description: "Дрель мощная, новая, хочу поменять на качественный шуруповерт.",
-      price: "free",
-      location: "Екатеринбург",
-      author: "Сергей Обменов",
-      rating: 4.5,
-      type: "exchange"
-    },
-    {
-      id: 6,
-      title: "Столярный верстак ручной работы",
-      description: "Массив дуба, регулируемая высота, ящики для инструментов.",
-      price: 12000,
-      location: "Краснодар",
-      author: "Олег Столяр",
-      rating: 5.0,
-      type: "auction"
-    },
-    {
-      id: 7,
-      title: "Деревянная полка ручной работы",
-      description: "Изготовлена из дуба, размеры 120x30x20 см. Идеально для книг или коллекций.",
-      price: 4500,
-      location: "Москва",
-      author: "Столяр_Иван",
-      rating: 4.8,
-      type: "sell"
-    },
-    {
-      id: 8,
-      title: "Молоток столярный профессиональный",
-      description: "Качественный молоток, вес 500г, деревянная рукоятка.",
-      price: 1200,
-      location: "Санкт-Петербург",
-      author: "ИнструментыОнлайн",
-      rating: 4.7,
-      type: "sell"
-    },
-    {
-      id: 9,
-      title: "Услуги по ремонту мебели",
-      description: "Профессиональный ремонт и реставрация мебели. Гарантия качества.",
-      price: 1500,
-      location: "Новосибирск",
-      author: "МастерМебели",
-      rating: 4.9,
-      type: "sell"
-    },
-    {
-      id: 10,
-      title: "Куплю старые инструменты",
-      description: "Куплю старые советские инструменты в любом состоянии.",
-      price: "free",
-      location: "Екатеринбург",
-      author: "Коллекционер",
-      rating: 4.5,
-      type: "buy"
-    },
-  ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [items, setItems] = useState<MarketItem[]>([]);
 
   const filters = [
     { id: "all", label: "Все объявления" },
@@ -142,14 +42,34 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
     { id: "auction", label: "Аукцион" }
   ];
 
+  // Загрузка данных с API
+  useEffect(() => {
+    const loadItems = async () => {
+      setIsLoading(true);
+      setApiError(null);
+      
+      try {
+        const result = await mockAPI.marketplace.loadItems(activeFilter);
+        
+        if (result.success && result.data) {
+          setItems(result.data);
+        } else {
+          setApiError(result.error || "Не удалось загрузить объявления");
+        }
+      } catch (error) {
+        console.error("Ошибка загрузки объявлений:", error);
+        setApiError("Ошибка соединения с сервером");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadItems();
+  }, [activeFilter]);
+
   // Поиск по объявлениям
   const filteredItems = useMemo(() => {
     let filtered = items;
-    
-    // Фильтрация по категории
-    if (activeFilter !== "all") {
-      filtered = filtered.filter(item => item.type === activeFilter);
-    }
     
     // Поиск по тексту
     if (searchQuery.trim()) {
@@ -163,7 +83,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
     }
     
     return filtered;
-  }, [items, activeFilter, searchQuery]);
+  }, [items, searchQuery]);
 
   // Подсказки для поиска
   const searchSuggestions = useMemo(() => {
@@ -180,7 +100,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
         uniqueTitles.add(title);
         return true;
       })
-      .slice(0, 5); // Ограничиваем 5 подсказками
+      .slice(0, 5);
   }, [items, searchQuery]);
 
   const handleCreateAd = () => {
@@ -191,14 +111,63 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
     setIsCreatingAd(false);
   };
 
-  const handleSubmitAd = (e: React.FormEvent) => {
+  // Используем API из mocks.ts
+  const handleSubmitAd = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Объявление создано!");
-    setIsCreatingAd(false);
+    setIsLoading(true);
+    
+    try {
+      const form = e.target as HTMLFormElement;
+      const formData = new FormData(form);
+      
+      const priceValue = formData.get("price") as string;
+      
+      const newItemData = {
+        title: formData.get("title") as string || "Новое объявление",
+        description: formData.get("description") as string || "Описание",
+        price: priceValue && !isNaN(parseInt(priceValue)) ? parseInt(priceValue) : "free" as number | "free",
+        location: formData.get("location") as string || "Не указано",
+        author: "Текущий пользователь",
+        type: (formData.get("type") as ItemType) || "sell",
+        negotiable: formData.get("negotiable") === "on",
+      };
+      
+      const result = await mockAPI.marketplace.createItem(newItemData);
+      
+      if (result.success && result.data) {
+        setItems(prev => [result.data!, ...prev]);
+        alert(`Объявление "${result.data.title}" успешно создано!`);
+        setIsCreatingAd(false);
+      } else {
+        alert(result.error || "Не удалось создать объявление");
+      }
+    } catch (error) {
+      console.error("Ошибка создания объявления:", error);
+      alert("Не удалось создать объявление. Попробуйте еще раз.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleContact = (itemId: number) => {
-    alert(`Связываемся с автором объявления #${itemId}`);
+  // Используем API из mocks.ts
+  const handleContact = async (itemId: number) => {
+    setIsLoading(true);
+    
+    try {
+      const result = await mockAPI.marketplace.contactAuthor(itemId);
+      
+      if (result.success) {
+        const item = items.find(i => i.id === itemId);
+        alert(`Сообщение автору "${item?.author}" отправлено!`);
+      } else {
+        alert(result.error || "Не удалось отправить сообщение");
+      }
+    } catch (error) {
+      console.error("Ошибка отправки сообщения:", error);
+      alert("Не удалось отправить сообщение. Попробуйте еще раз.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -309,20 +278,29 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                 key={filter.id}
                 className={`filter-btn ${activeFilter === filter.id ? "active" : ""}`}
                 onClick={() => setActiveFilter(filter.id)}
+                disabled={isLoading}
               >
                 {filter.label}
+                {isLoading && activeFilter === filter.id && "..."}
               </button>
             ))}
           </div>
+          
+          {apiError && (
+            <div className="api-error-message">
+              ⚠️ {apiError}
+            </div>
+          )}
         </div>
 
         <div className="create-ad-section">
           <button 
             className="create-ad-btn" 
             onClick={handleCreateAd}
-            disabled={isCreatingAd}
+            disabled={isCreatingAd || isLoading}
           >
             📝 Создать объявление
+            {isLoading && " (загрузка...)"}
           </button>
           <p className="auth-notice">Для создания объявления необходимо войти в систему</p>
         </div>
@@ -358,18 +336,27 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
               <div className="form-row">
                 <div className="form-group">
                   <label>Название объявления *</label>
-                  <input type="text" required placeholder="Например: Набор инструментов для начинающего" />
+                  <input 
+                    type="text" 
+                    name="title"
+                    required 
+                    placeholder="Например: Набор инструментов для начинающего" 
+                  />
                 </div>
                 <div className="form-group">
                   <label>Цена (₽)</label>
-                  <input type="number" placeholder="Укажите цену" />
+                  <input 
+                    type="number" 
+                    name="price"
+                    placeholder="Укажите цену" 
+                  />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
                   <label>Категория</label>
-                  <select>
+                  <select name="category">
                     <option value="">Выберите категорию</option>
                     <option value="tools">Инструменты</option>
                     <option value="materials">Материалы</option>
@@ -387,13 +374,19 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                 </div>
                 <div className="form-group">
                   <label>Город/Населенный пункт *</label>
-                  <input type="text" required placeholder="Ваше местоположение" />
+                  <input 
+                    type="text" 
+                    name="location"
+                    required 
+                    placeholder="Ваше местоположение" 
+                  />
                 </div>
               </div>
 
               <div className="form-group">
                 <label>Подробное описание *</label>
                 <textarea 
+                  name="description"
                   rows={4} 
                   required 
                   placeholder="Опишите товар/услугу подробно: состояние, характеристики, дополнительные условия..."
@@ -404,6 +397,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                 <label>Контактная информация *</label>
                 <input 
                   type="text" 
+                  name="contact"
                   required 
                   placeholder="Телефон, email или другой способ связи" 
                 />
@@ -413,21 +407,31 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                 <label>Фотография товара (необязательно)</label>
                 <input 
                   type="file" 
+                  name="image"
                   accept="image/*"
                   className="file-input"
                 />
               </div>
 
               <label className="checkbox-label">
-                <input type="checkbox" />
+                <input type="checkbox" name="negotiable" />
                 <span>Цена договорная</span>
               </label>
 
               <div className="form-actions">
-                <button type="submit" className="submit-btn">
-                  Опубликовать объявление
+                <button 
+                  type="submit" 
+                  className="submit-btn"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Публикация..." : "Опубликовать объявление"}
                 </button>
-                <button type="button" className="cancel-btn" onClick={handleCancelCreateAd}>
+                <button 
+                  type="button" 
+                  className="cancel-btn" 
+                  onClick={handleCancelCreateAd}
+                  disabled={isLoading}
+                >
                   Отмена
                 </button>
               </div>
@@ -435,61 +439,71 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
           </div>
         )}
 
-        <div className="items-grid">
-          {filteredItems.map(item => (
-            <div key={item.id} className="market-item">
-              <div className="item-type-badge">
-                <span className="badge-icon">{getTypeIcon(item.type)}</span>
-                <span className="badge-text">{getTypeLabel(item.type)}</span>
-              </div>
-              <div className="item-image">
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.title} />
-                ) : (
-                  <div className="image-placeholder">
-                    <span className="placeholder-icon">🛠️</span>
-                  </div>
-                )}
-              </div>
-              <div className="item-content">
-                <h3 id={`item-title-${item.id}`} className="item-title">{item.title}</h3>
-                <p className="item-description">{item.description}</p>
-                
-                <div className="item-meta">
-                  <div className="item-price">
-                    {item.price === "free" ? (
-                      <span className="price-free">Бесплатно</span>
-                    ) : (
-                      <>
-                        <span className="price-amount">{item.price.toLocaleString()} ₽</span>
-                        {item.negotiable && <span className="negotiable-badge">Договорная</span>}
-                      </>
-                    )}
-                  </div>
-                  <div className="item-location">📍 {item.location}</div>
+        {isLoading ? (
+          <div className="loading-items">
+            <div className="loading-spinner">🛠️</div>
+            <p>Загрузка объявлений...</p>
+          </div>
+        ) : filteredItems.length > 0 ? (
+          <div className="items-grid">
+            {filteredItems.map(item => (
+              <div key={item.id} className="market-item">
+                <div className="item-type-badge">
+                  <span className="badge-icon">{getTypeIcon(item.type)}</span>
+                  <span className="badge-text">{getTypeLabel(item.type)}</span>
                 </div>
-                
-                <div className="item-footer">
-                  <div className="item-author">
-                    <span className="author-name">{item.author}</span>
-                    <span className="author-rating">★ {item.rating}</span>
+                <div className="item-image">
+                  {item.imageUrl ? (
+                    <img src={item.imageUrl} alt={item.title} />
+                  ) : (
+                    <div className="image-placeholder">
+                      <span className="placeholder-icon">🛠️</span>
+                    </div>
+                  )}
+                </div>
+                <div className="item-content">
+                  <h3 className="item-title">{item.title}</h3>
+                  <p className="item-description">{item.description}</p>
+                  
+                  <div className="item-meta">
+                    <div className="item-price">
+                      {item.price === "free" ? (
+                        <span className="price-free">Бесплатно</span>
+                      ) : (
+                        <>
+                          <span className="price-amount">{item.price.toLocaleString()} ₽</span>
+                          {item.negotiable && <span className="negotiable-badge">Договорная</span>}
+                        </>
+                      )}
+                    </div>
+                    <div className="item-location">📍 {item.location}</div>
                   </div>
-                  <button 
-                    className="contact-btn"
-                    onClick={() => handleContact(item.id)}
-                  >
-                    Связаться
-                  </button>
+                  
+                  <div className="item-footer">
+                    <div className="item-author">
+                      <span className="author-name">{item.author}</span>
+                      <span className="author-rating">★ {item.rating}</span>
+                    </div>
+                    <button 
+                      className="contact-btn"
+                      onClick={() => handleContact(item.id)}
+                      disabled={isLoading}
+                    >
+                      Связаться
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {filteredItems.length === 0 && (
+            ))}
+          </div>
+        ) : (
           <div className="no-items">
             <p>Ничего не найдено</p>
-            <button className="create-first-btn" onClick={handleCreateAd}>
+            <button 
+              className="create-first-btn" 
+              onClick={handleCreateAd}
+              disabled={isLoading}
+            >
               Создайте первое объявление!
             </button>
           </div>

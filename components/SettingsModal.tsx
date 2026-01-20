@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSettings } from './SettingsContext';
+import { mockAPI } from '../api/mocks';
 import './SettingsModal.css';
 
 interface SettingsModalProps {
@@ -13,6 +14,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const { settings, updateSettings, resetSettings } = useSettings();
   const [localSettings, setLocalSettings] = useState(settings);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
+
+  // При загрузке компонента загружаем настройки с "сервера"
+  useEffect(() => {
+    const loadSettings = async () => {
+      setLoading(true);
+      try {
+        const result = await mockAPI.settings.loadSettings();
+        if (result.success && result.data) {
+          setLocalSettings(result.data);
+          updateSettings(result.data);
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки настроек:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadSettings();
+  }, []);
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -22,15 +46,77 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     setLocalSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleSave = () => {
-    updateSettings(localSettings);
-    onClose();
+  const handleSave = async () => {
+    setSyncStatus('loading');
+    
+    // Приведение типа для совместимости
+    const settingsToSave = {
+      theme: localSettings.theme as 'light' | 'dark' | 'auto' | 'brown',
+      brightness: localSettings.brightness,
+      fontSize: localSettings.fontSize,
+      showAnimations: localSettings.showAnimations
+    };
+    
+    const result = await mockAPI.settings.saveSettings(settingsToSave);
+    
+    if (result.success) {
+      updateSettings(localSettings);
+      setSyncStatus('success');
+      setLastSynced(new Date().toISOString());
+      setTimeout(() => setSyncStatus('idle'), 2000);
+      onClose();
+    } else {
+      setSyncStatus('error');
+      alert('Ошибка сохранения настроек. Проверьте соединение.');
+    }
   };
 
-  const handleReset = () => {
-    resetSettings();
-    setShowResetConfirm(false);
-    onClose();
+  const handleReset = async () => {
+    const defaultSettings = { 
+      theme: 'auto' as const, 
+      brightness: 100, 
+      fontSize: 100,
+      showAnimations: true
+    };
+    
+    setSyncStatus('loading');
+    const result = await mockAPI.settings.saveSettings(defaultSettings);
+    
+    if (result.success) {
+      resetSettings();
+      setSyncStatus('success');
+      setLastSynced(new Date().toISOString());
+      setTimeout(() => setSyncStatus('idle'), 2000);
+      setShowResetConfirm(false);
+      onClose();
+    } else {
+      setSyncStatus('error');
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncStatus('loading');
+    const result = await mockAPI.settings.syncSettings();
+    
+    if (result.success && result.data) {
+      setLocalSettings(result.data.merged);
+      updateSettings(result.data.merged);
+      setSyncStatus('success');
+      setLastSynced(new Date().toISOString());
+      
+      if (result.data.conflicts) {
+        console.warn('Обнаружены конфликты:', result.data.conflicts);
+      }
+    } else {
+      setSyncStatus('error');
+    }
+  };
+
+  // Форматирование времени последней синхронизации
+  const formatLastSynced = () => {
+    if (!lastSynced) return 'Никогда';
+    const date = new Date(lastSynced);
+    return `${date.toLocaleTimeString()}`;
   };
 
   return (
@@ -40,6 +126,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         <div className="settings-modal-header">
           <h2 className="settings-modal-title">
             <span className="settings-icon">⚙️</span> Настройки
+            {loading && <span className="loading-indicator"> (загрузка...)</span>}
           </h2>
           <button className="settings-close-btn" onClick={onClose} aria-label="Закрыть">
             ✕
@@ -47,22 +134,48 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         </div>
 
         <div className="settings-modal-content">
+          {/* Статус синхронизации */}
+          <div className="sync-status-bar">
+            <div className="sync-info">
+              <span className="sync-label">Синхронизация:</span>
+              <span className={`sync-status ${syncStatus}`}>
+                {syncStatus === 'idle' && 'Готово'}
+                {syncStatus === 'loading' && 'Синхронизация...'}
+                {syncStatus === 'success' && 'Успешно'}
+                {syncStatus === 'error' && 'Ошибка'}
+              </span>
+              {lastSynced && (
+                <span className="last-synced">Обновлено: {formatLastSynced()}</span>
+              )}
+            </div>
+            <button 
+              className="sync-btn"
+              onClick={handleSync}
+              disabled={syncStatus === 'loading'}
+            >
+              {syncStatus === 'loading' ? '🔄' : '🔄'}
+            </button>
+          </div>
+
           {/* Тема оформления */}
           <div className="settings-section">
             <h3 className="settings-section-title">Тема оформления</h3>
             <div className="theme-options">
-              {(['light', 'dark', 'auto'] as const).map((theme) => (
+              {(['light', 'dark', 'auto', 'brown'] as const).map((theme) => (
                 <button
                   key={theme}
                   className={`theme-option ${localSettings.theme === theme ? 'active' : ''}`}
                   onClick={() => handleChange('theme', theme)}
                 >
                   <span className="theme-icon">
-                    {theme === 'light' ? '☀️' : theme === 'dark' ? '🌙' : '🔄'}
+                    {theme === 'light' ? '☀️' : 
+                     theme === 'dark' ? '🌙' : 
+                     theme === 'auto' ? '🔄' : '🟤'}
                   </span>
                   <span className="theme-label">
                     {theme === 'light' ? 'Светлая' : 
-                     theme === 'dark' ? 'Темная' : 'Авто'}
+                     theme === 'dark' ? 'Темная' : 
+                     theme === 'auto' ? 'Авто' : 'Коричневая'}
                   </span>
                 </button>
               ))}
@@ -134,8 +247,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               <button
                 className="settings-btn settings-btn-primary"
                 onClick={handleSave}
+                disabled={syncStatus === 'loading'}
               >
-                Сохранить
+                {syncStatus === 'loading' ? 'Сохранение...' : 'Сохранить'}
               </button>
             </div>
           </div>
@@ -148,6 +262,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               <h3 className="confirm-title">Сбросить настройки?</h3>
               <p className="confirm-text">
                 Все настройки будут восстановлены к значениям по умолчанию.
+                Это действие нельзя отменить.
               </p>
               <div className="confirm-buttons">
                 <button

@@ -1,3 +1,5 @@
+/* AuthModal.css - добавлены стили для иконок просмотра пароля */
+
 .auth-modal-overlay {
   position: fixed;
   top: 0;
@@ -10,7 +12,6 @@
   align-items: center;
   z-index: 2000;
   padding: 20px;
-  /* ИСПРАВЛЕНИЕ 1: Включаем прокрутку для оверлея */
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -24,7 +25,6 @@
   max-width: 400px;
   position: relative;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  /* ИСПРАВЛЕНИЕ 2: Ограничиваем высоту и добавляем прокрутку */
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -36,7 +36,7 @@
   background: none;
   border: none;
   color: #F5DEB3;
-  font-size: 1.5em;
+  font-size: 1.5rem;
   cursor: pointer;
   padding: 5px;
   border-radius: 50%;
@@ -45,7 +45,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* ИСПРАВЛЕНИЕ 3: Повышаем z-index для кнопки */
   z-index: 10;
 }
 
@@ -65,7 +64,7 @@
   background: none;
   border: none;
   color: #D7CCC8;
-  font-size: 1.1em;
+  font-size: 1.1rem;
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
@@ -115,15 +114,29 @@
   gap: 15px;
 }
 
+/* Контейнеры для полей ввода */
+.input-container,
+.password-input-container {
+  position: relative;
+  width: 100%;
+}
+
 .auth-modal input[type="email"],
 .auth-modal input[type="text"],
 .auth-modal input[type="password"] {
+  width: 100%;
   padding: 12px 15px;
   background: rgba(245, 222, 179, 0.1);
   border: 2px solid #8B7355;
   border-radius: 6px;
   color: #F5DEB3;
   font-size: 1em;
+}
+
+/* Для полей пароля добавляем отступ справа для иконки */
+.password-input-container input[type="password"],
+.password-input-container input[type="text"] {
+  padding-right: 45px; /* Место для кнопки */
 }
 
 .auth-modal input::placeholder {
@@ -136,10 +149,44 @@
   background: rgba(245, 222, 179, 0.15);
 }
 
+/* Кнопка переключения видимости пароля */
+.toggle-password {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 5px;
+  color: #8B7355;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.toggle-password:hover {
+  opacity: 1;
+  background: rgba(139, 69, 19, 0.1);
+  color: #D2691E;
+}
+
+.toggle-password:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(210, 105, 30, 0.3);
+}
+
 .agreement-checkbox {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 10px 0;
   color: #D7CCC8;
   font-size: 0.9em;
   cursor: pointer;
@@ -149,17 +196,19 @@
   width: 18px;
   height: 18px;
   cursor: pointer;
+  accent-color: #D2691E;
 }
 
 .forgot-password-btn {
   background: none;
   border: none;
   color: #8B9DCE;
-  font-size: 0.85em;
+  font-size: 0.85rem;
   text-align: left;
   padding: 5px 0;
   cursor: pointer;
   transition: color 0.3s ease;
+  align-self: flex-start;
 }
 
 .forgot-password-btn:hover {
@@ -174,7 +223,7 @@
   border: none;
   border-radius: 6px;
   padding: 14px;
-  font-size: 1.1em;
+  font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -224,13 +273,12 @@
   font-size: 0.9em;
 }
 
-/* Медиа-запросы для адаптации под мобильные устройства */
+/* Медиазапросы для адаптации под мобильные устройства */
 @media (max-width: 768px) {
   .auth-modal-overlay {
     padding: 10px;
     align-items: flex-start;
     padding-top: 60px;
-    /* ИСПРАВЛЕНИЕ 4: Гарантируем прокрутку на мобильных */
     overflow-y: auto;
   }
 
@@ -239,14 +287,11 @@
     max-width: 100%;
     margin: 0 10px;
     border-radius: 10px;
-    /* ИСПРАВЛЕНИЕ 5: Добавляем отступ сверху для кнопки закрытия */
     margin-top: 40px;
-    /* ИСПРАВЛЕНИЕ 6: Уменьшаем максимальную высоту */
     max-height: 85vh;
     overflow-y: auto;
   }
   
-  /* ИСПРАВЛЕНИЕ 7: Делаем кнопку закрытия более доступной */
   .close-modal {
     top: 10px;
     right: 10px;
@@ -288,6 +333,11 @@
     font-size: 16px;
   }
 
+  .password-input-container input[type="password"],
+  .password-input-container input[type="text"] {
+    padding-right: 45px;
+  }
+
   .auth-modal button[type="submit"],
   .auth-form-actions button[type="submit"] {
     padding: 16px;
@@ -308,7 +358,6 @@
 @media (max-width: 480px) {
   .auth-modal {
     padding: 15px;
-    /* ИСПРАВЛЕНИЕ 8: Ещё меньше на очень маленьких экранах */
     margin: 0 5px;
     margin-top: 40px;
     max-height: 80vh;
@@ -320,7 +369,7 @@
   }
 
   .auth-modal form h3 {
-    font-size: 1.3em;
+    font-size: 1.3rem;
   }
 
   .auth-modal form p {
@@ -335,9 +384,15 @@
     font-size: 0.85em;
     padding: 10px;
   }
+  
+  .toggle-password {
+    font-size: 1.1rem;
+    width: 28px;
+    height: 28px;
+  }
 }
 
-/* Отключение анимации для людей, предпочитающих уменьшенное движение */
+/* Отключение анимации для тех, кто предпочитает минимальное движение */
 @media (prefers-reduced-motion: reduce) {
   .auth-modal button,
   .auth-modal input,

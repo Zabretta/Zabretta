@@ -1,7 +1,7 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { mockAPI } from "../api/mocks";
 import "./RulesModal.css";
 
 interface RulesModalProps {
@@ -9,18 +9,37 @@ interface RulesModalProps {
   onClose: () => void;
 }
 
+interface RulesData {
+  rules: string[];
+  accepted: boolean;
+  acceptedDate?: string;
+}
+
 export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
-  const [apiData, setApiData] = useState<{ rules: string[] } | null>(null);
+  const [rulesData, setRulesData] = useState<RulesData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasAccepted, setHasAccepted] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Проверяем при загрузке, принимал ли пользователь правила ранее
   useEffect(() => {
-    if (isOpen) {
-      const accepted = localStorage.getItem('samodelkin_rules_accepted');
-      setHasAccepted(!!accepted);
-    }
+    const checkAcceptance = async () => {
+      if (isOpen) {
+        try {
+          const response = await mockAPI.rules.checkAcceptance();
+          if (response.success && response.data) {
+            setHasAccepted(response.data.accepted);
+          }
+        } catch (error) {
+          console.error('Ошибка проверки принятия правил:', error);
+          // Fallback на localStorage
+          const accepted = localStorage.getItem('samodelkin_rules_accepted') === 'true';
+          setHasAccepted(accepted);
+        }
+      }
+    };
+    
+    checkAcceptance();
   }, [isOpen]);
 
   // Закрытие по правой кнопке мыши
@@ -36,60 +55,105 @@ export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
     return () => document.removeEventListener("contextmenu", handleContextMenu);
   }, [isOpen, onClose]);
 
-  // Заглушка для API (будет заменена на реальную интеграцию)
+  // Загрузка правил через API
   useEffect(() => {
-    if (isOpen && !apiData) {
-      setIsLoading(true);
+    const loadRules = async () => {
+      if (isOpen && !rulesData) {
+        setIsLoading(true);
+        try {
+          const response = await mockAPI.rules.loadRules();
+          if (response.success && response.data) {
+            setRulesData(response.data);
+            setHasAccepted(response.data.accepted);
+          } else {
+            console.error('Ошибка загрузки правил:', response.error);
+          }
+        } catch (error) {
+          console.error('Ошибка API при загрузке правил:', error);
+          // Fallback на локальные правила
+          setRulesData({
+            rules: [
+              "Уважаемые пользователи, приветствуем вас на нашем сайте САМОДЕЛКИН. Наш сайт создан с целью обьеденить талантливых, изобретательных, творческих людей в группу по интересам, для общения, возможностью поделиться своими идеями, поделками, изобретениями, получить или оказать помощь и поддержку в разработках, проектах или ремонте, творчестве, домашнем рукоделии, кулинарии, круг интересов не ограничен. Если вы в душе Кулибин или Левша, то это ваш сайт.",
+              "На нашей площадке после регистрации вы получаете возможность в личном кабинете выкладывать фото и видео своих проектов, они автоматически будут попадать в ЛЕНТА ПРОЕКТОВ где их смогут обсуждать, комментировать, одобрять или конструктивно критиковать другие пользователи и участники.",
+              "На сайте для каждого пользователя создана рейтинговая система, за помощь другим, за похвалу хороших проектов, за выложенные в БИБЛИОТЕКу документы, схемы, рецепты и т.д. будут начисляться баллы повышающие личный рейтинг который позволяет более широкие возможности на получение заказов и продаж.",
+              "На сайте есть возможность разместить обьявление о продаже своих работ в разделе БАРАХОЛКА а так же размещение обьявлений по ремонту или изготовлению в разделе МАСТЕРА РЯДОМ.",
+              "На сайте запрещено распостранять стороннюю рекламу и спам, аккаунт пользователя будет блокироваться.",
+              "Уважаемые пользователи, просьба относиться друг к другу с уважением не оскорблять друг друга в переписке и комментариях, мат на странице сайта строго запрещен, аккаунт нарушителя будет блокироваться и удаляться. Будте добры друг к другу и уважительны, удачи вам в ваших достижениях и проектах.",
+            ],
+            accepted: localStorage.getItem('samodelkin_rules_accepted') === 'true',
+            acceptedDate: localStorage.getItem('samodelkin_rules_accepted_date') || undefined
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadRules();
+  }, [isOpen, rulesData]);
+
+  // Функция принятия правил через API
+  const handleAcceptRules = async () => {
+    try {
+      const response = await mockAPI.rules.acceptRules();
+      if (response.success && response.data) {
+        setHasAccepted(true);
+        
+        // Обновляем локальные данные
+        if (rulesData) {
+          setRulesData({
+            ...rulesData,
+            accepted: true,
+            acceptedDate: response.data.acceptedDate
+          });
+        }
+        
+        alert('✅ Правила приняты! Добро пожаловать в сообщество Кулибиных!');
+        
+        // Закрываем модалку через 1 секунду
+        setTimeout(() => {
+          onClose();
+        }, 1000);
+      } else {
+        alert('Ошибка при принятии правил: ' + (response.error || 'Неизвестная ошибка'));
+      }
+    } catch (error) {
+      console.error('Ошибка API при принятии правил:', error);
+      // Fallback на локальное сохранение
+      localStorage.setItem('samodelkin_rules_accepted', 'true');
+      localStorage.setItem('samodelkin_rules_accepted_date', new Date().toISOString());
+      setHasAccepted(true);
+      alert('✅ Правила приняты! (локальное сохранение)');
       
-      // Имитация API-запроса
-      const fakeApiCall = () => {
-        return new Promise<{ rules: string[] }>((resolve) => {
-          setTimeout(() => {
-            resolve({
-              rules: [
-                "Уважаемые пользователи, приветствуем вас на нашем сайте САМОДЕЛКИН. Наш сайт создан с целью обьеденить талантливых, изобретательных, творческих людей в группу по интересам, для общения, возможностью поделиться своими идеями, поделками, изобретениями, получить или оказать помощь и поддержку в разработках, проектах или ремонте, творчестве, домашнем рукоделии, кулинарии, круг интересов не ограничен. Если вы в душе Кулибин или Левша, то это ваш сайт.",
-                "На нашей площадке после регистрации вы получаете возможность в личном кабинете выкладывать фото и видео своих проектов, они автоматически будут попадать в ЛЕНТА ПРОЕКТОВ где их смогут обсуждать, комментировать, одобрять или конструктивно критиковать другие пользователи и участники. ",
-                "На сайте для каждого пользователя создана рейтинговая система, за помощь другим, за похвалу хороших проектов, за выложенные в БИБЛИОТЕКу документы, схемы, рецепты и т.д. будут начисляться баллы повышающие личный рейтинг который позволяет более широкие возможности на получение заказов и продаж. ",
-                "На сайте есть возможность разместить обьявление о продаже своих работ в разделе БАРАХОЛКА а так же размещение обьявлений по ремонту или изготовлению в разделе МАСТЕРА РЯДОМ.",
-                "На сайте запрещено распостранять стороннюю рекламу и спам, аккаунт пользователя будет блокироваться.",
-                "Уважаемые пользователи, просьба относиться друг к другу с уважением не оскорблять друг друга в переписке и комментариях, мат на странице сайта строго запрещен, аккаунт нарушителя будет блокироваться и удаляться. Будте добры друг к другу и уважительны, удачи вам в ваших достижениях и проектах.",
-              ],
-            });
-          }, 500);
-        });
-      };
-
-      fakeApiCall()
-        .then((data) => setApiData(data))
-        .finally(() => setIsLoading(false));
+      setTimeout(() => {
+        onClose();
+      }, 1000);
     }
-  }, [isOpen, apiData]);
-
-  // Функция принятия правил
-  const handleAcceptRules = () => {
-    // Сохраняем в localStorage
-    localStorage.setItem('samodelkin_rules_accepted', 'true');
-    localStorage.setItem('samodelkin_rules_accepted_date', new Date().toISOString());
-    
-    // Обновляем состояние
-    setHasAccepted(true);
-    
-    // Показываем уведомление
-    alert('✅ Правила приняты! Добро пожаловать в сообщество Кулибиных!');
-    
-    // Закрываем модалку через 1 секунду
-    setTimeout(() => {
-      onClose();
-    }, 1000);
   };
 
   // Функция сброса согласия (для тестирования)
-  const handleResetAcceptance = () => {
+  const handleResetAcceptance = async () => {
     if (confirm('Сбросить принятие правил? Это для тестирования.')) {
-      localStorage.removeItem('samodelkin_rules_accepted');
-      localStorage.removeItem('samodelkin_rules_accepted_date');
-      setHasAccepted(false);
-      alert('Согласие сброшено. Можете принять правила заново.');
+      try {
+        const response = await mockAPI.rules.resetAcceptance();
+        if (response.success) {
+          setHasAccepted(false);
+          if (rulesData) {
+            setRulesData({
+              ...rulesData,
+              accepted: false,
+              acceptedDate: undefined
+            });
+          }
+          alert('Согласие сброшено. Можете принять правила заново.');
+        }
+      } catch (error) {
+        console.error('Ошибка сброса принятия:', error);
+        localStorage.removeItem('samodelkin_rules_accepted');
+        localStorage.removeItem('samodelkin_rules_accepted_date');
+        setHasAccepted(false);
+        alert('Согласие сброшено (локально).');
+      }
     }
   };
 
@@ -102,11 +166,9 @@ export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
         <div className="rules-modal-header">
           <div>
             <h1 className="rules-modal-title">НАШИ ПРАВИЛА</h1>
-            {hasAccepted && (
+            {hasAccepted && rulesData?.acceptedDate && (
               <div className="accepted-badge">
-                ✅ Вы уже приняли правила {localStorage.getItem('samodelkin_rules_accepted_date') 
-                  ? new Date(localStorage.getItem('samodelkin_rules_accepted_date')!).toLocaleDateString('ru-RU')
-                  : ''}
+                ✅ Вы уже приняли правила {new Date(rulesData.acceptedDate).toLocaleDateString('ru-RU')}
               </div>
             )}
           </div>
@@ -131,34 +193,22 @@ export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
             </div>
           ) : (
             <div className="rules-content">
-              {/* ЗАГЛУШКА ДЛЯ API */}
-              <div className="api-data-placeholder">
-                {apiData?.rules.map((rule, index) => (
-                  <div key={index} className="rule-item">
-                    <span className="rule-number">{index + 1}.</span>
-                    <span className="rule-text">{rule}</span>
-                  </div>
-                ))}
-              </div>
+              {rulesData?.rules.map((rule, index) => (
+                <div key={index} className="rule-item">
+                  <span className="rule-number">{index + 1}.</span>
+                  <span className="rule-text">{rule}</span>
+                </div>
+              ))}
               
-              {/* КОММЕНТАРИЙ: ВСТАВЬТЕ СВОЙ ТЕКСТ ПРАВИЛ ЗДЕСЬ ↓ */}
+              {/* Блок для кастомных правил */}
               <div className="custom-rules-section">
                 {/* 
                   ============================================
                   ВСТАВЬТЕ ВАШ ТЕКСТ ПРАВИЛ НИЖЕ ЭТОЙ СТРОКИ
                   ============================================
                   
-                  Пример:
-                  <h2>1. Основные принципы сообщества</h2>
-                  <p>Текст ваших правил...</p>
-                  
-                  Или можете удалить этот блок и написать свои правила выше,
-                  заменив содержимое `api-data-placeholder`
+                  Или можете удалить этот блок и расширить список правил выше
                 */}
-                
-                {/* Начало вашего текста */}
-                
-                {/* Конец вашего текста */}
               </div>
             </div>
           )}

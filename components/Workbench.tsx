@@ -1,4 +1,4 @@
-// components/Workbench.tsx - Адаптирован для мобильных
+// components/Workbench.tsx - Очищен от API логики
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,7 +8,7 @@ import AuthModal from "./AuthModal";
 import Marketplace from "./Marketplace";
 import SettingsModal from "./SettingsModal";
 import { useAuth } from "./useAuth";
-import { useSettings } from "./SettingsContext"; // <-- Добавлен импорт
+import { useSettings } from "./SettingsContext";
 
 export default function Workbench() {
   const [activeDrawer, setActiveDrawer] = useState<string | null>(null);
@@ -16,9 +16,15 @@ export default function Workbench() {
   const [isMobile, setIsMobile] = useState(false);
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [communityStats, setCommunityStats] = useState({
+    online: 1892,
+    projectsCreated: 7543,
+    adviceGiven: 15287
+  });
   
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen } = useAuth();
-  const { settings } = useSettings(); // <-- Получаем настройки
+  const { settings } = useSettings();
 
   // Определяем мобильное устройство
   useEffect(() => {
@@ -34,17 +40,106 @@ export default function Workbench() {
     };
   }, []);
 
+  // Загрузка статистики (будет заменена на вызов из api/mocks.ts позже)
+  useEffect(() => {
+    // TODO: Заменить на вызов mockAPI.community.loadStats()
+    setTimeout(() => {
+      setCommunityStats({
+        online: 1892,
+        projectsCreated: 7543,
+        adviceGiven: 15287
+      });
+    }, 200);
+  }, []);
+
+  // Обработчики действий
   const handleRulesClick = () => setIsRulesModalOpen(true);
   const handleCloseRulesModal = () => setIsRulesModalOpen(false);
+  
   const handleAuthButtonClick = () => {
-    isAuthenticated ? alert("Переход в личный кабинет (профиль)") : setAuthModalOpen(true);
+    if (isAuthenticated) {
+      // TODO: Заменить на переход в профиль через API
+      alert("Переход в личный кабинет");
+    } else {
+      setAuthModalOpen(true);
+    }
+  };
+
+  // Обработчики для верхней панели
+  const handleToolAction = async (toolId: string, label: string) => {
+    setIsLoading(true);
+    console.log(`Действие: ${label}`);
+    
+    try {
+      // TODO: Заменить на вызовы mockAPI.projects.*
+      switch (toolId) {
+        case "hammer":
+          alert(`Вы похвалили проект!`);
+          break;
+        case "share":
+          alert("Проект успешно опубликован!");
+          break;
+        case "heart":
+          alert("Проект добавлен в избранное!");
+          break;
+        case "pencil":
+          const commentText = prompt("Введите ваш комментарий:");
+          if (commentText) {
+            alert("Комментарий успешно добавлен!");
+          }
+          break;
+        case "settings":
+          // Открытие настроек (обрабатывается отдельно)
+          break;
+      }
+    } catch (error) {
+      console.error("Ошибка выполнения действия:", error);
+      alert("Не удалось выполнить действие. Попробуйте еще раз.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Обработчики для боковых панелей
+  const handleDrawerClick = (drawerId: string) => {
+    setActiveDrawer(drawerId);
+    
+    // Проверяем есть ли специальное действие
+    const drawer = leftDrawers.find(d => d.id === drawerId) || rightDrawers.find(d => d.id === drawerId);
+    if (drawer?.action) {
+      drawer.action();
+      return;
+    }
+    
+    setIsLoading(true);
+    console.log(`Открытие раздела: ${drawerId}`);
+    
+    // TODO: Заменить на вызовы из api/mocks.ts
+    setTimeout(() => {
+      switch (drawerId) {
+        case "projects":
+          alert("Загрузка ленты проектов...");
+          break;
+        case "masters":
+          alert("Поиск мастеров рядом...");
+          break;
+        case "myprojects":
+          alert("Загрузка ваших проектов...");
+          break;
+        case "liked":
+          alert("Загрузка понравившихся проектов...");
+          break;
+        default:
+          console.log(`Открываем: ${drawerId}`);
+      }
+      setIsLoading(false);
+    }, 300);
   };
 
   // Массивы данных ДЛЯ БОКОВЫХ ПАНЕЛЕЙ
   const leftDrawers = [
     { id: "projects", label: "Лента проектов", icon: "📁", color: "#8B4513" },
     { id: "masters", label: "Мастера рядом", icon: "👥", color: "#A0522D" },
-    // Кнопка "Достижения" удалена отсюда
     { id: "help", label: "Ищут помощи", icon: "❓", color: "#8B7355" },
     { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D" },
     { id: "market", label: "Барахолка", icon: "🛒", color: "#D2691E", action: () => setIsMarketplaceOpen(true) },
@@ -56,18 +151,17 @@ export default function Workbench() {
     { id: "myprojects", label: "Мои проекты", icon: "🛠️", color: "#A0522D" },
     { id: "liked", label: "Понравилось", icon: "❤️", color: "#D2691E" },
     { id: "myworkshop", label: "Моя мастерская", icon: "📸", color: "#CD853F" },
-    // Кнопка "Встречи" удалена отсюда
     { id: "support", label: "Помощь", icon: "🆘", color: "#D2691E" },
     { id: "logout", label: "Выйти", icon: "🚪", color: "#CD853F", action: () => logout() },
   ];
 
-  // Массив ДЛЯ ВЕРХНЕЙ ПАНЕЛИ: 5 кнопок, равномерно распределенных, "Настройки" - крайняя справа
+  // Массив ДЛЯ ВЕРХНЕЙ ПАНЕЛИ
   const tools = [
-    { id: "hammer", label: "Похвалить", icon: "🔨", action: () => alert("Молодец! Отличная работа!") },
-    { id: "share", label: "Поделиться", icon: "📤", action: () => alert("Открывается меню 'Поделиться'") },
-    { id: "heart", label: "Избранное", icon: "❤️", action: () => alert("Добавить в избранное") },
-    { id: "pencil", label: "Комментировать", icon: "✏️", action: () => alert("Добавить комментарий") },
-    { id: "settings", label: "Настройки", icon: "⚙️", action: () => setIsSettingsOpen(true) }, // Крайняя правая
+    { id: "hammer", label: "Похвалить", icon: "🔨", action: () => handleToolAction("hammer", "Похвалить") },
+    { id: "share", label: "Поделиться", icon: "📤", action: () => handleToolAction("share", "Поделиться") },
+    { id: "heart", label: "Избранное", icon: "❤️", action: () => handleToolAction("heart", "Избранное") },
+    { id: "pencil", label: "Комментировать", icon: "✏️", action: () => handleToolAction("pencil", "Комментировать") },
+    { id: "settings", label: "Настройки", icon: "⚙️", action: () => setIsSettingsOpen(true) },
   ];
 
   const features = [
@@ -79,18 +173,16 @@ export default function Workbench() {
     { id: 6, icon: "💰", text: "Продавайте свои<br />товары и идеи" },
   ];
 
-  const handleDrawerClick = (drawerId: string) => {
-    setActiveDrawer(drawerId);
-    const drawer = leftDrawers.find(d => d.id === drawerId) || rightDrawers.find(d => d.id === drawerId);
-    if (drawer?.action) {
-      drawer.action();
-      return;
-    }
-    alert(`Открываем: ${drawerId}`);
-  };
-
   return (
     <div className="workshop">
+      {/* Индикатор загрузки */}
+      {isLoading && (
+        <div className="api-loading-overlay">
+          <div className="loading-spinner">🛠️</div>
+          <p>Загрузка...</p>
+        </div>
+      )}
+
       {/* Верхняя панель с прокруткой */}
       <div className="tools-panel">
         <div className="tools-container">
@@ -100,10 +192,9 @@ export default function Workbench() {
               className={`tool ${isMobile ? 'mobile' : ''}`}
               title={tool.label}
               onClick={tool.action}
+              disabled={isLoading}
               style={{
-                // Для равномерного распределения на десктопе
                 flex: isMobile ? '0 0 auto' : '1 1 0',
-                // Минимальная ширина для мобильных
                 minWidth: isMobile ? '90px' : 'auto'
               }}
             >
@@ -124,8 +215,9 @@ export default function Workbench() {
               key={drawer.id}
               className={`drawer ${isMobile ? 'mobile' : ''} ${activeDrawer === drawer.id ? "open" : ""}`}
               onClick={() => handleDrawerClick(drawer.id)}
+              disabled={isLoading}
               style={!isMobile ? { borderLeftColor: drawer.color } : undefined}
-              title={drawer.label} // Всплывающая подсказка на мобильных
+              title={drawer.label}
             >
               <span className="drawer-handle"></span>
               <span className="drawer-icon">{drawer.icon}</span>
@@ -180,8 +272,10 @@ export default function Workbench() {
                   <button 
                     className="cta-button" 
                     onClick={handleAuthButtonClick}
+                    disabled={isLoading}
                   >
-                    {isAuthenticated ? "Мой профиль" : "Присоединиться к Кулибиным"}
+                    {isLoading ? "Загрузка..." : 
+                     isAuthenticated ? "Мой профиль" : "Присоединиться к Кулибиным"}
                   </button>
                   <p className="cta-note">
                     {isAuthenticated 
@@ -193,15 +287,15 @@ export default function Workbench() {
 
               <div className="community-stats">
                 <div className="stat-item">
-                  <span className="stat-number">1,892</span>
+                  <span className="stat-number">{communityStats.online.toLocaleString()}</span>
                   <span className="stat-label">Кулибиных онлайн</span>
                 </div>
                 <div className="stat-item">
-                  <span className="stat-number">7,543</span>
+                  <span className="stat-number">{communityStats.projectsCreated.toLocaleString()}</span>
                   <span className="stat-label">Самоделок создано</span>
                 </div>
                 <div className="stat-item">
-                  <span className="stat-number">15,287</span>
+                  <span className="stat-number">{communityStats.adviceGiven.toLocaleString()}</span>
                   <span className="stat-label">Ценных советов</span>
                 </div>
               </div>
@@ -223,6 +317,7 @@ export default function Workbench() {
               key={drawer.id}
               className={`drawer ${isMobile ? 'mobile' : ''} ${activeDrawer === drawer.id ? "open" : ""}`}
               onClick={() => handleDrawerClick(drawer.id)}
+              disabled={isLoading}
               style={!isMobile ? { borderRightColor: drawer.color } : undefined}
               title={drawer.label}
             >
@@ -260,3 +355,4 @@ export default function Workbench() {
     </div>
   );
 }
+

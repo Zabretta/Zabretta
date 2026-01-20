@@ -1,9 +1,11 @@
+// AuthModal.tsx
 "use client";
 
 import { useState } from 'react';
+import { mockAPI } from '../api/mocks';
 import './AuthModal.css';
 
-type AuthMode = 'register' | 'login' | 'forgot-password';
+type AuthMode = 'register' | 'login' | 'forgotPassword';
 
 export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [mode, setMode] = useState<AuthMode>('register');
@@ -16,33 +18,8 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
   });
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-
-  // Заглушки API согласно ТЗ-1
-  const mockRegister = async (userData: any) => {
-    console.log('Заглушка: Регистрация', userData);
-    localStorage.setItem('samodelkin_demo_user', JSON.stringify({
-      ...userData,
-      id: 'demo_' + Date.now(),
-      status: 'pending'
-    }));
-    return { 
-      success: true, 
-      message: 'Регистрация успешна (демо-режим). Письмо с подтверждением отправлено на ваш email.' 
-    };
-  };
-
-  const mockLogin = async (login: string, password: string) => {
-    console.log('Заглушка: Вход', { login, password });
-    return { 
-      success: true, 
-      token: 'jwt_token_demo_' + Date.now(),
-      user: {
-        id: 'demo_user_123',
-        login: login,
-        email: 'demo@example.com'
-      }
-    };
-  };
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,46 +32,49 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
         if (formData.password !== formData.passwordConfirm) {
           throw new Error('Пароли не совпадают');
         }
-        
-        if (!formData.agreement) {
-          throw new Error('Необходимо принять правила сайта');
-        }
 
-        // Валидация логина (3-20 символов)
-        if (formData.login.length < 3 || formData.login.length > 20) {
-          throw new Error('Логин должен содержать от 3 до 20 символов');
-        }
+        // Используем API из mocks.ts
+        const result = await mockAPI.auth.register({
+          login: formData.login,
+          email: formData.email,
+          password: formData.password,
+          agreement: formData.agreement
+        });
 
-        // Валидация пароля (минимум 8 символов, цифра+буква)
-        const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-        if (!passwordRegex.test(formData.password)) {
-          throw new Error('Пароль: минимум 8 символов, цифра+буква');
-        }
-
-        const result = await mockRegister(formData);
-        if (result.success) {
-          setMessage({ text: result.message, type: 'success' });
-          // В демо-режиме автоматически "логинимся" после регистрации
-          localStorage.setItem('samodelkin_auth_token', 'demo_token');
-          localStorage.setItem('samodelkin_user', JSON.stringify({
-            login: formData.login,
-            email: formData.email
-          }));
+        if (result.success && result.data) {
+          setMessage({ text: 'Регистрация прошла успешно!', type: 'success' });
+          
+          // Сохраняем пользователя
+          localStorage.setItem('samodelkin_auth_token', 'demo_token_' + Date.now());
+          localStorage.setItem('samodelkin_user', JSON.stringify(result.data));
+          
           setTimeout(() => {
             onClose();
-            window.location.reload(); // Обновляем страницу для обновления состояния
+            window.location.reload();
           }, 2000);
+        } else {
+          throw new Error(result.error || 'Ошибка регистрации');
         }
+
       } else if (mode === 'login') {
-        const result = await mockLogin(formData.login, formData.password);
-        if (result.success) {
+        // Используем API из mocks.ts
+        const result = await mockAPI.auth.login({
+          login: formData.login,
+          password: formData.password
+        });
+
+        if (result.success && result.data) {
           setMessage({ text: 'Вход выполнен успешно!', type: 'success' });
-          localStorage.setItem('samodelkin_auth_token', result.token);
-          localStorage.setItem('samodelkin_user', JSON.stringify(result.user));
+          
+          localStorage.setItem('samodelkin_auth_token', result.data.token);
+          localStorage.setItem('samodelkin_user', JSON.stringify(result.data.user));
+          
           setTimeout(() => {
             onClose();
             window.location.reload();
           }, 1000);
+        } else {
+          throw new Error(result.error || 'Ошибка входа');
         }
       }
     } catch (error: any) {
@@ -105,7 +85,7 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
   };
 
   const handleForgotPassword = () => {
-    setMode('forgot-password');
+    setMode('forgotPassword');
     setMessage(null);
   };
 
@@ -114,15 +94,26 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
     setIsLoading(true);
     setMessage(null);
     
-    // Заглушка для восстановления пароля
-    setTimeout(() => {
-      setMessage({ 
-        text: 'Инструкции по восстановлению пароля отправлены на ваш email (демо-режим)', 
-        type: 'success' 
-      });
+    try {
+      // Используем API из mocks.ts
+      const result = await mockAPI.auth.forgotPassword(formData.email);
+      
+      if (result.success) {
+        setMessage({ 
+          text: 'Инструкции по восстановлению пароля отправлены на вашу электронную почту', 
+          type: 'success' 
+        });
+        setTimeout(() => {
+          setMode('login');
+          setIsLoading(false);
+        }, 2000);
+      } else {
+        throw new Error(result.error || 'Ошибка отправки');
+      }
+    } catch (error: any) {
+      setMessage({ text: error.message || 'Произошла ошибка', type: 'error' });
       setIsLoading(false);
-      setMode('login');
-    }, 1000);
+    }
   };
 
   if (!isOpen) return null;
@@ -153,18 +144,20 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
           </div>
         )}
 
-        {mode === 'forgot-password' ? (
+        {mode === 'forgotPassword' ? (
           <form onSubmit={handleForgotPasswordSubmit}>
             <h3>Восстановление пароля</h3>
-            <p>Введите ваш email, и мы отправим инструкции</p>
+            <p>Введите свой адрес электронной почты, и мы отправим вам инструкции</p>
             
-            <input
-              type="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
-              required
-            />
+            <div className="password-input-container">
+              <input
+                type="email"
+                placeholder="Электронная почта"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                required
+              />
+            </div>
             
             <div className="auth-form-actions">
               <button type="submit" disabled={isLoading}>
@@ -182,40 +175,64 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
         ) : (
           <form onSubmit={handleSubmit}>
             {mode === 'register' && (
-              <input
-                type="email"
-                placeholder="Email"
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                required
-              />
+              <div className="input-container">
+                <input
+                  type="email"
+                  placeholder="Электронная почта"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  required
+                />
+              </div>
             )}
             
-            <input
-              type="text"
-              placeholder="Логин"
-              value={formData.login}
-              onChange={(e) => setFormData({...formData, login: e.target.value})}
-              required
-            />
+            <div className="input-container">
+              <input
+                type="text"
+                placeholder="Логин"
+                value={formData.login}
+                onChange={(e) => setFormData({...formData, login: e.target.value})}
+                required
+              />
+            </div>
             
-            <input
-              type="password"
-              placeholder="Пароль"
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-              required
-            />
+            <div className="password-input-container">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Пароль"
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                required
+              />
+              <button 
+                type="button" 
+                className="toggle-password"
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex={-1}
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
             
             {mode === 'register' && (
               <>
-                <input
-                  type="password"
-                  placeholder="Повторите пароль"
-                  value={formData.passwordConfirm}
-                  onChange={(e) => setFormData({...formData, passwordConfirm: e.target.value})}
-                  required
-                />
+                <div className="password-input-container">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Повторите пароль"
+                    value={formData.passwordConfirm}
+                    onChange={(e) => setFormData({...formData, passwordConfirm: e.target.value})}
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    className="toggle-password"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
                 <label className="agreement-checkbox">
                   <input
                     type="checkbox"
@@ -223,7 +240,7 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
                     onChange={(e) => setFormData({...formData, agreement: e.target.checked})}
                     required
                   />
-                  <span>Принимаю правила сайта</span>
+                  <span>Я принимаю правила сайта</span>
                 </label>
               </>
             )}
@@ -238,7 +255,7 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
               </button>
             )}
 
-            <button type="submit" disabled={isLoading}>
+            <button type="submit" className="auth-submit-btn" disabled={isLoading}>
               {isLoading ? 'Отправка...' : mode === 'register' ? 'Создать аккаунт' : 'Войти'}
             </button>
           </form>

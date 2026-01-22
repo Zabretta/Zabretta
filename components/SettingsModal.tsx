@@ -134,7 +134,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         </div>
 
         <div className="settings-modal-content">
-          {/* Статус синхронизации */}
+          {/* Статус синхронизации - БЕЗ ИКОНКИ КНОПКИ */}
           <div className="sync-status-bar">
             <div className="sync-info">
               <span className="sync-label">Синхронизация:</span>
@@ -148,13 +148,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 <span className="last-synced">Обновлено: {formatLastSynced()}</span>
               )}
             </div>
-            <button 
-              className="sync-btn"
-              onClick={handleSync}
-              disabled={syncStatus === 'loading'}
-            >
-              {syncStatus === 'loading' ? '🔄' : '🔄'}
-            </button>
           </div>
 
           {/* Тема оформления */}
@@ -229,7 +222,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             </div>
           </div>
 
-          {/* Кнопки действий внутри контента для мобильной прокрутки */}
+          {/* Кнопки действий */}
           <div className="settings-actions">
             <button
               className="settings-btn settings-btn-secondary"
@@ -286,5 +279,4 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   );
 };
 
-// ДОБАВЛЕН ЭКСПОРТ ПО УМОЛЧАНИЮ
 export default SettingsModal;

@@ -29,28 +29,38 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
-    // Проверяем сохранённую сессию при загрузке
+    console.log('🔍 useAuth: проверка сохраненной сессии');
     const token = localStorage.getItem('samodelkin_auth_token');
     const userData = localStorage.getItem('samodelkin_user');
     
     if (token && userData) {
       try {
-        setUser(JSON.parse(userData));
+        const parsedUser = JSON.parse(userData);
+        console.log('✅ useAuth: пользователь восстановлен:', parsedUser.id);
+        setUser(parsedUser);
       } catch (error) {
-        console.error('Ошибка загрузки данных пользователя:', error);
+        console.error('❌ useAuth: ошибка загрузки данных пользователя:', error);
         logout();
       }
+    } else {
+      console.log('👤 useAuth: нет сохраненной сессии');
     }
   }, []);
 
   const login = (token: string, userData: User) => {
+    console.log('🔐 useAuth: вход пользователя', userData.id, userData.login);
+    
     localStorage.setItem('samodelkin_auth_token', token);
     localStorage.setItem('samodelkin_user', JSON.stringify(userData));
     setUser(userData);
     setAuthModalOpen(false);
+    
+    console.log('✅ useAuth: пользователь установлен в контекст');
   };
 
   const logout = () => {
+    console.log('🚪 useAuth: выход пользователя');
+    
     localStorage.removeItem('samodelkin_auth_token');
     localStorage.removeItem('samodelkin_user');
     setUser(null);
@@ -58,6 +68,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   };
 
   const isAuthenticated = !!user;
+
+  console.log('🔄 useAuth: рендер, isAuthenticated:', isAuthenticated);
 
   return (
     <AuthContext.Provider value={{

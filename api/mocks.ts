@@ -54,6 +54,59 @@ interface ResetAcceptanceResponse {
   reset: boolean;
 }
 
+// === СИСТЕМА РЕЙТИНГА - НОВЫЕ ИНТЕРФЕЙСЫ ===
+
+export interface RatingRecord {
+  id: string;
+  userId: string;
+  type: 'project' | 'master' | 'help' | 'library' | 'daily' | 'registration';
+  section: 'projects' | 'masters' | 'help' | 'library' | 'general';
+  action: 'create' | 'like_given' | 'like_received' | 'comment' | 'daily_login';
+  points: number;
+  ratingPoints: number;
+  activityPoints: number;
+  timestamp: Date;
+  targetId?: string;
+}
+
+export interface UserRating {
+  userId: string;
+  totalRating: number;
+  totalActivity: number;
+  ratingLevel: string;
+  activityLevel: string;
+  ratingIcon: string;
+  lastDailyLogin?: Date;
+  stats: {
+    projectsCreated: number;
+    mastersAdsCreated: number;
+    helpRequestsCreated: number;
+    libraryPostsCreated: number;
+    likesGiven: number;
+    likesReceived: number;
+    commentsMade: number;
+  };
+}
+
+export const USER_LEVELS = [
+  { min: 0, max: 200, name: "Студент", icon: "★" },
+  { min: 201, max: 500, name: "Инженер", icon: "★★" },
+  { min: 501, max: 1000, name: "Инженер-конструктор", icon: "★★★" },
+  { min: 1001, max: 2000, name: "Профессор Сомоделкин", icon: "★★★★" },
+  { min: 2001, max: Infinity, name: "Эксперт сообщества", icon: "★★★★★" }
+];
+
+export const ACTIVITY_LEVELS = [
+  { min: 0, max: 100, name: "Новичок" },
+  { min: 101, max: 300, name: "Активный" },
+  { min: 301, max: 600, name: "Очень активный" },
+  { min: 601, max: 1000, name: "Лидер активности" },
+  { min: 1001, max: Infinity, name: "Легенда сообщества" }
+];
+
+export const mockRatingRecords: RatingRecord[] = [];
+export const mockRatings: UserRating[] = [];
+
 // Имитация задержки сети
 const simulateNetworkDelay = () => new Promise(resolve => 
   setTimeout(resolve, Math.random() * 500 + 200)
@@ -153,7 +206,6 @@ export const mockAPI = {
           rating: 4.8,
           type: "sell"
         },
-        // ... остальные объявления ...
       ];
       
       let filteredItems = staticItems;
@@ -228,7 +280,6 @@ export const mockAPI = {
       console.log('[API MOCKS] Регистрация пользователя:', userData);
       await simulateNetworkDelay();
       
-      // Валидация
       if (userData.login.length < 3 || userData.login.length > 20) {
         return {
           success: false,
@@ -310,20 +361,19 @@ export const mockAPI = {
     }
   },
 
-  // Правила сообщества - НОВЫЙ РАЗДЕЛ
+  // Правила сообщества
   rules: {
-    // Загрузка правил и статуса принятия
     loadRules: async (): Promise<APIResponse<RulesData>> => {
       console.log('[API MOCKS] Загрузка правил сообщества');
       await simulateNetworkDelay();
       
       const rules = [
-        "Уважаемые пользователи, приветствуем вас на нашем сайте САМОДЕЛКИН. Наш сайт создан с целью обьеденить талантливых, изобретательных, творческих людей в группу по интересам, для общения, возможностью поделиться своими идеями, поделками, изобретениями, получить или оказать помощь и поддержку в разработках, проектах или ремонте, творчестве, домашнем рукоделии, кулинарии, круг интересов не ограничен. Если вы в душе Кулибин или Левша, то это ваш сайт.",
-        "На нашей площадке после регистрации вы получаете возможность в личном кабинете выкладывать фото и видео своих проектов, они автоматически будут попадать в ЛЕНТА ПРОЕКТОВ где их смогут обсуждать, комментировать, одобрять или конструктивно критиковать другие пользователи и участники.",
-        "На сайте для каждого пользователя создана рейтинговая система, за помощь другим, за похвалу хороших проектов, за выложенные в БИБЛИОТЕКу документы, схемы, рецепты и т.д. будут начисляться баллы повышающие личный рейтинг который позволяет более широкие возможности на получение заказов и продаж.",
-        "На сайте есть возможность разместить обьявление о продаже своих работ в разделе БАРАХОЛКА а так же размещение обьявлений по ремонту или изготовлению в разделе МАСТЕРА РЯДОМ.",
-        "На сайте запрещено распостранять стороннюю рекламу и спам, аккаунт пользователя будет блокироваться.",
-        "Уважаемые пользователи, просьба относиться друг к другу с уважением не оскорблять друг друга в переписке и комментариях, мат на странице сайта строго запрещен, аккаунт нарушителя будет блокироваться и удаляться. Будте добры друг к другу и уважительны, удачи вам в ваших достижениях и проектах.",
+        "Уважаемые пользователи, приветствуем вас на нашем сайте САМОДЕЛКИН...",
+        "На нашей площадке после регистрации вы получаете возможность...",
+        "На сайте для каждого пользователя создана рейтинговая система...",
+        "На сайте есть возможность разместить обьявление о продаже...",
+        "На сайте запрещено распостранять стороннюю рекламу и спам...",
+        "Уважаемые пользователи, просьба относиться друг к другу с уважением...",
       ];
       
       const accepted = localStorage.getItem('samodelkin_rules_accepted') === 'true';
@@ -343,7 +393,6 @@ export const mockAPI = {
       return mockResponse;
     },
 
-    // Принятие правил
     acceptRules: async (): Promise<APIResponse<AcceptRulesResponse>> => {
       console.log('[API MOCKS] Принятие правил сообщества');
       await simulateNetworkDelay();
@@ -365,7 +414,6 @@ export const mockAPI = {
       return mockResponse;
     },
 
-    // Сброс принятия (для разработки)
     resetAcceptance: async (): Promise<APIResponse<ResetAcceptanceResponse>> => {
       console.log('[API MOCKS] Сброс принятия правил (для разработки)');
       await simulateNetworkDelay();
@@ -383,7 +431,6 @@ export const mockAPI = {
       return mockResponse;
     },
 
-    // Проверка статуса принятия
     checkAcceptance: async (): Promise<APIResponse<{ accepted: boolean; acceptedDate?: string }>> => {
       console.log('[API MOCKS] Проверка статуса принятия правил');
       await simulateNetworkDelay();

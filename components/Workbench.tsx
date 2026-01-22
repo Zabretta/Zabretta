@@ -1,4 +1,4 @@
-// components/Workbench.tsx - Очищен от API логики
+// components/Workbench.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -9,8 +9,10 @@ import Marketplace from "./Marketplace";
 import SettingsModal from "./SettingsModal";
 import { useAuth } from "./useAuth";
 import { useSettings } from "./SettingsContext";
+import { useRating, RatingProvider } from "./RatingContext";
 
-export default function Workbench() {
+// Внутренний компонент WorkbenchContent
+function WorkbenchContent() {
   const [activeDrawer, setActiveDrawer] = useState<string | null>(null);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -25,6 +27,7 @@ export default function Workbench() {
   
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen } = useAuth();
   const { settings } = useSettings();
+  const { userRating } = useRating(); // Оставляем для возможного будущего использования
 
   // Определяем мобильное устройство
   useEffect(() => {
@@ -40,9 +43,8 @@ export default function Workbench() {
     };
   }, []);
 
-  // Загрузка статистики (будет заменена на вызов из api/mocks.ts позже)
+  // Загрузка статистики
   useEffect(() => {
-    // TODO: Заменить на вызов mockAPI.community.loadStats()
     setTimeout(() => {
       setCommunityStats({
         online: 1892,
@@ -58,7 +60,6 @@ export default function Workbench() {
   
   const handleAuthButtonClick = () => {
     if (isAuthenticated) {
-      // TODO: Заменить на переход в профиль через API
       alert("Переход в личный кабинет");
     } else {
       setAuthModalOpen(true);
@@ -71,7 +72,6 @@ export default function Workbench() {
     console.log(`Действие: ${label}`);
     
     try {
-      // TODO: Заменить на вызовы mockAPI.projects.*
       switch (toolId) {
         case "hammer":
           alert(`Вы похвалили проект!`);
@@ -114,7 +114,6 @@ export default function Workbench() {
     setIsLoading(true);
     console.log(`Открытие раздела: ${drawerId}`);
     
-    // TODO: Заменить на вызовы из api/mocks.ts
     setTimeout(() => {
       switch (drawerId) {
         case "projects":
@@ -155,7 +154,7 @@ export default function Workbench() {
     { id: "logout", label: "Выйти", icon: "🚪", color: "#CD853F", action: () => logout() },
   ];
 
-  // Массив ДЛЯ ВЕРХНЕЙ ПАНЕЛИ
+  // Массив ДЛЯ ВЕРХНЕЙ ПАНЕЛИ (возвращаем стандартное поведение)
   const tools = [
     { id: "hammer", label: "Похвалить", icon: "🔨", action: () => handleToolAction("hammer", "Похвалить") },
     { id: "share", label: "Поделиться", icon: "📤", action: () => handleToolAction("share", "Поделиться") },
@@ -356,3 +355,11 @@ export default function Workbench() {
   );
 }
 
+// Основной компонент Workbench с RatingProvider
+export default function Workbench() {
+  return (
+    <RatingProvider>
+      <WorkbenchContent />
+    </RatingProvider>
+  );
+} 

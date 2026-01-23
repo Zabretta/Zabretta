@@ -1,4 +1,4 @@
-// AuthModal.tsx
+// components/AuthModal.tsx
 "use client";
 
 import { useState } from 'react';
@@ -43,6 +43,15 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
         if (result.success && result.data) {
           setMessage({ text: 'Регистрация прошла успешно!', type: 'success' });
+          
+          // Увеличиваем счетчики статистики после успешной регистрации
+          try {
+            await mockAPI.stats.incrementOnRegistration();
+            console.log('[STATS] Счетчики увеличены после регистрации');
+          } catch (statsError) {
+            console.error('[STATS] Ошибка увеличения счетчиков:', statsError);
+            // Не прерываем процесс регистрации, даже если счетчики не обновились
+          }
           
           // Сохраняем пользователя
           localStorage.setItem('samodelkin_auth_token', 'demo_token_' + Date.now());

@@ -770,7 +770,143 @@ html, body {
   border-radius: 10px;
   padding: 15px;
   min-width: 120px;
+  flex: 1;
 }
+
+/* ========== СТИЛИ ДЛЯ СТАТИСТИКИ ОНЛАЙН-ПОСЕТИТЕЛЕЙ ========== */
+.online-stat {
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+  padding: 15px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(139, 69, 19, 0.1), rgba(210, 105, 30, 0.1));
+  border: 2px solid transparent;
+  width: 100%;
+  max-width: 350px;
+}
+
+.online-stat:hover {
+  background: linear-gradient(135deg, rgba(139, 69, 19, 0.15), rgba(210, 105, 30, 0.15));
+  border-color: #D2691E;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(139, 69, 19, 0.2);
+}
+
+.stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.stat-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.realtime-toggle, .refresh-stats {
+  background: rgba(139, 69, 19, 0.2);
+  border: 1px solid #8B4513;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.realtime-toggle:hover, .refresh-stats:hover {
+  background: rgba(139, 69, 19, 0.3);
+  transform: scale(1.1);
+}
+
+.realtime-toggle.active {
+  background: rgba(210, 105, 30, 0.3);
+  border-color: #D2691E;
+  color: #fff;
+}
+
+.stat-details {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(139, 69, 19, 0.3);
+  width: 100%;
+}
+
+.stat-subtext {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #8B7355;
+  margin-bottom: 8px;
+}
+
+.realtime-indicator {
+  color: #2E8B57;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.realtime-indicator::before {
+  content: "●";
+  animation: pulse 2s infinite;
+  font-size: 10px;
+}
+
+.paused-indicator {
+  color: #CD5C5C;
+  font-weight: 600;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.update-time {
+  font-style: italic;
+}
+
+.additional-stats {
+  display: flex;
+  gap: 15px;
+  margin-top: 8px;
+  justify-content: space-around;
+}
+
+.mini-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  padding: 8px;
+  background: rgba(139, 69, 19, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(139, 69, 19, 0.1);
+}
+
+.mini-stat-label {
+  font-size: 10px;
+  color: #8B7355;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+.mini-stat-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #8B4513;
+}
+
+/* ========== КОНЕЦ СТИЛЕЙ ДЛЯ СТАТИСТИКИ ========== */
 
 .stat-number {
   color: #8B4513;
@@ -1045,3 +1181,66 @@ html, body {
 
 /* ВАЖНО: УДАЛЕН псевдоэлемент body::before с жёстким фоном */
 /* Этот элемент блокировал все темы */
+
+/* ========== ДОПОЛНИТЕЛЬНЫЕ АДАПТИВНЫЕ СТИЛИ ДЛЯ СТАТИСТИКИ ========== */
+@media (max-width: 768px) {
+  .stat-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .stat-controls {
+    align-self: flex-end;
+  }
+  
+  .stat-subtext {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .additional-stats {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .mini-stat {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 6px 10px;
+  }
+  
+  .mini-stat-label {
+    font-size: 11px;
+    margin-bottom: 0;
+  }
+  
+  .mini-stat-value {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .online-stat {
+    padding: 12px;
+  }
+  
+  .realtime-toggle, .refresh-stats {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .stat-details {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+  
+  .stat-subtext {
+    font-size: 10px;
+  }
+  
+  .update-time {
+    font-size: 9px;
+  }
+}

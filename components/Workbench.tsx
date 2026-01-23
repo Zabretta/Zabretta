@@ -1,7 +1,7 @@
 // components/Workbench.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./Workbench.css";
 import RulesModal from "./RulesModal";
 import AuthModal from "./AuthModal";
@@ -10,6 +10,7 @@ import SettingsModal from "./SettingsModal";
 import { useAuth } from "./useAuth";
 import { useSettings } from "./SettingsContext";
 import { useRating, RatingProvider } from "./RatingContext";
+import { mockAPI } from "../api/mocks";
 
 // Внутренний компонент WorkbenchContent
 function WorkbenchContent() {
@@ -20,14 +21,16 @@ function WorkbenchContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [communityStats, setCommunityStats] = useState({
-    online: 1892,
-    projectsCreated: 7543,
-    adviceGiven: 15287
+    online: 0,
+    total: 0,
+    projectsCreated: 0,
+    adviceGiven: 0
   });
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen } = useAuth();
   const { settings } = useSettings();
-  const { userRating } = useRating(); // Оставляем для возможного будущего использования
+  const { userRating } = useRating();
 
   // Определяем мобильное устройство
   useEffect(() => {
@@ -44,14 +47,57 @@ function WorkbenchContent() {
   }, []);
 
   // Загрузка статистики
+  const loadStats = useCallback(async () => {
+    try {
+      // Сбрасываем статистику, если это первый запуск с новыми настройками
+      const shouldReset = localStorage.getItem('samodelkin_stats_reset') !== 'true';
+      
+      if (shouldReset) {
+        console.log('[STATS] Сброс статистики для применения новых значений...');
+        await mockAPI.stats.resetStats();
+        localStorage.setItem('samodelkin_stats_reset', 'true');
+      }
+      
+      const response = await mockAPI.stats.getStats();
+      if (response.success && response.data) {
+        setCommunityStats({
+          online: response.data.online,
+          total: response.data.total,
+          projectsCreated: response.data.projectsCreated,
+          adviceGiven: response.data.adviceGiven
+        });
+        console.log('[STATS] Статистика загружена:', response.data);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки статистики:', error);
+    }
+  }, []);
+
+  // Инициализация статистики
   useEffect(() => {
-    setTimeout(() => {
-      setCommunityStats({
-        online: 1892,
-        projectsCreated: 7543,
-        adviceGiven: 15287
-      });
-    }, 200);
+    if (!isInitialized) {
+      loadStats();
+      setIsInitialized(true);
+    }
+  }, [loadStats, isInitialized]);
+
+  // Автоматическое изменение онлайн-пользователей
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+      try {
+        const response = await mockAPI.stats.simulateOnlineChange();
+        if (response.success && response.data) {
+          setCommunityStats(prev => ({
+            ...prev,
+            online: response.data!.online
+          }));
+        }
+      } catch (error) {
+        console.error('Ошибка имитации изменения онлайн:', error);
+      }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   // Обработчики действий
@@ -89,7 +135,6 @@ function WorkbenchContent() {
           }
           break;
         case "settings":
-          // Открытие настроек (обрабатывается отдельно)
           break;
       }
     } catch (error) {
@@ -104,7 +149,6 @@ function WorkbenchContent() {
   const handleDrawerClick = (drawerId: string) => {
     setActiveDrawer(drawerId);
     
-    // Проверяем есть ли специальное действие
     const drawer = leftDrawers.find(d => d.id === drawerId) || rightDrawers.find(d => d.id === drawerId);
     if (drawer?.action) {
       drawer.action();
@@ -135,7 +179,7 @@ function WorkbenchContent() {
     }, 300);
   };
 
-  // Массивы данных ДЛЯ БОКОВЫХ ПАНЕЛЕЙ
+  // Массивы данных для боковых панелей
   const leftDrawers = [
     { id: "projects", label: "Лента проектов", icon: "📁", color: "#8B4513" },
     { id: "masters", label: "Мастера рядом", icon: "👥", color: "#A0522D" },
@@ -154,7 +198,7 @@ function WorkbenchContent() {
     { id: "logout", label: "Выйти", icon: "🚪", color: "#CD853F", action: () => logout() },
   ];
 
-  // Массив ДЛЯ ВЕРХНЕЙ ПАНЕЛИ (возвращаем стандартное поведение)
+  // Массив для верхней панели
   const tools = [
     { id: "hammer", label: "Похвалить", icon: "🔨", action: () => handleToolAction("hammer", "Похвалить") },
     { id: "share", label: "Поделиться", icon: "📤", action: () => handleToolAction("share", "Поделиться") },
@@ -174,7 +218,6 @@ function WorkbenchContent() {
 
   return (
     <div className="workshop">
-      {/* Индикатор загрузки */}
       {isLoading && (
         <div className="api-loading-overlay">
           <div className="loading-spinner">🛠️</div>
@@ -182,7 +225,6 @@ function WorkbenchContent() {
         </div>
       )}
 
-      {/* Верхняя панель с прокруткой */}
       <div className="tools-panel">
         <div className="tools-container">
           {tools.map((tool) => (
@@ -204,9 +246,7 @@ function WorkbenchContent() {
         </div>
       </div>
 
-      {/* Основной контейнер с боковыми панелями и верстаком */}
       <div className="workbench-container">
-        {/* Левая панель */}
         <div className="toolbox left-toolbox">
           <div className="toolbox-label">Инструменты</div>
           {leftDrawers.map((drawer) => (
@@ -226,10 +266,8 @@ function WorkbenchContent() {
           ))}
         </div>
 
-        {/* Центральный верстак */}
         <div className="workbench">
           <div className="workbench-surface">
-            {/* Декоративные элементы верстака */}
             <div className="vice"></div>
             <div className="clamp"></div>
             <div className="wood-grain"></div>
@@ -290,6 +328,10 @@ function WorkbenchContent() {
                   <span className="stat-label">Кулибиных онлайн</span>
                 </div>
                 <div className="stat-item">
+                  <span className="stat-number">{communityStats.total.toLocaleString()}</span>
+                  <span className="stat-label">Кулибиных всего</span>
+                </div>
+                <div className="stat-item">
                   <span className="stat-number">{communityStats.projectsCreated.toLocaleString()}</span>
                   <span className="stat-label">Самоделок создано</span>
                 </div>
@@ -308,7 +350,6 @@ function WorkbenchContent() {
           </div>
         </div>
 
-        {/* Правая панель */}
         <div className="toolbox right-toolbox">
           <div className="toolbox-label">Моя мастерская</div>
           {rightDrawers.map((drawer) => (
@@ -329,14 +370,12 @@ function WorkbenchContent() {
         </div>
       </div>
 
-      {/* Декоративные искры */}
       <div className="sparks">
         {[...Array(8)].map((_, i) => (
           <div key={i} className="spark"></div>
         ))}
       </div>
 
-      {/* Модальные окна */}
       {isMarketplaceOpen && (
         <Marketplace onClose={() => setIsMarketplaceOpen(false)} />
       )}
@@ -362,4 +401,4 @@ export default function Workbench() {
       <WorkbenchContent />
     </RatingProvider>
   );
-} 
+}

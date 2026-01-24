@@ -1,0 +1,73 @@
+/* AdminLayout.css */
+
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--workshop-bg, #0f0f0f);
+}
+
+.admin-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  transition: margin-left 0.3s ease;
+  margin-left: 260px;
+}
+
+.admin-main.collapsed {
+  margin-left: 80px;
+}
+
+.admin-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  background: linear-gradient(135deg, rgba(139, 69, 19, 0.05), rgba(0, 0, 0, 0.1));
+}
+
+.admin-footer {
+  padding: 16px 24px;
+  background: rgba(0, 0, 0, 0.8);
+  border-top: 2px solid #8B4513;
+  color: #A0522D;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-version {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.admin-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: var(--workshop-bg, #0f0f0f);
+}
+
+.admin-loading .loading-spinner {
+  font-size: 48px;
+  animation: spin 2s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .admin-main {
+    margin-left: 0 !important;
+  }
+  
+  .admin-content {
+    padding: 16px;
+  }
+}

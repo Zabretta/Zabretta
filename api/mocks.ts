@@ -1,23 +1,24 @@
 // api/mocks.ts
 
-// Базовые типы
-interface APIResponse<T = any> {
+// === БАЗОВЫЕ ТИПЫ (ВЫНЕСТИ В НАЧАЛО) ===
+
+export interface APIResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
   timestamp: string;
 }
 
-interface AppSettings {
+export interface AppSettings {
   theme: 'light' | 'dark' | 'auto' | 'brown';
   brightness: number;
   fontSize: number;
   showAnimations: boolean;
 }
 
-type ItemType = "sell" | "buy" | "free" | "exchange" | "auction";
+export type ItemType = "sell" | "buy" | "free" | "exchange" | "auction";
 
-interface MarketItem {
+export interface MarketItem {
   id: number;
   title: string;
   description: string;
@@ -30,32 +31,33 @@ interface MarketItem {
   negotiable?: boolean;
 }
 
-interface User {
+export interface User {
   id: string;
   login: string;
   email: string;
   name?: string;
   avatar?: string;
   createdAt: string;
+  role?: string; // ДОБАВЛЕНО: поле для роли
 }
 
-interface RulesData {
+export interface RulesData {
   rules: string[];
   accepted: boolean;
   acceptedDate?: string;
 }
 
-interface AcceptRulesResponse {
+export interface AcceptRulesResponse {
   accepted: boolean;
   acceptedDate: string;
 }
 
-interface ResetAcceptanceResponse {
+export interface ResetAcceptanceResponse {
   reset: boolean;
 }
 
 // === СИСТЕМА СТАТИСТИКИ ===
-interface StatsData {
+export interface StatsData {
   online: number;           // Кулибиных онлайн (реальные + имитация)
   total: number;           // Кулибиных всего (фиктивные + реальные)
   projectsCreated: number; // Самоделок создано (статичное)
@@ -66,6 +68,105 @@ interface StatsData {
   isSimulationActive: boolean; // Активна ли имитация
   _realTotal?: number;     // Внутреннее: реальные пользователи всего
   _fakeTotal?: number;     // Внутреннее: фиктивные пользователи всего
+}
+
+// === ТИПЫ ДЛЯ АДМИН-ПАНЕЛИ ===
+
+export interface AdminUser extends User {
+  role: 'user' | 'moderator' | 'admin';
+  isActive: boolean;
+  lastLogin?: string;
+  rating?: number;
+  activityPoints?: number;
+  totalPosts?: number;
+  violations?: number;
+}
+
+export interface AdminStats {
+  users: {
+    total: number;
+    active: number;
+    newToday: number;
+    online: number;
+    byRole: {
+      admin: number;
+      moderator: number;
+      user: number;
+    };
+  };
+  content: {
+    totalPosts: number;
+    newToday: number;
+    projects: number;
+    marketItems: number;
+    helpRequests: number;
+    libraryPosts: number;
+  };
+  ratings: {
+    totalGiven: number;
+    todayGiven: number;
+    averageRating: number;
+    topUsers: Array<{
+      id: string;
+      name: string;
+      rating: number;
+      activity: number;
+    }>;
+  };
+  system: {
+    uptime: string;
+    memoryUsage: number;
+    responseTime: number;
+    errors: number;
+  };
+  timeline: Array<{
+    date: string;
+    users: number;
+    posts: number;
+    ratings: number;
+  }>;
+}
+
+export interface AdminAuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  targetType: 'user' | 'post' | 'rating' | 'system' | 'content';
+  targetId?: string;
+  details?: Record<string, any>;
+  ip?: string;
+  timestamp: string;
+}
+
+export interface AdminViolationReport {
+  id: string;
+  reporterId: string;
+  reporterName: string;
+  targetId: string;
+  targetType: 'user' | 'post' | 'comment';
+  reason: string;
+  status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
+  createdAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  notes?: string;
+}
+
+export interface AdminSystemSettings {
+  siteMaintenance: boolean;
+  registrationEnabled: boolean;
+  postingEnabled: boolean;
+  ratingEnabled: boolean;
+  maxFileSize: number;
+  maxPostsPerDay: number;
+  defaultTheme: 'light' | 'dark' | 'auto';
+  emailNotifications: boolean;
+  security: {
+    requireEmailVerification: boolean;
+    enable2FA: boolean;
+    sessionTimeout: number;
+  };
 }
 
 // === СИСТЕМА РЕЙТИНГА - НОВЫЕ ИНТЕРФЕЙСЫ ===
@@ -120,6 +221,547 @@ export const ACTIVITY_LEVELS = [
 
 export const mockRatingRecords: RatingRecord[] = [];
 export const mockRatings: UserRating[] = [];
+
+// === МОКИ ДЛЯ АДМИН-ПАНЕЛИ ===
+
+const mockAdminUsers: AdminUser[] = [
+  {
+    id: 'admin1',
+    login: 'admin',
+    email: 'admin@samodelkin.ru',
+    name: 'Главный Админ',
+    role: 'admin',
+    isActive: true,
+    createdAt: '2024-01-15T10:00:00Z',
+    lastLogin: '2024-03-15T14:30:00Z',
+    rating: 2450,
+    activityPoints: 1200,
+    totalPosts: 45,
+    violations: 0
+  },
+  {
+    id: 'mod1',
+    login: 'moderator',
+    email: 'mod@samodelkin.ru',
+    name: 'Модератор Иван',
+    role: 'moderator',
+    isActive: true,
+    createdAt: '2024-02-01T11:00:00Z',
+    lastLogin: '2024-03-15T13:45:00Z',
+    rating: 1800,
+    activityPoints: 950,
+    totalPosts: 32,
+    violations: 2
+  },
+  {
+    id: 'user1',
+    login: 'kulibin',
+    email: 'user1@example.com',
+    name: 'Иван Кулибин',
+    role: 'user',
+    isActive: true,
+    createdAt: '2024-02-10T09:00:00Z',
+    lastLogin: '2024-03-15T12:15:00Z',
+    rating: 1250,
+    activityPoints: 620,
+    totalPosts: 18,
+    violations: 0
+  },
+  {
+    id: 'user2',
+    login: 'master',
+    email: 'user2@example.com',
+    name: 'Мастер Самоделкин',
+    role: 'user',
+    isActive: true,
+    createdAt: '2024-02-12T14:00:00Z',
+    lastLogin: '2024-03-14T16:45:00Z',
+    rating: 950,
+    activityPoints: 480,
+    totalPosts: 12,
+    violations: 1
+  },
+  {
+    id: 'user3',
+    login: 'novice',
+    email: 'user3@example.com',
+    name: 'Новичок Петров',
+    role: 'user',
+    isActive: false,
+    createdAt: '2024-03-01T10:00:00Z',
+    lastLogin: '2024-03-10T11:30:00Z',
+    rating: 150,
+    activityPoints: 80,
+    totalPosts: 3,
+    violations: 0
+  }
+];
+
+const mockAuditLogs: AdminAuditLog[] = [
+  {
+    id: 'log1',
+    userId: 'admin1',
+    userName: 'Главный Админ',
+    action: 'USER_ROLE_CHANGED',
+    targetType: 'user',
+    targetId: 'user2',
+    details: { from: 'user', to: 'moderator' },
+    timestamp: '2024-03-15T10:30:00Z'
+  },
+  {
+    id: 'log2',
+    userId: 'mod1',
+    userName: 'Модератор Иван',
+    action: 'POST_DELETED',
+    targetType: 'post',
+    targetId: 'post123',
+    details: { reason: 'Нарушение правил' },
+    timestamp: '2024-03-15T09:15:00Z'
+  },
+  {
+    id: 'log3',
+    userId: 'user1',
+    userName: 'Иван Кулибин',
+    action: 'POST_CREATED',
+    targetType: 'post',
+    targetId: 'post124',
+    details: { type: 'project', title: 'Новый проект' },
+    timestamp: '2024-03-14T16:45:00Z'
+  },
+  {
+    id: 'log4',
+    userId: 'admin1',
+    userName: 'Главный Админ',
+    action: 'SYSTEM_SETTINGS_UPDATED',
+    targetType: 'system',
+    details: { setting: 'siteMaintenance', value: false },
+    timestamp: '2024-03-14T14:20:00Z'
+  },
+  {
+    id: 'log5',
+    userId: 'user2',
+    userName: 'Мастер Самоделкин',
+    action: 'VIOLATION_REPORTED',
+    targetType: 'user',
+    targetId: 'user3',
+    details: { reason: 'Спам' },
+    timestamp: '2024-03-14T11:10:00Z'
+  }
+];
+
+const mockViolationReports: AdminViolationReport[] = [
+  {
+    id: 'viol1',
+    reporterId: 'user1',
+    reporterName: 'Иван Кулибин',
+    targetId: 'user3',
+    targetType: 'user',
+    reason: 'Оскорбительные комментарии',
+    status: 'resolved',
+    createdAt: '2024-03-14T10:00:00Z',
+    resolvedAt: '2024-03-14T12:00:00Z',
+    resolvedBy: 'mod1',
+    notes: 'Пользователь предупрежден'
+  },
+  {
+    id: 'viol2',
+    reporterId: 'user2',
+    reporterName: 'Мастер Самоделкин',
+    targetId: 'post123',
+    targetType: 'post',
+    reason: 'Некорректная категория',
+    status: 'pending',
+    createdAt: '2024-03-15T09:30:00Z'
+  },
+  {
+    id: 'viol3',
+    reporterId: 'mod1',
+    reporterName: 'Модератор Иван',
+    targetId: 'user4',
+    targetType: 'user',
+    reason: 'Множественный спам',
+    status: 'reviewed',
+    createdAt: '2024-03-13T15:45:00Z',
+    resolvedBy: 'admin1',
+    notes: 'Требуется проверка админа'
+  }
+];
+
+const mockSystemSettings: AdminSystemSettings = {
+  siteMaintenance: false,
+  registrationEnabled: true,
+  postingEnabled: true,
+  ratingEnabled: true,
+  maxFileSize: 10, // MB
+  maxPostsPerDay: 20,
+  defaultTheme: 'auto',
+  emailNotifications: true,
+  security: {
+    requireEmailVerification: false,
+    enable2FA: false,
+    sessionTimeout: 24 // hours
+  }
+};
+
+// === ФУНКЦИИ АДМИН-ПАНЕЛИ ===
+
+// Получение статистики для админ-панели
+export const getAdminStats = async (): Promise<APIResponse<AdminStats>> => {
+  await simulateNetworkDelay();
+  
+  const stats = loadStatsFromStorage();
+  
+  const adminStats: AdminStats = {
+    users: {
+      total: 1542,
+      active: 1234,
+      newToday: 12,
+      online: stats.online,
+      byRole: {
+        admin: 3,
+        moderator: 8,
+        user: 1531
+      }
+    },
+    content: {
+      totalPosts: 8921,
+      newToday: 47,
+      projects: 4521,
+      marketItems: 2876,
+      helpRequests: 1234,
+      libraryPosts: 290
+    },
+    ratings: {
+      totalGiven: 45789,
+      todayGiven: 134,
+      averageRating: 4.2,
+      topUsers: [
+        { id: 'user1', name: 'Иван Кулибин', rating: 2450, activity: 1200 },
+        { id: 'user2', name: 'Мастер Самоделкин', rating: 2180, activity: 1050 },
+        { id: 'user5', name: 'Профессор', rating: 1950, activity: 890 }
+      ]
+    },
+    system: {
+      uptime: '99.8%',
+      memoryUsage: 65,
+      responseTime: 120,
+      errors: 3
+    },
+    timeline: [
+      { date: '2024-03-10', users: 1500, posts: 210, ratings: 890 },
+      { date: '2024-03-11', users: 1510, posts: 198, ratings: 920 },
+      { date: '2024-03-12', users: 1518, posts: 234, ratings: 1010 },
+      { date: '2024-03-13', users: 1525, posts: 189, ratings: 870 },
+      { date: '2024-03-14', users: 1532, posts: 256, ratings: 1120 },
+      { date: '2024-03-15', users: 1542, posts: 247, ratings: 1340 }
+    ]
+  };
+  
+  return {
+    success: true,
+    data: adminStats,
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Получение списка пользователей
+export const getAdminUsers = async (params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: string;
+  sortBy?: string;
+}): Promise<APIResponse<{ users: AdminUser[]; total: number; page: number }>> => {
+  await simulateNetworkDelay();
+  
+  let filteredUsers = [...mockAdminUsers];
+  
+  // Фильтрация по роли
+  if (params?.role && params.role !== 'all') {
+    filteredUsers = filteredUsers.filter(user => user.role === params.role);
+  }
+  
+  // Поиск
+  if (params?.search) {
+    const searchLower = params.search.toLowerCase();
+    filteredUsers = filteredUsers.filter(user => 
+      user.name?.toLowerCase().includes(searchLower) ||
+      user.login.toLowerCase().includes(searchLower) ||
+      user.email.toLowerCase().includes(searchLower)
+    );
+  }
+  
+  // Сортировка
+  if (params?.sortBy) {
+    filteredUsers.sort((a, b) => {
+      switch (params.sortBy) {
+        case 'rating_desc': return b.rating! - a.rating!;
+        case 'rating_asc': return a.rating! - b.rating!;
+        case 'activity_desc': return b.activityPoints! - a.activityPoints!;
+        case 'activity_asc': return a.activityPoints! - b.activityPoints!;
+        case 'date_desc': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'date_asc': return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        default: return 0;
+      }
+    });
+  }
+  
+  // Пагинация
+  const page = params?.page || 1;
+  const limit = params?.limit || 10;
+  const startIndex = (page - 1) * limit;
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + limit);
+  
+  return {
+    success: true,
+    data: {
+      users: paginatedUsers,
+      total: filteredUsers.length,
+      page
+    },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Обновление пользователя
+export const updateAdminUser = async (
+  userId: string, 
+  updates: Partial<AdminUser>
+): Promise<APIResponse<AdminUser>> => {
+  await simulateNetworkDelay();
+  
+  const userIndex = mockAdminUsers.findIndex(u => u.id === userId);
+  if (userIndex === -1) {
+    return {
+      success: false,
+      error: 'Пользователь не найден',
+      timestamp: new Date().toISOString()
+    };
+  }
+  
+  // Обновляем пользователя
+  mockAdminUsers[userIndex] = { ...mockAdminUsers[userIndex], ...updates };
+  
+  // Логируем действие
+  mockAuditLogs.unshift({
+    id: `log_${Date.now()}`,
+    userId: 'admin1', // Текущий админ
+    userName: 'Главный Админ',
+    action: 'USER_UPDATED',
+    targetType: 'user',
+    targetId: userId,
+    details: updates,
+    timestamp: new Date().toISOString()
+  });
+  
+  return {
+    success: true,
+    data: mockAdminUsers[userIndex],
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Получение аудит-логов
+export const getAdminAuditLogs = async (params?: {
+  page?: number;
+  limit?: number;
+  userId?: string;
+  action?: string;
+}): Promise<APIResponse<{ logs: AdminAuditLog[]; total: number }>> => {
+  await simulateNetworkDelay();
+  
+  let filteredLogs = [...mockAuditLogs];
+  
+  // Фильтрация по пользователю
+  if (params?.userId) {
+    filteredLogs = filteredLogs.filter(log => log.userId === params.userId);
+  }
+  
+  // Фильтрация по действию
+  if (params?.action) {
+    filteredLogs = filteredLogs.filter(log => log.action === params.action);
+  }
+  
+  // Пагинация
+  const page = params?.page || 1;
+  const limit = params?.limit || 20;
+  const startIndex = (page - 1) * limit;
+  const paginatedLogs = filteredLogs.slice(startIndex, startIndex + limit);
+  
+  return {
+    success: true,
+    data: {
+      logs: paginatedLogs,
+      total: filteredLogs.length
+    },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Получение репортов о нарушениях
+export const getAdminViolations = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+}): Promise<APIResponse<{ reports: AdminViolationReport[]; total: number }>> => {
+  await simulateNetworkDelay();
+  
+  let filteredReports = [...mockViolationReports];
+  
+  // Фильтрация по статусу
+  if (params?.status && params.status !== 'all') {
+    filteredReports = filteredReports.filter(report => report.status === params.status);
+  }
+  
+  // Пагинация
+  const page = params?.page || 1;
+  const limit = params?.limit || 10;
+  const startIndex = (page - 1) * limit;
+  const paginatedReports = filteredReports.slice(startIndex, startIndex + limit);
+  
+  return {
+    success: true,
+    data: {
+      reports: paginatedReports,
+      total: filteredReports.length
+    },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Обновление репорта о нарушении
+export const updateAdminViolation = async (
+  reportId: string, 
+  updates: Partial<AdminViolationReport>
+): Promise<APIResponse<AdminViolationReport>> => {
+  await simulateNetworkDelay();
+  
+  const reportIndex = mockViolationReports.findIndex(r => r.id === reportId);
+  if (reportIndex === -1) {
+    return {
+      success: false,
+      error: 'Репорт не найден',
+      timestamp: new Date().toISOString()
+    };
+  }
+  
+  // Обновляем репорт
+  mockViolationReports[reportIndex] = { 
+    ...mockViolationReports[reportIndex], 
+    ...updates 
+  };
+  
+  // Логируем действие
+  mockAuditLogs.unshift({
+    id: `log_${Date.now()}`,
+    userId: 'admin1',
+    userName: 'Главный Админ',
+    action: 'VIOLATION_UPDATED',
+    targetType: 'content',
+    targetId: reportId,
+    details: updates,
+    timestamp: new Date().toISOString()
+  });
+  
+  return {
+    success: true,
+    data: mockViolationReports[reportIndex],
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Получение настроек системы
+export const getAdminSystemSettings = async (): Promise<APIResponse<AdminSystemSettings>> => {
+  await simulateNetworkDelay();
+  
+  return {
+    success: true,
+    data: mockSystemSettings,
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Обновление настроек системы
+export const updateAdminSystemSettings = async (
+  settings: Partial<AdminSystemSettings>
+): Promise<APIResponse<AdminSystemSettings>> => {
+  await simulateNetworkDelay();
+  
+  // Обновляем настройки
+  Object.assign(mockSystemSettings, settings);
+  
+  // Логируем действие
+  mockAuditLogs.unshift({
+    id: `log_${Date.now()}`,
+    userId: 'admin1',
+    userName: 'Главный Админ',
+    action: 'SYSTEM_SETTINGS_UPDATED',
+    targetType: 'system',
+    details: settings,
+    timestamp: new Date().toISOString()
+  });
+  
+  return {
+    success: true,
+    data: mockSystemSettings,
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Получение детальной статистики рейтинга
+export const getAdminRatingStats = async (): Promise<APIResponse<{
+  totalRatingPoints: number;
+  averageRating: number;
+  ratingDistribution: Record<string, number>;
+  topRatedUsers: Array<{
+    id: string;
+    name: string;
+    rating: number;
+    level: string;
+  }>;
+  dailyRatingActivity: Array<{
+    date: string;
+    points: number;
+    actions: number;
+  }>;
+}>> => {
+  await simulateNetworkDelay();
+  
+  const stats = {
+    totalRatingPoints: 457890,
+    averageRating: 4.2,
+    ratingDistribution: {
+      '★': 420,
+      '★★': 680,
+      '★★★': 320,
+      '★★★★': 95,
+      '★★★★★': 27
+    },
+    topRatedUsers: [
+      { id: 'user1', name: 'Иван Кулибин', rating: 2450, level: 'Эксперт сообщества' },
+      { id: 'user2', name: 'Мастер Самоделкин', rating: 2180, level: 'Профессор Сомоделкин' },
+      { id: 'user5', name: 'Профессор', rating: 1950, level: 'Профессор Сомоделкин' },
+      { id: 'user7', name: 'Инженер', rating: 1750, level: 'Инженер-конструктор' },
+      { id: 'user10', name: 'Студент', rating: 1450, level: 'Инженер-конструктор' }
+    ],
+    dailyRatingActivity: [
+      { date: '2024-03-10', points: 2450, actions: 120 },
+      { date: '2024-03-11', points: 2180, actions: 105 },
+      { date: '2024-03-12', points: 3120, actions: 156 },
+      { date: '2024-03-13', points: 1950, actions: 98 },
+      { date: '2024-03-14', points: 2780, actions: 139 },
+      { date: '2024-03-15', points: 3250, actions: 162 }
+    ]
+  };
+  
+  return {
+    success: true,
+    data: stats,
+    timestamp: new Date().toISOString()
+  };
+};
+
+// === СУЩЕСТВУЮЩИЕ ФУНКЦИИ ===
 
 // Имитация задержки сети
 const simulateNetworkDelay = () => new Promise(resolve => 
@@ -230,6 +872,107 @@ const getRandomInRange = (min: number, max: number): number => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
+// === НОВЫЕ ФУНКЦИИ: РАЗДЕЛЕНИЕ ДАННЫХ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ И АДМИНА ===
+
+// Получить реальные данные (только для внутреннего использования)
+const getRealStats = (): StatsData => {
+  const stats = loadStatsFromStorage();
+  
+  // Возвращаем только реальные данные
+  return {
+    ...stats,
+    total: stats._realTotal || 0, // Только реальные пользователи
+    online: stats.realOnline, // Только реальные онлайн
+    _realTotal: stats._realTotal || 0,
+    _fakeTotal: 0 // Фиктивные не показываем
+  };
+};
+
+// Получить статистику для обычных пользователей (с фиктивными)
+const getStatsForUsers = async (): Promise<APIResponse<StatsData>> => {
+  console.log('[API MOCKS] Загрузка статистики для пользователей...');
+  await simulateNetworkDelay();
+  
+  const stats = loadStatsFromStorage();
+  
+  // Логируем детали для отладки
+  console.log('[STATS] Пользователям показано всего:', stats.total, 
+              '(фиктивных:', stats._fakeTotal || 0, 
+              ', реальных:', stats._realTotal || 0, ')');
+  
+  const mockResponse: APIResponse<StatsData> = {
+    success: true,
+    data: stats,
+    timestamp: new Date().toISOString()
+  };
+  
+  console.log('[API MOCKS] Статистика для пользователей загружена:', mockResponse);
+  return mockResponse;
+};
+
+// Получить статистику для админа (с разделением фиктивных/реальных)
+const getStatsForAdmin = async (): Promise<APIResponse<StatsData>> => {
+  console.log('[API MOCKS] Загрузка статистики для админа...');
+  await simulateNetworkDelay();
+  
+  const stats = loadStatsFromStorage();
+  
+  // Логируем детали для отладки
+  console.log('[STATS] Админу показано всего:', stats.total, 
+              '(фиктивных:', stats._fakeTotal || 0, 
+              ', реальных:', stats._realTotal || 0, ')');
+  
+  const mockResponse: APIResponse<StatsData> = {
+    success: true,
+    data: stats, // Возвращаем полные данные с разделением
+    timestamp: new Date().toISOString()
+  };
+  
+  console.log('[API MOCKS] Статистика для админа загружена:', mockResponse);
+  return mockResponse;
+};
+
+// Получить детальную информацию (обновленная версия)
+const getDetailedStats = async (): Promise<APIResponse<{
+  shownTotal: number;
+  realTotal: number;
+  fakeTotal: number;
+  formula: string;
+  fakeTotalConstant: number;
+  canEditFakeTotal: boolean;
+  shownOnline: number;
+  realOnline: number;
+  fakeOnline: number;
+}>> => {
+  console.log('[API MOCKS] Загрузка детальной статистики...');
+  await simulateNetworkDelay();
+  
+  const currentStats = loadStatsFromStorage();
+  
+  const detailedInfo = {
+    shownTotal: currentStats.total,
+    realTotal: currentStats._realTotal || 0,
+    fakeTotal: currentStats._fakeTotal || FAKE_TOTAL,
+    shownOnline: currentStats.online,
+    realOnline: currentStats.realOnline,
+    fakeOnline: currentStats.simulationOnline,
+    formula: `Показано = фиктивных(${FAKE_TOTAL} - реальные/2) + реальные`,
+    fakeTotalConstant: FAKE_TOTAL,
+    canEditFakeTotal: false // В будущем можно сделать редактируемым
+  };
+  
+  const mockResponse: APIResponse<typeof detailedInfo> = {
+    success: true,
+    data: detailedInfo,
+    timestamp: new Date().toISOString()
+  };
+  
+  console.log('[API MOCKS] Детальная статистика:', mockResponse);
+  return mockResponse;
+};
+
+// === mockAPI ОБЪЕКТ ===
+
 // Централизованные функции-заглушки
 export const mockAPI = {
   // Настройки
@@ -258,7 +1001,6 @@ export const mockAPI = {
     
     saveSettings: async (settings: AppSettings): Promise<APIResponse<{ synced: boolean }>> => {
       console.log('[API MOCKS] Сохранение настроек на сервер...', settings);
-      
       await simulateNetworkDelay();
       
       localStorage.setItem('server_settings', JSON.stringify(settings));
@@ -279,7 +1021,6 @@ export const mockAPI = {
       conflicts?: string[] 
     }>> => {
       console.log('[API MOCKS] Синхронизация настроек...');
-      
       await simulateNetworkDelay();
       
       const serverSettings = localStorage.getItem('server_settings');
@@ -423,6 +1164,9 @@ export const mockAPI = {
         };
       }
       
+      // Определяем роль: если логин admin - даем роль админа
+      const isAdmin = userData.login.toLowerCase() === 'admin';
+      
       const mockResponse: APIResponse<User> = {
         success: true,
         data: {
@@ -431,6 +1175,7 @@ export const mockAPI = {
           email: userData.email,
           name: userData.login,
           avatar: `https://i.pravatar.cc/150?u=${userData.email}`,
+          role: isAdmin ? 'admin' : 'user', // ← ДОБАВЛЕНО
           createdAt: new Date().toISOString()
         },
         timestamp: new Date().toISOString()
@@ -444,15 +1189,20 @@ export const mockAPI = {
       console.log('[API MOCKS] Вход пользователя:', credentials.login);
       await simulateNetworkDelay();
       
+      // Определяем роль: если логин admin - даем роль админа
+      const isAdmin = credentials.login.toLowerCase() === 'admin';
+      const isModerator = credentials.login.toLowerCase() === 'moderator';
+      
       const mockResponse: APIResponse<{ user: User; token: string }> = {
         success: true,
         data: {
           user: {
-            id: 'user_123',
+            id: isAdmin ? 'admin1' : (isModerator ? 'mod1' : 'user_' + Date.now()),
             login: credentials.login,
             email: `${credentials.login}@example.com`,
             name: credentials.login,
             avatar: `https://i.pravatar.cc/150?u=${credentials.login}`,
+            role: isAdmin ? 'admin' : (isModerator ? 'moderator' : 'user'), // ← ДОБАВЛЕНО
             createdAt: new Date().toISOString()
           },
           token: 'jwt_token_demo_' + Date.now()
@@ -569,25 +1319,29 @@ export const mockAPI = {
 
   // === СИСТЕМА СТАТИСТИКИ ===
   stats: {
-    // Получить текущую статистику
-    getStats: async (): Promise<APIResponse<StatsData>> => {
-      console.log('[API MOCKS] Загрузка статистики...');
+    // Старая функция (оставлена для совместимости)
+    getStats: getStatsForUsers,
+    
+    // Новая функция: для обычных пользователей (с фиктивными данными)
+    getStatsForUsers,
+    
+    // Новая функция: для админа (с разделением фиктивных/реальных)
+    getStatsForAdmin,
+    
+    // Новая функция: для получения реальных данных (внутренняя)
+    getRealStats: async (): Promise<APIResponse<StatsData>> => {
+      console.log('[API MOCKS] Загрузка реальной статистики...');
       await simulateNetworkDelay();
       
-      const stats = loadStatsFromStorage();
-      
-      // Логируем детали для отладки
-      console.log('[STATS] Показано всего:', stats.total, 
-                  '(фиктивных:', stats._fakeTotal || 0, 
-                  ', реальных:', stats._realTotal || 0, ')');
+      const realStats = getRealStats();
       
       const mockResponse: APIResponse<StatsData> = {
         success: true,
-        data: stats,
+        data: realStats,
         timestamp: new Date().toISOString()
       };
       
-      console.log('[API MOCKS] Статистика загружена:', mockResponse);
+      console.log('[API MOCKS] Реальная статистика:', mockResponse);
       return mockResponse;
     },
 
@@ -834,37 +1588,33 @@ export const mockAPI = {
       return mockResponse;
     },
     
-    // Получить детальную информацию (для админки)
-    getDetailedStats: async (): Promise<APIResponse<{
-      shownTotal: number;
-      realTotal: number;
-      fakeTotal: number;
-      formula: string;
-      fakeTotalConstant: number;
-      canEditFakeTotal: boolean;
-    }>> => {
-      console.log('[API MOCKS] Загрузка детальной статистики...');
-      await simulateNetworkDelay();
-      
-      const currentStats = loadStatsFromStorage();
-      
-      const detailedInfo = {
-        shownTotal: currentStats.total,
-        realTotal: currentStats._realTotal || 0,
-        fakeTotal: currentStats._fakeTotal || FAKE_TOTAL,
-        formula: `Показано = фиктивных(${FAKE_TOTAL} - реальные/2) + реальные`,
-        fakeTotalConstant: FAKE_TOTAL,
-        canEditFakeTotal: false // В будущем можно сделать редактируемым
-      };
-      
-      const mockResponse: APIResponse<typeof detailedInfo> = {
-        success: true,
-        data: detailedInfo,
-        timestamp: new Date().toISOString()
-      };
-      
-      console.log('[API MOCKS] Детальная статистика:', mockResponse);
-      return mockResponse;
-    }
+    // Получить детальную информацию (обновленная версия)
+    getDetailedStats
+  },
+
+  // === АДМИН-ПАНЕЛЬ API ===
+  admin: {
+    getAdminStats,
+    getAdminUsers,
+    updateAdminUser,
+    getAdminAuditLogs,
+    getAdminViolations,
+    updateAdminViolation,
+    getAdminSystemSettings,
+    updateAdminSystemSettings,
+    getAdminRatingStats
   }
+};
+
+// Экспорт админ API
+export const adminAPI = {
+  getAdminStats,
+  getAdminUsers,
+  updateAdminUser,
+  getAdminAuditLogs,
+  getAdminViolations,
+  updateAdminViolation,
+  getAdminSystemSettings,
+  updateAdminSystemSettings,
+  getAdminRatingStats
 };

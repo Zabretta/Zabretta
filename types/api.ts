@@ -1,4 +1,3 @@
-// types/api.ts
 export interface APIResponse<T = any> {
   success: boolean;
   data?: T;
@@ -20,6 +19,7 @@ export interface User {
   name?: string;
   avatar?: string;
   createdAt: string;
+  role?: 'user' | 'moderator' | 'admin'; // Добавлено поле role
 }
 
 export interface MarketItem {
@@ -55,4 +55,37 @@ export interface CommunityStats {
   adviceGiven: number;
   newUsersToday: number;
   activeProjects: number;
+}
+
+// Дополнительные типы для системы рейтинга
+export interface RatingRecord {
+  id: string;
+  userId: string;
+  type: 'project' | 'master' | 'help' | 'library' | 'daily' | 'registration';
+  section: 'projects' | 'masters' | 'help' | 'library' | 'general';
+  action: 'create' | 'like_given' | 'like_received' | 'comment' | 'daily_login';
+  points: number;
+  ratingPoints: number;
+  activityPoints: number;
+  timestamp: Date;
+  targetId?: string;
+}
+
+export interface UserRating {
+  userId: string;
+  totalRating: number;
+  totalActivity: number;
+  ratingLevel: string;
+  activityLevel: string;
+  ratingIcon: string;
+  lastDailyLogin?: Date;
+  stats: {
+    projectsCreated: number;
+    mastersAdsCreated: number;
+    helpRequestsCreated: number;
+    libraryPostsCreated: number;
+    likesGiven: number;
+    likesReceived: number;
+    commentsMade: number;
+  };
 }

@@ -7,11 +7,13 @@ interface User {
   id: string;
   login: string;
   email: string;
+  role?: string; // Добавил роль
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isAdmin: boolean; // Добавил проверку админа
   login: (token: string, userData: User) => void;
   logout: () => void;
   authModalOpen: boolean;
@@ -63,18 +65,21 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     
     localStorage.removeItem('samodelkin_auth_token');
     localStorage.removeItem('samodelkin_user');
+    localStorage.removeItem('samodelkin_user-role'); // Удаляем и роль
     setUser(null);
     alert('Вы успешно вышли из системы');
   };
 
   const isAuthenticated = !!user;
+  const isAdmin = user?.role === 'admin' || localStorage.getItem('samodelkin_user-role') === 'admin';
 
-  console.log('🔄 useAuth: рендер, isAuthenticated:', isAuthenticated);
+  console.log('🔄 useAuth: рендер, isAuthenticated:', isAuthenticated, 'isAdmin:', isAdmin);
 
   return (
     <AuthContext.Provider value={{
       user,
       isAuthenticated,
+      isAdmin,
       login,
       logout,
       authModalOpen,

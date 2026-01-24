@@ -1,5 +1,4 @@
-// components/Workbench.tsx
-"use client";
+"use client"
 
 import { useState, useEffect, useCallback } from "react";
 import "./Workbench.css";
@@ -11,6 +10,7 @@ import { useAuth } from "./useAuth";
 import { useSettings } from "./SettingsContext";
 import { useRating, RatingProvider } from "./RatingContext";
 import { mockAPI } from "../api/mocks";
+import AdminIcon from "./AdminIcon";
 
 // Внутренний компонент WorkbenchContent
 function WorkbenchContent() {
@@ -28,7 +28,7 @@ function WorkbenchContent() {
   });
   const [isInitialized, setIsInitialized] = useState(false);
   
-  const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen } = useAuth();
+  const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen, isAdmin } = useAuth();
   const { settings } = useSettings();
   const { userRating } = useRating();
 
@@ -49,16 +49,17 @@ function WorkbenchContent() {
   // Загрузка статистики
   const loadStats = useCallback(async () => {
     try {
-      // Сбрасываем статистику, если это первый запуск с новыми настройками
+      // Сброс статистики, если это первый запуск с новыми настройками
       const shouldReset = localStorage.getItem('samodelkin_stats_reset') !== 'true';
       
       if (shouldReset) {
-        console.log('[STATS] Сброс статистики для применения новых значений...');
+        console.log('[СТАТИСТИКА] Сброс статистики для применения новых значений...');
         await mockAPI.stats.resetStats();
         localStorage.setItem('samodelkin_stats_reset', 'true');
       }
       
-      const response = await mockAPI.stats.getStats();
+      // ИСПРАВЛЕНО: Используем getStatsForUsers() вместо getStats()
+      const response = await mockAPI.stats.getStatsForUsers();
       if (response.success && response.data) {
         setCommunityStats({
           online: response.data.online,
@@ -66,10 +67,10 @@ function WorkbenchContent() {
           projectsCreated: response.data.projectsCreated,
           adviceGiven: response.data.adviceGiven
         });
-        console.log('[STATS] Статистика загружена:', response.data);
+        console.log('[СТАТИСТИКА] Статистика для пользователей загружена:', response.data);
       }
     } catch (error) {
-      console.error('Ошибка загрузки статистики:', error);
+      console.error('Ошибка загрузки статистики: ', error);
     }
   }, []);
 
@@ -81,7 +82,7 @@ function WorkbenchContent() {
     }
   }, [loadStats, isInitialized]);
 
-  // Автоматическое изменение онлайн-пользователей
+  // Автоматическое изменение количества онлайн-пользователей
   useEffect(() => {
     const intervalId = setInterval(async () => {
       try {
@@ -93,7 +94,7 @@ function WorkbenchContent() {
           }));
         }
       } catch (error) {
-        console.error('Ошибка имитации изменения онлайн:', error);
+        console.error('Ошибка при имитации изменения статуса онлайн:', error);
       }
     }, 5000);
 
@@ -139,9 +140,18 @@ function WorkbenchContent() {
       }
     } catch (error) {
       console.error("Ошибка выполнения действия:", error);
-      alert("Не удалось выполнить действие. Попробуйте еще раз.");
+      alert("Не удалось выполнить действие. Попробуйте ещё раз.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Переход в админку
+  const handleAdminClick = () => {
+    if (isAdmin) {
+      window.location.href = '/admin';
+    } else {
+      alert('У вас нет прав администратора');
     }
   };
 
@@ -212,7 +222,7 @@ function WorkbenchContent() {
     { id: 2, icon: "👨‍🍳", text: "Делитесь<br />кулинарными шедеврами" },
     { id: 3, icon: "💡", text: "Показывайте<br />творческие планы" },
     { id: 4, icon: "🤝", text: "Давайте и получайте<br />советы и помощь" },
-    { id: 5, icon: "🧩", text: "Творите и придумывайте<br />вместо" },
+    { id: 5, icon: "🧩", text: "Творите и придумывайте<br />вместе" },
     { id: 6, icon: "💰", text: "Продавайте свои<br />товары и идеи" },
   ];
 
@@ -276,21 +286,28 @@ function WorkbenchContent() {
               <h1 className="workshop-title">САМОДЕЛКИН</h1>
               <p className="workshop-subtitle">Сообщество домашних мастеров</p>
               {isAuthenticated && user && (
-                <p className="user-greeting">Добро пожаловать, {user.login}!</p>
+                <div className="user-header-info">
+                  <p className="user-greeting">Добро пожаловать, {user.login}!</p>
+                  {isAdmin && (
+                    <div className="admin-badge" onClick={handleAdminClick}>
+                      <span className="admin-badge-text">Администратор</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
             <div className="workbench-content">
               <div className="project-description">
                 <div className="description-icon">🌟</div>
-                <h2>Кулибины Руси — объединяемся!</h2>
+                <h2>Кулибины Руси — объединяйтесь!</h2>
                 <p className="description-text">
-                  Всегда Русь славилась изобретателями, толковыми людьми с цепким умом
+                  Русь всегда славилась изобретателями, толковыми людьми с цепким умом
                   и золотыми руками. Этот сайт для вас, Кулибины!
                 </p>
                 <p className="description-text">
                   Первая социальная сеть для творческих и изобретательных людей,
-                  умеющих идею воплотить в жизнь своими руками.
+                  умеющих воплощать идеи в жизнь своими руками.
                 </p>
 
                 <div className="features">
@@ -312,7 +329,7 @@ function WorkbenchContent() {
                     disabled={isLoading}
                   >
                     {isLoading ? "Загрузка..." : 
-                     isAuthenticated ? "Мой профиль" : "Присоединиться к Кулибиным"}
+                    isAuthenticated ? "Мой профиль" : "Присоединиться к Кулибиным"}
                   </button>
                   <p className="cta-note">
                     {isAuthenticated 
@@ -343,7 +360,7 @@ function WorkbenchContent() {
             </div>
 
             <div className="sawdust"></div>
-            <div className="wood-chips"></div>
+            <div className="chips"></div>
             <div className="screw"></div>
             <div className="nail"></div>
             <div className="tape-measure"></div>
@@ -367,8 +384,25 @@ function WorkbenchContent() {
               <span className="drawer-arrow">←</span>
             </button>
           ))}
+          
+          {/* Иконка администратора в правой панели */}
+          {isAdmin && (
+            <div className="admin-drawer">
+              <div className="admin-drawer-content" onClick={handleAdminClick}>
+                <AdminIcon isAdmin={isAdmin} />
+                <span className="admin-drawer-label">Панель администратора</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Плавающая иконка администратора для быстрого доступа */}
+      {isAdmin && (
+        <div className="floating-admin-icon" onClick={handleAdminClick}>
+          <AdminIcon isAdmin={isAdmin} />
+        </div>
+      )}
 
       <div className="sparks">
         {[...Array(8)].map((_, i) => (

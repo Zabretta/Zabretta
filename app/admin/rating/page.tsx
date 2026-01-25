@@ -1,5 +1,6 @@
 "use client";
 
+import './AdminRatingPage.css';
 import { useState } from 'react';
 
 export default function AdminRatingPage() {

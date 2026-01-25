@@ -203,6 +203,16 @@ export interface UserRating {
   };
 }
 
+export interface RatingAdjustment {
+  userId: string;
+  reason: string;
+  ratingChange: number;
+  activityChange: number;
+  timestamp: string;
+  adminId?: string;
+  adminNote?: string;
+}
+
 export const USER_LEVELS = [
   { min: 0, max: 200, name: "Студент", icon: "★" },
   { min: 201, max: 500, name: "Инженер", icon: "★★" },
@@ -757,6 +767,266 @@ export const getAdminRatingStats = async (): Promise<APIResponse<{
   return {
     success: true,
     data: stats,
+    timestamp: new Date().toISOString()
+  };
+};
+
+// === НОВЫЕ ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ РЕЙТИНГОМ В АДМИНКЕ ===
+
+// Получение всех данных об уровнях рейтинга
+export const getAdminRatingLevels = async (): Promise<APIResponse<{
+  userLevels: typeof USER_LEVELS;
+  activityLevels: typeof ACTIVITY_LEVELS;
+  formulas: Array<{
+    section: string;
+    action: string;
+    ratingPoints: number;
+    activityPoints: number;
+    description: string;
+  }>;
+}>> => {
+  await simulateNetworkDelay();
+  
+  // Формулы начисления (можно брать из useRatingSystem)
+  const formulas = [
+    { section: 'projects', action: 'create', ratingPoints: 5, activityPoints: 10, description: 'Создание проекта' },
+    { section: 'projects', action: 'like_given', ratingPoints: 0, activityPoints: 2, description: 'Лайк проекту' },
+    { section: 'projects', action: 'like_received', ratingPoints: 1, activityPoints: 0, description: 'Получение лайка' },
+    { section: 'projects', action: 'comment', ratingPoints: 0, activityPoints: 3, description: 'Комментарий к проекту' },
+    { section: 'masters', action: 'create', ratingPoints: 5, activityPoints: 10, description: 'Создание объявления мастера' },
+    { section: 'masters', action: 'like_given', ratingPoints: 0, activityPoints: 2, description: 'Лайк мастеру' },
+    { section: 'help', action: 'create', ratingPoints: 5, activityPoints: 10, description: 'Создание запроса о помощи' },
+    { section: 'help', action: 'like_given', ratingPoints: 0, activityPoints: 2, description: 'Полезный ответ' },
+    { section: 'library', action: 'create', ratingPoints: 5, activityPoints: 10, description: 'Создание публикации' },
+    { section: 'library', action: 'like_given', ratingPoints: 0, activityPoints: 2, description: 'Лайк публикации' },
+    { section: 'general', action: 'registration', ratingPoints: 15, activityPoints: 0, description: 'Регистрация на сайте' },
+    { section: 'general', action: 'daily_login', ratingPoints: 0, activityPoints: 2, description: 'Ежедневный вход' },
+  ];
+
+  return {
+    success: true,
+    data: {
+      userLevels: USER_LEVELS,
+      activityLevels: ACTIVITY_LEVELS,
+      formulas
+    },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Получение рейтингов всех пользователей
+export const getAllUserRatings = async (params?: {
+  page?: number;
+  limit?: number;
+  sortBy?: 'rating_desc' | 'rating_asc' | 'activity_desc' | 'activity_asc';
+}): Promise<APIResponse<{
+  ratings: UserRating[];
+  total: number;
+  averageRating: number;
+  averageActivity: number;
+  distributionByLevel: Record<string, number>;
+}>> => {
+  await simulateNetworkDelay();
+  
+  // Создаем моковые рейтинги на основе моковых пользователей
+  const allRatings: UserRating[] = mockAdminUsers.map(user => {
+    const rating = user.rating || 0;
+    const activity = user.activityPoints || 0;
+    
+    // Определяем уровень по рейтингу
+    const userLevel = USER_LEVELS.find(level => rating >= level.min && rating <= level.max) || USER_LEVELS[0];
+    const activityLevel = ACTIVITY_LEVELS.find(level => activity >= level.min && activity <= level.max) || ACTIVITY_LEVELS[0];
+    
+    return {
+      userId: user.id,
+      totalRating: rating,
+      totalActivity: activity,
+      ratingLevel: userLevel.name,
+      activityLevel: activityLevel.name,
+      ratingIcon: userLevel.icon,
+      lastDailyLogin: user.lastLogin ? new Date(user.lastLogin) : undefined,
+      stats: {
+        projectsCreated: Math.floor(Math.random() * 20),
+        mastersAdsCreated: Math.floor(Math.random() * 10),
+        helpRequestsCreated: Math.floor(Math.random() * 15),
+        libraryPostsCreated: Math.floor(Math.random() * 8),
+        likesGiven: Math.floor(Math.random() * 50),
+        likesReceived: Math.floor(Math.random() * 30),
+        commentsMade: Math.floor(Math.random() * 40)
+      }
+    };
+  });
+
+  // Сортировка
+  let sortedRatings = [...allRatings];
+  if (params?.sortBy) {
+    sortedRatings.sort((a, b) => {
+      switch (params.sortBy) {
+        case 'rating_desc': return b.totalRating - a.totalRating;
+        case 'rating_asc': return a.totalRating - b.totalRating;
+        case 'activity_desc': return b.totalActivity - a.totalActivity;
+        case 'activity_asc': return a.totalActivity - b.totalActivity;
+        default: return 0;
+      }
+    });
+  }
+
+  // Пагинация
+  const page = params?.page || 1;
+  const limit = params?.limit || 50;
+  const startIndex = (page - 1) * limit;
+  const paginatedRatings = sortedRatings.slice(startIndex, startIndex + limit);
+
+  // Распределение по уровням
+  const distributionByLevel: Record<string, number> = {};
+  USER_LEVELS.forEach(level => {
+    distributionByLevel[level.name] = allRatings.filter(r => 
+      r.totalRating >= level.min && r.totalRating <= level.max
+    ).length;
+  });
+
+  // Средние значения
+  const totalRating = allRatings.reduce((sum, r) => sum + r.totalRating, 0);
+  const totalActivity = allRatings.reduce((sum, r) => sum + r.totalActivity, 0);
+
+  return {
+    success: true,
+    data: {
+      ratings: paginatedRatings,
+      total: allRatings.length,
+      averageRating: Math.round(totalRating / allRatings.length),
+      averageActivity: Math.round(totalActivity / allRatings.length),
+      distributionByLevel
+    },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Ручная корректировка рейтинга пользователя
+export const adjustUserRating = async (
+  userId: string,
+  adjustment: {
+    ratingChange: number;
+    activityChange: number;
+    reason: string;
+    adminNote?: string;
+  }
+): Promise<APIResponse<{
+  success: boolean;
+  newRating: number;
+  newActivity: number;
+  adjustmentId: string;
+}>> => {
+  await simulateNetworkDelay();
+
+  // Ищем пользователя
+  const userIndex = mockAdminUsers.findIndex(u => u.id === userId);
+  if (userIndex === -1) {
+    return {
+      success: false,
+      error: 'Пользователь не найден',
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  // Обновляем рейтинг пользователя
+  const currentRating = mockAdminUsers[userIndex].rating || 0;
+  const currentActivity = mockAdminUsers[userIndex].activityPoints || 0;
+  
+  mockAdminUsers[userIndex].rating = currentRating + adjustment.ratingChange;
+  mockAdminUsers[userIndex].activityPoints = currentActivity + adjustment.activityChange;
+
+  // Создаем запись в истории корректировок
+  const adjustmentRecord: RatingAdjustment = {
+    userId,
+    reason: adjustment.reason,
+    ratingChange: adjustment.ratingChange,
+    activityChange: adjustment.activityChange,
+    timestamp: new Date().toISOString()
+  };
+
+  // В реальной системе здесь была бы запись в БД
+  console.log('[ADMIN] Корректировка рейтинга:', adjustmentRecord);
+
+  // Логируем действие в аудит-логи
+  mockAuditLogs.unshift({
+    id: `rating_adj_${Date.now()}`,
+    userId: 'admin1', // Текущий админ
+    userName: 'Главный Админ',
+    action: 'RATING_ADJUSTED',
+    targetType: 'rating',
+    targetId: userId,
+    details: adjustment,
+    timestamp: new Date().toISOString()
+  });
+
+  return {
+    success: true,
+    data: {
+      success: true,
+      newRating: mockAdminUsers[userIndex].rating!,
+      newActivity: mockAdminUsers[userIndex].activityPoints!,
+      adjustmentId: `adj_${Date.now()}`
+    },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Получение истории корректировок рейтинга
+export const getRatingAdjustments = async (params?: {
+  userId?: string;
+  page?: number;
+  limit?: number;
+}): Promise<APIResponse<{
+  adjustments: RatingAdjustment[];
+  total: number;
+}>> => {
+  await simulateNetworkDelay();
+
+  // В реальной системе здесь был бы запрос к БД
+  // Создаем моковые данные для демонстрации
+  const mockAdjustments: RatingAdjustment[] = [
+    {
+      userId: 'user1',
+      reason: 'Награда за активность в сообществе',
+      ratingChange: 50,
+      activityChange: 0,
+      timestamp: '2024-03-10T14:30:00Z'
+    },
+    {
+      userId: 'user2',
+      reason: 'Корректировка после ошибки системы',
+      ratingChange: -20,
+      activityChange: 10,
+      timestamp: '2024-03-09T11:15:00Z'
+    },
+    {
+      userId: 'user3',
+      reason: 'Поощрение за помощь новичкам',
+      ratingChange: 30,
+      activityChange: 20,
+      timestamp: '2024-03-08T16:45:00Z'
+    }
+  ];
+
+  // Фильтрация по пользователю
+  let filtered = [...mockAdjustments];
+  if (params?.userId) {
+    filtered = filtered.filter(adj => adj.userId === params.userId);
+  }
+
+  // Пагинация
+  const page = params?.page || 1;
+  const limit = params?.limit || 20;
+  const startIndex = (page - 1) * limit;
+  const paginated = filtered.slice(startIndex, startIndex + limit);
+
+  return {
+    success: true,
+    data: {
+      adjustments: paginated,
+      total: filtered.length
+    },
     timestamp: new Date().toISOString()
   };
 };
@@ -1612,7 +1882,13 @@ export const mockAPI = {
     updateAdminViolation,
     getAdminSystemSettings,
     updateAdminSystemSettings,
-    getAdminRatingStats
+    getAdminRatingStats,
+    
+    // НОВЫЕ ФУНКЦИИ ДЛЯ РЕЙТИНГА:
+    getRatingLevels: getAdminRatingLevels,
+    getAllUserRatings,
+    adjustUserRating,
+    getRatingAdjustments
   }
 };
 
@@ -1626,5 +1902,11 @@ export const adminAPI = {
   updateAdminViolation,
   getAdminSystemSettings,
   updateAdminSystemSettings,
-  getAdminRatingStats
+  getAdminRatingStats,
+  
+  // НОВЫЕ ФУНКЦИИ ДЛЯ РЕЙТИНГА:
+  getRatingLevels: getAdminRatingLevels,
+  getAllUserRatings,
+  adjustUserRating,
+  getRatingAdjustments
 };

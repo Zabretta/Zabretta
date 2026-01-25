@@ -608,6 +608,149 @@
   max-width: 500px;
 }
 
+/* Демо-режим */
+.demo-banner {
+  background: linear-gradient(135deg, #8B4513, #A0522D);
+  border: 2px solid #D2691E;
+  border-radius: 10px;
+  padding: 12px 20px;
+  margin-top: 15px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(210, 105, 30, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(210, 105, 30, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(210, 105, 30, 0); }
+}
+
+.demo-icon {
+  font-size: 1.5em;
+}
+
+.demo-text {
+  color: #F5DEB3;
+  font-weight: 500;
+  flex-grow: 1;
+}
+
+.demo-refresh-btn {
+  background: rgba(245, 222, 179, 0.1);
+  border: 1px solid #D2B48C;
+  color: #D2B48C;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.3s;
+}
+
+.demo-refresh-btn:hover {
+  background: rgba(210, 180, 140, 0.2);
+  transform: translateY(-1px);
+}
+
+.demo-hint {
+  color: #D2B48C;
+  font-style: italic;
+  font-size: 0.9em;
+  margin-left: 8px;
+}
+
+/* Подсказка */
+.demo-tip {
+  background: rgba(139, 69, 19, 0.2);
+  border-left: 4px solid #D2691E;
+  padding: 12px 16px;
+  margin-top: 20px;
+  border-radius: 0 6px 6px 0;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.tip-icon {
+  font-size: 1.2em;
+  color: #FFD700;
+}
+
+.tip-text {
+  color: #D2B48C;
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+
+/* Улучшенные таблицы */
+.rating-table-container {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(210, 180, 140, 0.3);
+  background: rgba(26, 18, 11, 0.5);
+}
+
+/* Строка заголовка секции */
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+/* Контролы поиска */
+.search-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.search-controls .setting-input {
+  width: 200px;
+  min-width: 150px;
+}
+
+.search-controls .secondary-btn {
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+
+/* Рейтинг топ-3 */
+.rank-number.top-1 {
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  color: #8B4513;
+  font-weight: bold;
+}
+
+.rank-number.top-2 {
+  background: linear-gradient(135deg, #C0C0C0, #A9A9A9);
+  color: #2F4F4F;
+  font-weight: bold;
+}
+
+.rank-number.top-3 {
+  background: linear-gradient(135deg, #CD7F32, #A0522D);
+  color: #F5F5DC;
+  font-weight: bold;
+}
+
+/* Имя пользователя */
+.user-name {
+  color: #D2B48C;
+  font-size: 0.9em;
+  margin-left: 5px;
+  font-style: italic;
+}
+
+/* Кнопка "показать еще" */
+.show-more-container {
+  text-align: center;
+  margin-top: 20px;
+}
+
 /* Адаптивность */
 @media (max-width: 768px) {
   .tabs-header {

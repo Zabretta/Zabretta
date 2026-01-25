@@ -15,20 +15,22 @@ export default function AdminStatsPage() {
     try {
       setLoading(true);
       
-      const statsResponse = await mockAPI.stats.getStats();
+      // ИСПРАВЛЕНО: Используем getStatsForAdmin() вместо getStats()
+      const statsResponse = await mockAPI.stats.getStatsForAdmin();
       const detailedResponse = await mockAPI.stats.getDetailedStats();
       
       if (statsResponse.success && detailedResponse.success) {
         const statsData = statsResponse.data!;
         const detailed = detailedResponse.data!;
         
+        // ИСПРАВЛЕНО: Берём realTotal и fakeTotal из ОСНОВНОГО ответа
         setStats({
           shownOnline: statsData.online,
           realOnline: statsData.realOnline,
           fakeOnline: statsData.simulationOnline,
           shownTotal: statsData.total,
-          realTotal: detailed.realTotal,
-          fakeTotal: detailed.fakeTotal,
+          realTotal: statsData.realTotal || detailed.realTotal, // Приоритет из statsResponse
+          fakeTotal: statsData.fakeTotal || detailed.fakeTotal, // Приоритет из statsResponse
           projectsCreated: statsData.projectsCreated,
           adviceGiven: statsData.adviceGiven,
           isSimulationActive: statsData.isSimulationActive,

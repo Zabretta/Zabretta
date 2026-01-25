@@ -10,24 +10,28 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [realtime, setRealtime] = useState(true);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (isInitialLoad = true) => {
     try {
-      setLoading(true);
+      // Показываем спиннер ТОЛЬКО при первой загрузке
+      if (isInitialLoad) {
+        setLoading(true);
+      }
       
-      // Загружаем статистику
-      const statsResponse = await mockAPI.stats.getStats();
+      // ИСПРАВЛЕНО: Используем getStatsForAdmin() вместо getStats()
+      const statsResponse = await mockAPI.stats.getStatsForAdmin();
       const detailedResponse = await mockAPI.stats.getDetailedStats();
       
       if (statsResponse.success && statsResponse.data && detailedResponse.success && detailedResponse.data) {
         const detailed = detailedResponse.data;
         
+        // ИСПРАВЛЕНО: Берём realTotal и fakeTotal из ОСНОВНОГО ответа (statsResponse)
         setStats({
           shownOnline: statsResponse.data.online,
           realOnline: statsResponse.data.realOnline,
           fakeOnline: statsResponse.data.simulationOnline,
           shownTotal: statsResponse.data.total,
-          realTotal: detailed.realTotal,
-          fakeTotal: detailed.fakeTotal,
+          realTotal: statsResponse.data.realTotal || detailed.realTotal, // Приоритет из statsResponse
+          fakeTotal: statsResponse.data.fakeTotal || detailed.fakeTotal, // Приоритет из statsResponse
           projectsCreated: statsResponse.data.projectsCreated,
           adviceGiven: statsResponse.data.adviceGiven,
           isSimulationActive: statsResponse.data.isSimulationActive,
@@ -37,15 +41,20 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Ошибка загрузки данных:', error);
     } finally {
-      setLoading(false);
+      // Выключаем спиннер ТОЛЬКО при первой загрузке
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadDashboardData();
+    // Первая загрузка - со спиннером
+    loadDashboardData(true);
     
     if (realtime) {
-      const interval = setInterval(loadDashboardData, 10000);
+      // Последующие обновления - БЕЗ спиннера
+      const interval = setInterval(() => loadDashboardData(false), 10000);
       return () => clearInterval(interval);
     }
   }, [realtime]);
@@ -61,10 +70,9 @@ export default function AdminPage() {
         }
         break;
       case 'refresh':
-        await loadDashboardData();
+        await loadDashboardData(false); // Обновление без спиннера
         break;
     }
-    await loadDashboardData();
   };
 
   if (loading) {

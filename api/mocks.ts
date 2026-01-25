@@ -910,21 +910,31 @@ const getStatsForUsers = async (): Promise<APIResponse<StatsData>> => {
   return mockResponse;
 };
 
-// Получить статистику для админа (с разделением фиктивных/реальных)
-const getStatsForAdmin = async (): Promise<APIResponse<StatsData>> => {
-  console.log('[API MOCKS] Загрузка статистики для админа...');
+// === ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ АДМИНА ===
+const getStatsForAdmin = async (): Promise<APIResponse<StatsData & {
+  realTotal: number;    // Явно добавляем поле
+  fakeTotal: number;    // Явно добавляем поле
+}>> => {
+  console.log('[API MOCKS] Загрузка статистики ДЛЯ АДМИНА...');
   await simulateNetworkDelay();
   
   const stats = loadStatsFromStorage();
   
-  // Логируем детали для отладки
-  console.log('[STATS] Админу показано всего:', stats.total, 
-              '(фиктивных:', stats._fakeTotal || 0, 
-              ', реальных:', stats._realTotal || 0, ')');
+  // ВАЖНО: Создаём объект с явными полями, которые ожидает админка
+  const adminStats = {
+    ...stats,
+    realTotal: stats._realTotal || 0,    // Явное поле для админки
+    fakeTotal: stats._fakeTotal || 0,    // Явное поле для админки
+  };
   
-  const mockResponse: APIResponse<StatsData> = {
+  // Логируем детали для отладки
+  console.log('[STATS] Админу показано всего:', adminStats.total, 
+              '(фиктивных:', adminStats.fakeTotal, 
+              ', реальных:', adminStats.realTotal, ')');
+  
+  const mockResponse: APIResponse<typeof adminStats> = {
     success: true,
-    data: stats, // Возвращаем полные данные с разделением
+    data: adminStats,
     timestamp: new Date().toISOString()
   };
   

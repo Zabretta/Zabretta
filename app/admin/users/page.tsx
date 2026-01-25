@@ -1,15 +1,169 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import './AdminUsersPage.css';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+// Импортируем и функцию API, и правильный тип AdminUser из одного источника
+import { mockAPI, type AdminUser } from '@/api/mocks';
+import { formatDate, getRoleLabel } from '@/utils/admin';
 
 export default function AdminUsersPage() {
+  // Аутентификация и авторизация
+  const { isAuthorized } = useAdminAuth();
+  
+  // Состояния для данных и UI
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Состояния для фильтров и поиска
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const usersPerPage = 10;
 
+  // Загрузка пользователей при монтировании компонента
+  useEffect(() => {
+    if (isAuthorized) {
+      loadUsers();
+    }
+  }, [isAuthorized, currentPage]);
+
+  // Применение фильтров при изменении поиска или роли
+  useEffect(() => {
+    applyFilters();
+  }, [users, search, filterRole]);
+
+  // Основная функция загрузки пользователей
+  const loadUsers = async () => {
+    if (!isAuthorized) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Вызов API для получения пользователей с пагинацией
+      const response = await mockAPI.admin.getAdminUsers({
+        page: currentPage,
+        limit: usersPerPage,
+        role: filterRole !== 'all' ? filterRole : undefined,
+        search: search || undefined,
+        sortBy: 'date_desc'
+      });
+      
+      if (response.success && response.data) {
+        setUsers(response.data.users);
+        setTotalUsers(response.data.total);
+      } else {
+        setError(response.error || 'Не удалось загрузить пользователей');
+      }
+    } catch (err) {
+      setError('Ошибка при загрузке данных. Попробуйте обновить страницу.');
+      console.error('Ошибка загрузки пользователей:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Применение локальных фильтров (поиск по логину/email)
+  const applyFilters = () => {
+    let result = [...users];
+    
+    // Фильтрация по поисковому запросу
+    if (search.trim()) {
+      const searchLower = search.toLowerCase();
+      result = result.filter(user => 
+        user.login.toLowerCase().includes(searchLower) ||
+        user.email.toLowerCase().includes(searchLower) ||
+        (user.name && user.name.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    // Фильтрация по роли (если не "все")
+    if (filterRole !== 'all') {
+      result = result.filter(user => user.role === filterRole);
+    }
+    
+    setFilteredUsers(result);
+  };
+
+  // Обработчик поиска
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Search:', search, 'Role:', filterRole);
+    setCurrentPage(1); // Сброс на первую страницу при новом поиске
+    loadUsers(); // Перезагрузка данных с сервера с учетом поиска
   };
+
+  // Обработчики действий
+  const handleViewUser = (userId: string) => {
+    console.log('Просмотр пользователя:', userId);
+    // Здесь можно открыть модальное окно с детальной информацией
+    alert(`Просмотр пользователя ${userId}. Детальный просмотр будет реализован позже.`);
+  };
+
+  const handleEditUser = (userId: string) => {
+    console.log('Редактирование пользователя:', userId);
+    alert(`Редактирование пользователя ${userId}. Редактирование будет реализовано позже.`);
+  };
+
+  const handleToggleBlock = async (user: AdminUser) => {
+    const newStatus = !user.isActive;
+    const action = user.isActive ? 'блокировку' : 'разблокировку';
+    
+    if (confirm(`Вы уверены, что хотите ${action} пользователя ${user.login}?`)) {
+      try {
+        const response = await mockAPI.admin.updateAdminUser(user.id, {
+          isActive: newStatus
+        });
+        
+        if (response.success) {
+          alert(`Пользователь ${user.login} успешно ${user.isActive ? 'заблокирован' : 'разблокирован'}!`);
+          loadUsers(); // Обновляем список
+        } else {
+          alert(`Ошибка при ${action} пользователя: ${response.error}`);
+        }
+      } catch (err) {
+        alert(`Ошибка при ${action} пользователя. Попробуйте снова.`);
+        console.error('Ошибка обновления пользователя:', err);
+      }
+    }
+  };
+
+  const handleResetPassword = (userId: string, userLogin: string) => {
+    if (confirm(`Сбросить пароль для пользователя ${userLogin}? На email будет отправлена инструкция.`)) {
+      console.log('Сброс пароля для:', userId);
+      alert(`Запрос на сброс пароля для ${userLogin} отправлен. В реальной системе здесь будет вызов API.`);
+    }
+  };
+
+  // Пагинация
+  const totalPages = Math.ceil(totalUsers / usersPerPage);
+  
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Если нет авторизации - показываем загрузку (useAdminAuth сам перенаправит)
+  if (!isAuthorized) {
+    return (
+      <div className="admin-page">
+        <div className="loading-state">
+          <div className="loading-spinner">🔐</div>
+          <p className="loading-text">Проверка прав доступа...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-page">
@@ -24,7 +178,7 @@ export default function AdminUsersPage() {
             <div className="search-input">
               <input
                 type="text"
-                placeholder="Поиск по логину или email..."
+                placeholder="Поиск по логину, email или имени..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -34,8 +188,12 @@ export default function AdminUsersPage() {
             <div className="filter-controls">
               <select 
                 value={filterRole} 
-                onChange={(e) => setFilterRole(e.target.value)}
+                onChange={(e) => {
+                  setFilterRole(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="role-filter"
+                disabled={loading}
               >
                 <option value="all">Все роли</option>
                 <option value="user">Пользователи</option>
@@ -46,30 +204,179 @@ export default function AdminUsersPage() {
               <button 
                 type="button" 
                 className="add-user-btn"
-                onClick={() => console.log('Add user')}
+                onClick={() => console.log('Добавление пользователя')}
+                disabled={loading}
               >
                 + Добавить пользователя
               </button>
             </div>
           </form>
 
-          <div className="placeholder">
-            <div className="placeholder-icon">👥</div>
-            <h3>Таблица пользователей</h3>
-            <p>Мокап-данные будут загружены на следующем этапе</p>
-            <div className="placeholder-features">
-              <p>📋 Колонки: ID, Логин, Email, Дата регистрации, Роль, Рейтинг, Статус</p>
-              <p>🔍 Фильтры: по роли, рейтингу, дате регистрации</p>
-              <p>⚡ Действия: просмотр, блокировка, сброс пароля</p>
-              <p>📱 Адаптивный дизайн</p>
-            </div>
-            <div className="placeholder-stats">
-              <div className="stat">Всего: 0</div>
-              <div className="stat">Активных: 0</div>
-              <div className="stat">Заблокированных: 0</div>
-            </div>
+          {/* Статистика */}
+          <div className="placeholder-stats" style={{ marginTop: '20px' }}>
+            <div className="stat">Всего: {totalUsers}</div>
+            <div className="stat">Активных: {users.filter(u => u.isActive).length}</div>
+            <div className="stat">Заблокированных: {users.filter(u => !u.isActive).length}</div>
           </div>
         </div>
+
+        {/* Состояние загрузки */}
+        {loading && (
+          <div className="loading-state">
+            <div className="loading-spinner">🔄</div>
+            <p className="loading-text">Загрузка пользователей...</p>
+          </div>
+        )}
+
+        {/* Состояние ошибки */}
+        {error && !loading && (
+          <div className="empty-state">
+            <div className="empty-icon">⚠️</div>
+            <p className="empty-text">{error}</p>
+            <button 
+              onClick={loadUsers}
+              className="add-user-btn"
+              style={{ marginTop: '20px' }}
+            >
+              Повторить попытку
+            </button>
+          </div>
+        )}
+
+        {/* Таблица пользователей (если есть данные и нет ошибки) */}
+        {!loading && !error && filteredUsers.length > 0 && (
+          <>
+            <div className="users-table-container">
+              <table className="users-table">
+                <thead>
+                  <tr>
+                    <th>Логин</th>
+                    <th>Имя</th>
+                    <th>Email</th>
+                    <th>Роль</th>
+                    <th>Дата регистрации</th>
+                    <th>Рейтинг</th>
+                    <th>Активность</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map(user => (
+                    <tr key={user.id}>
+                      <td>
+                        <strong>{user.login}</strong>
+                        {user.id.includes('admin') && ' 👑'}
+                      </td>
+                      <td>{user.name || '—'}</td>
+                      <td>{user.email}</td>
+                      <td>
+                        <span className={`role-badge ${user.role}`}>
+                          {getRoleLabel(user.role)}
+                        </span>
+                      </td>
+                      <td>{formatDate(user.createdAt)}</td>
+                      <td>
+                        <span style={{ color: user.rating && user.rating > 1000 ? '#FFD700' : '#F5DEB3' }}>
+                          {user.rating || 0}
+                        </span>
+                      </td>
+                      <td>{user.activityPoints || 0}</td>
+                      <td>
+                        <span className={`status-badge ${user.isActive ? 'active' : 'blocked'}`}>
+                          {user.isActive ? 'Активен' : 'Заблокирован'}
+                        </span>
+                      </td>
+                      <td className="actions-cell">
+                        <button 
+                          className="action-btn view" 
+                          title="Просмотр профиля"
+                          onClick={() => handleViewUser(user.id)}
+                        >
+                          👁️
+                        </button>
+                        <button 
+                          className="action-btn edit" 
+                          title="Редактировать"
+                          onClick={() => handleEditUser(user.id)}
+                        >
+                          ✏️
+                        </button>
+                        <button 
+                          className="action-btn block" 
+                          title={user.isActive ? 'Заблокировать' : 'Разблокировать'}
+                          onClick={() => handleToggleBlock(user)}
+                        >
+                          {user.isActive ? '🚫' : '✅'}
+                        </button>
+                        <button 
+                          className="action-btn reset" 
+                          title="Сбросить пароль"
+                          onClick={() => handleResetPassword(user.id, user.login)}
+                        >
+                          🔄
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Пагинация */}
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button 
+                  className="pagination-btn" 
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 1 || loading}
+                >
+                  ← Назад
+                </button>
+                
+                <div className="pagination-info">
+                  Страница {currentPage} из {totalPages}
+                  <br />
+                  <small>Показано {filteredUsers.length} из {totalUsers} пользователей</small>
+                </div>
+                
+                <button 
+                  className="pagination-btn" 
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages || loading}
+                >
+                  Вперед →
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Состояние "нет данных" */}
+        {!loading && !error && filteredUsers.length === 0 && (
+          <div className="empty-state">
+            <div className="empty-icon">👥</div>
+            <p className="empty-text">Пользователи не найдены</p>
+            <p className="empty-subtext">
+              {search || filterRole !== 'all' 
+                ? 'Попробуйте изменить условия поиска или фильтры' 
+                : 'В системе пока нет пользователей'}
+            </p>
+            {(search || filterRole !== 'all') && (
+              <button 
+                onClick={() => {
+                  setSearch('');
+                  setFilterRole('all');
+                  setCurrentPage(1);
+                }}
+                className="add-user-btn"
+                style={{ marginTop: '20px' }}
+              >
+                Сбросить фильтры
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

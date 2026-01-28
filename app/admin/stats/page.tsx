@@ -23,7 +23,10 @@ export default function AdminStatsPage() {
         const statsData = statsResponse.data!;
         const detailed = detailedResponse.data!;
         
-        // ИСПРАВЛЕНО: Берём realTotal и fakeTotal из ОСНОВНОГО ответа
+        // ВЫЧИСЛЯЕМ ФЛАГ: фиктивные скрыты, если fakeTotal === 0
+        const areFakeTotalsHidden = statsData.fakeTotal === 0;
+        
+        // ИСПРАВЛЕНО: Добавляем свойство areFakeTotalsHidden в объект stats
         setStats({
           shownOnline: statsData.online,
           realOnline: statsData.realOnline,
@@ -34,7 +37,8 @@ export default function AdminStatsPage() {
           projectsCreated: statsData.projectsCreated,
           adviceGiven: statsData.adviceGiven,
           isSimulationActive: statsData.isSimulationActive,
-          lastUpdate: statsData.lastUpdate
+          lastUpdate: statsData.lastUpdate,
+          areFakeTotalsHidden: areFakeTotalsHidden // ← ДОБАВЛЕНО ФЛАГ
         });
         
         // Мокап истории изменений
@@ -68,14 +72,20 @@ export default function AdminStatsPage() {
     try {
       switch (action) {
         case 'resetTotal':
-          await mockAPI.stats.resetTotalToZero();
+          // ИСПРАВЛЕНО: Переключение по флагу с проверкой существования метода
+          if (stats?.areFakeTotalsHidden) {
+            // Используем опциональную цепочку вызовов, если метод не существует
+            await mockAPI.stats.restoreFakeTotal?.();
+          } else {
+            await mockAPI.stats.resetTotalToZero();
+          }
           break;
         case 'toggleSimulation':
           // ИСПРАВЛЕНО: Используем правильный метод в зависимости от текущего состояния
           if (stats?.isSimulationActive) {
             await mockAPI.stats.disableSimulation();
           } else {
-            await mockAPI.stats.enableSimulation(); // Используем новый метод из Шага 1
+            await mockAPI.stats.enableSimulation();
           }
           break;
         case 'updateFormula':

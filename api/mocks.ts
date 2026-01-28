@@ -1801,6 +1801,36 @@ export const mockAPI = {
       return mockResponse;
     },
 
+    // Ручное восстановление фиктивных пользователей (для админки)
+    restoreFakeTotal: async (): Promise<APIResponse<StatsData>> => {
+      console.log('[API MOCKS] Восстановление фиктивных пользователей...');
+      await simulateNetworkDelay();
+      
+      const currentStats = loadStatsFromStorage();
+      const realTotal = currentStats._realTotal || 0;
+      
+      // Восстанавливаем фиктивных по формуле
+      const fakeTotalToShow = Math.max(0, FAKE_TOTAL - Math.floor(realTotal / 2));
+      
+      const updatedStats: StatsData = {
+        ...currentStats,
+        total: fakeTotalToShow + realTotal, // Показываем фиктивных + реальных
+        _fakeTotal: fakeTotalToShow, // Восстанавливаем фиктивных
+        lastUpdate: new Date().toISOString()
+      };
+      
+      saveStatsToStorage(updatedStats);
+      
+      const mockResponse: APIResponse<StatsData> = {
+        success: true,
+        data: updatedStats,
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('[API MOCKS] Фиктивные пользователи восстановлены:', mockResponse);
+      return mockResponse;
+    },
+
     // Ручное отключение имитации (для админки)
     disableSimulation: async (): Promise<APIResponse<StatsData>> => {
       console.log('[API MOCKS] Ручное отключение имитации...');

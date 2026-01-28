@@ -1,0 +1,372 @@
+
+/* PraiseMenu.css */
+.praise-menu-container {
+  position: relative;
+  display: inline-block;
+}
+
+.praise-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  color: white;
+  border: 2px solid #D97706;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.praise-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #D97706, #F59E0B);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.praise-button:hover::before {
+  opacity: 1;
+}
+
+.praise-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(245, 158, 11, 0.3);
+  border-color: #FBBF24;
+}
+
+.praise-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+}
+
+.praise-button-icon {
+  font-size: 1.2em;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
+}
+
+.praise-button-label {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+
+.praise-count {
+  position: absolute;
+  top: 4px;      /* Опустили ниже (было -8px) */
+  left: 4px;     /* Переместили влево (было right: -8px) */
+  background: #DC2626;
+  color: white;
+  font-size: 0.7em;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+
+.praise-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  min-width: 320px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  border: 2px solid #E5E7EB;
+  z-index: 1000;
+  animation: praiseSlideDown 0.3s ease-out;
+  overflow: hidden;
+}
+
+@keyframes praiseSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.praise-header {
+  padding: 20px;
+  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+  border-bottom: 2px solid #FBBF24;
+  text-align: center;
+}
+
+.praise-title {
+  margin: 0 0 8px 0;
+  color: #92400E;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.praise-subtitle {
+  margin: 0;
+  color: #B45309;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.praise-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 20px;
+  background: #F9FAFB;
+}
+
+.praise-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px;
+  background: white;
+  border: 2px solid var(--option-color);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.praise-option:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, var(--option-color) 0%, transparent 100%);
+  background-size: 200% 200%;
+  animation: optionHover 0.3s ease;
+}
+
+@keyframes optionHover {
+  0% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+.praise-option:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.praise-option.selected {
+  background: var(--option-color);
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.praise-emoji {
+  font-size: 2em;
+  transition: transform 0.3s ease;
+}
+
+.praise-option:hover:not(:disabled) .praise-emoji {
+  transform: scale(1.2);
+}
+
+.praise-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.praise-option.selected .praise-text {
+  color: white;
+}
+
+.praise-feedback {
+  margin: 0 20px 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, #10B981, #059669);
+  border-radius: 10px;
+  text-align: center;
+  color: white;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.feedback-emoji {
+  font-size: 2.5em;
+  margin-bottom: 10px;
+  animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.feedback-text {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.feedback-details {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.praise-footer {
+  padding: 16px 20px;
+  background: #F3F4F6;
+  border-top: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.praise-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-label {
+  font-size: 0.8rem;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.stats-count {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #92400E;
+}
+
+.close-praise-button {
+  padding: 8px 16px;
+  background: #6B7280;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.close-praise-button:hover {
+  background: #4B5563;
+}
+
+/* Стили для кнопки Похвалить в контексте tools-panel */
+.tools-panel .praise-button {
+  height: 60px;
+  width: 160px;
+  margin: 0;
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  border: 2px solid #D97706;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.tools-panel .praise-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #D97706, #F59E0B);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.tools-panel .praise-button:hover::before {
+  opacity: 1;
+}
+
+.tools-panel .praise-button:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 15px rgba(245, 158, 11, 0.4);
+  border-color: #FBBF24;
+}
+
+.tools-panel .praise-button:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 5px rgba(245, 158, 11, 0.3);
+}
+
+.tools-panel .praise-button .praise-button-icon {
+  font-size: 1.5em;
+  margin-bottom: 4px;
+  z-index: 1;
+}
+
+.tools-panel .praise-button .praise-button-label {
+  font-size: 0.75em;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  z-index: 1;
+}
+
+.tools-panel .praise-count {
+  top: 4px;      /* Опустили ниже (было -6px) */
+  left: 4px;     /* Переместили влево (было right: -6px) */
+  font-size: 0.6em;
+  padding: 1px 4px;
+  min-width: 16px;
+}
+/* Адаптивность */
+@media (max-width: 640px) {
+  .praise-dropdown {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90vw;
+    max-width: 320px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .praise-options-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 16px;
+  }
+
+  .praise-option {
+    padding: 12px 8px;
+  }
+
+  .praise-text {
+    font-size: 0.8rem;
+  }
+}

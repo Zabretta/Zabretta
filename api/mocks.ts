@@ -1158,6 +1158,7 @@ const getRealStats = (): StatsData => {
   };
 };
 
+// ==================== ИЗМЕНЕНИЕ 1: getStatsForUsers() ====================
 // Получить статистику для обычных пользователей (с фиктивными)
 const getStatsForUsers = async (): Promise<APIResponse<StatsData>> => {
   console.log('[API MOCKS] Загрузка статистики для пользователей...');
@@ -1165,7 +1166,29 @@ const getStatsForUsers = async (): Promise<APIResponse<StatsData>> => {
   
   const stats = loadStatsFromStorage();
   
-  // Логируем детали для отладки
+  // +++ НАЧАЛО ИЗМЕНЕНИЯ +++
+  // ЕСЛИ имитация ВЫКЛЮЧЕНА - показываем только реальные данные
+  if (!stats.isSimulationActive) {
+    console.log('[STATS] Пользователям показываем только реальных пользователей');
+    const filteredStats = {
+      ...stats,
+      online: stats.realOnline,           // Показываем только реальных онлайн
+      total: stats._realTotal || 0,       // Показываем только реальных всего
+      simulationOnline: 0,                 // Фиктивные скрыты (0 для отладки)
+    };
+    
+    const mockResponse: APIResponse<StatsData> = {
+      success: true,
+      data: filteredStats,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('[API MOCKS] Статистика для пользователей (имитация ВЫКЛЮЧЕНА):', mockResponse);
+    return mockResponse;
+  }
+  // +++ КОНЕЦ ИЗМЕНЕНИЯ +++
+  
+  // Если имитация ВКЛЮЧЕНА - оставляем старую логику
   console.log('[STATS] Пользователям показано всего:', stats.total, 
               '(фиктивных:', stats._fakeTotal || 0, 
               ', реальных:', stats._realTotal || 0, ')');
@@ -1190,11 +1213,14 @@ const getStatsForAdmin = async (): Promise<APIResponse<StatsData & {
   
   const stats = loadStatsFromStorage();
   
-  // ВАЖНО: Создаём объект с явными полями, которые ожидает админка
+  // +++ ШАГ 2: ГАРАНТИРУЕМ, что админ всегда видит полные данные +++
   const adminStats = {
     ...stats,
-    realTotal: stats._realTotal || 0,    // Явное поле для админки
-    fakeTotal: stats._fakeTotal || 0,    // Явное поле для админки
+    // ГАРАНТИРУЕМ, что админ всегда видит полные данные, даже если имитация выключена
+    realTotal: stats._realTotal || 0,
+    fakeTotal: stats._fakeTotal || 0, // Всегда показываем реальное значение фиктивных
+    // Пересчитываем online для админа, чтобы он видел реальную картину
+    online: stats.online, // Оставляем как есть, так как в stats.online уже учтена логика видимости
   };
   
   // Логируем детали для отладки
@@ -1676,6 +1702,7 @@ export const mockAPI = {
       return mockResponse;
     },
 
+    // ==================== ИЗМЕНЕНИЕ 2: simulateOnlineChange() ====================
     // Имитация изменения онлайн-пользователей
     simulateOnlineChange: async (): Promise<APIResponse<StatsData>> => {
       console.log('[API MOCKS] Имитация изменения онлайн пользователей...');
@@ -1683,16 +1710,8 @@ export const mockAPI = {
       
       const currentStats = loadStatsFromStorage();
       
-      // Если имитация отключена (реальных пользователей > 300), не меняем имитацию
-      if (!currentStats.isSimulationActive) {
-        console.log('[STATS] Имитация отключена, реальные пользователи > 300');
-        const mockResponse: APIResponse<StatsData> = {
-          success: true,
-          data: currentStats,
-          timestamp: new Date().toISOString()
-        };
-        return mockResponse;
-      }
+      // --- УДАЛЕН БЛОК ПРОВЕРКИ isSimulationActive ---
+      // Теперь генерация работает всегда, независимо от статуса имитации
       
       // ГЕНЕРАЦИЯ СЛУЧАЙНЫХ ИЗМЕНЕНИЙ ИМИТАЦИИ
       let newSimulationOnline = currentStats.simulationOnline;
@@ -1807,6 +1826,35 @@ export const mockAPI = {
       };
       
       console.log('[API MOCKS] Имитация отключена:', mockResponse);
+      return mockResponse;
+    },
+
+    // +++ ШАГ 1: Добавление метода включения имитации +++
+    // Ручное ВКЛЮЧЕНИЕ имитации (для админки)
+    enableSimulation: async (): Promise<APIResponse<StatsData>> => {
+      console.log('[API MOCKS] Ручное включение имитации...');
+      await simulateNetworkDelay();
+      
+      const currentStats = loadStatsFromStorage();
+      
+      // При включении имитации, возвращаем значения фиктивных пользователей
+      const updatedStats: StatsData = {
+        ...currentStats,
+        isSimulationActive: true,
+        simulationOnline: FAKE_SIMULATION_START, // Возвращаем стартовое значение
+        online: currentStats.realOnline + FAKE_SIMULATION_START,
+        lastUpdate: new Date().toISOString()
+      };
+      
+      saveStatsToStorage(updatedStats);
+      
+      const mockResponse: APIResponse<StatsData> = {
+        success: true,
+        data: updatedStats,
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('[API MOCKS] Имитация включена:', mockResponse);
       return mockResponse;
     },
     

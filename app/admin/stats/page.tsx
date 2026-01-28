@@ -71,7 +71,12 @@ export default function AdminStatsPage() {
           await mockAPI.stats.resetTotalToZero();
           break;
         case 'toggleSimulation':
-          await mockAPI.stats.disableSimulation();
+          // ИСПРАВЛЕНО: Используем правильный метод в зависимости от текущего состояния
+          if (stats?.isSimulationActive) {
+            await mockAPI.stats.disableSimulation();
+          } else {
+            await mockAPI.stats.enableSimulation(); // Используем новый метод из Шага 1
+          }
           break;
         case 'updateFormula':
           // В будущем: сохранение новой формулы

@@ -366,6 +366,10 @@ html, body {
   background: linear-gradient(90deg, #D2691E, #CD853F);
 }
 
+.toolbox::-webkit-scrollbar-corner {
+  background: #000000;
+}
+
 @media (min-width: 1024px) {
   .toolbox {
     flex-direction: column;
@@ -1820,4 +1824,171 @@ html, body {
 .admin-table .role-user {
   color: #98FB98;
   font-weight: 600;
+}
+
+/* ========== СТИЛИ ДЛЯ ПОДСКАЗКИ ПОВОРОТА ЭКРАНА ========== */
+
+/* Контейнер подсказки - прозрачный фон */
+.orientation-hint {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* Позволяет кликать сквозь подсказку */
+  background: rgba(0, 0, 0, 0.4); /* Полупрозрачный черный фон */
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Центральный контейнер с иконками */
+.phone-container {
+  position: relative;
+  width: 200px;
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Контур телефона */
+.phone-outline {
+  position: relative;
+  width: 120px;
+  height: 240px;
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  border-radius: 25px;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  background: transparent;
+}
+
+/* Кнопка "Home" (как у iPhone) */
+.home-button {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  background: transparent;
+}
+
+/* Общие стили для стрелок */
+.arrow {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  background: transparent;
+  animation: pulse-arrow 1.5s infinite ease-in-out;
+}
+
+/* Стрелка вверху-справа */
+.arrow-top-right {
+  top: -10px;
+  right: -10px;
+  border-left: none;
+  border-bottom: none;
+}
+
+/* Стрелка внизу-слева */
+.arrow-bottom-left {
+  bottom: -10px;
+  left: -10px;
+  border-right: none;
+  border-top: none;
+}
+
+/* Псевдоэлементы для стрелок */
+.arrow-top-right::before,
+.arrow-bottom-left::before {
+  content: '';
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border-top: 3px solid rgba(255, 255, 255, 0.95);
+  border-right: 3px solid rgba(255, 255, 255, 0.95);
+}
+
+/* Конкретное позиционирование стрелок */
+.arrow-top-right::before {
+  top: 12px;
+  right: 12px;
+  transform: rotate(45deg);
+}
+
+.arrow-bottom-left::before {
+  bottom: 12px;
+  left: 12px;
+  transform: rotate(-135deg);
+}
+
+/* Текстовая подсказка */
+.hint-text {
+  position: absolute;
+  bottom: -70px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+  line-height: 1.4;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Анимация мигания стрелок */
+@keyframes pulse-arrow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.95);
+    border-color: rgba(255, 255, 255, 0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+    border-color: rgba(255, 255, 255, 1);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* Адаптация для очень маленьких экранов */
+@media (max-width: 400px) {
+  .phone-container {
+    transform: scale(0.8);
+  }
+  .hint-text {
+    font-size: 14px;
+    bottom: -60px;
+    white-space: normal;
+    width: 180px;
+  }
+}
+
+/* Для альбомной ориентации - скрываем подсказку */
+@media (orientation: landscape) and (max-height: 768px) {
+  .orientation-hint {
+    display: none !important;
+  }
 }

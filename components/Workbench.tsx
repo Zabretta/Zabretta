@@ -27,22 +27,34 @@ function WorkbenchContent() {
     adviceGiven: 0
   });
   const [isInitialized, setIsInitialized] = useState(false);
+  // ДОБАВЛЕНО: состояние для подсказки поворота экрана
+  const [showOrientationHint, setShowOrientationHint] = useState(false);
   
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen, isAdmin } = useAuth();
   const { settings } = useSettings();
   const { userRating } = useRating();
 
-  // Определяем мобильное устройство
+  // Определяем мобильное устройство и ориентацию
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
+    const checkMobileAndOrientation = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      
+      // Показываем подсказку только на мобильных в портретной ориентации
+      if (mobile && window.innerHeight > window.innerWidth) {
+        setShowOrientationHint(true);
+      } else {
+        setShowOrientationHint(false);
+      }
     };
     
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
+    checkMobileAndOrientation();
+    window.addEventListener('resize', checkMobileAndOrientation);
+    window.addEventListener('orientationchange', checkMobileAndOrientation);
     
     return () => {
-      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('resize', checkMobileAndOrientation);
+      window.removeEventListener('orientationchange', checkMobileAndOrientation);
     };
   }, []);
 
@@ -232,6 +244,30 @@ function WorkbenchContent() {
         <div className="api-loading-overlay">
           <div className="loading-spinner">🛠️</div>
           <p>Загрузка...</p>
+        </div>
+      )}
+
+      {/* ДОБАВЛЕНО: Подсказка поворота экрана */}
+      {showOrientationHint && (
+        <div className="orientation-hint">
+          <div className="phone-container">
+            {/* Контур телефона */}
+            <div className="phone-outline">
+              {/* Контур круглой кнопки "Home" */}
+              <div className="home-button"></div>
+            </div>
+            
+            {/* Стрелка вверху-справа */}
+            <div className="arrow arrow-top-right"></div>
+            
+            {/* Стрелка внизу-слева */}
+            <div className="arrow arrow-bottom-left"></div>
+            
+            {/* Текстовая подсказка */}
+            <div className="hint-text">
+              Поверните телефон<br />для лучшего просмотра
+            </div>
+          </div>
         </div>
       )}
 

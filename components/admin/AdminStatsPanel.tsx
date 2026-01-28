@@ -64,11 +64,13 @@ export default function AdminStatsPanel({
       icon: '🔄'
     },
     {
-      label: 'Выключить имитацию',
-      description: 'Отключить искусственных пользователей',
+      label: stats.isSimulationActive ? 'Выключить имитацию' : 'Включить имитацию',
+      description: stats.isSimulationActive 
+        ? 'Отключить искусственных пользователей' 
+        : 'Включить искусственных пользователей',
       action: 'toggleSimulation',
-      icon: '⚡',
-      disabled: !stats.isSimulationActive
+      icon: stats.isSimulationActive ? '🔌' : '⚡',
+      disabled: false // Убираем блокировку полностью
     }
   ];
 

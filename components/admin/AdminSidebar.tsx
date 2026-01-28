@@ -7,6 +7,7 @@ import './AdminSidebar.css';
 
 interface AdminSidebarProps {
   collapsed: boolean;
+  isMobileOpen: boolean;
   onToggle: () => void;
 }
 
@@ -18,17 +19,30 @@ const menuItems = [
   { path: '/', icon: '🏠', label: 'На сайт' },
 ];
 
-export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
+export default function AdminSidebar({ collapsed, isMobileOpen, onToggle }: AdminSidebarProps) {
   const pathname = usePathname();
   const [activeItem, setActiveItem] = useState(pathname);
 
+  const handleItemClick = (path: string) => {
+    setActiveItem(path);
+    // Закрываем мобильное меню при клике на пункт (если мы на мобильном)
+    if (isMobileOpen) {
+      onToggle();
+    }
+  };
+
   return (
-    <aside className={`admin-sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`admin-sidebar ${collapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-header">
-        <button className="sidebar-toggle" onClick={onToggle} title="Свернуть меню">
-          {collapsed ? '→' : '←'}
+        <button 
+          className="sidebar-toggle" 
+          onClick={onToggle} 
+          title={isMobileOpen ? "Закрыть меню" : "Свернуть меню"}
+          aria-label={isMobileOpen ? "Закрыть меню" : "Свернуть меню"}
+        >
+          {isMobileOpen ? '✕' : collapsed ? '→' : '←'}
         </button>
-        {!collapsed && (
+        {(!collapsed || isMobileOpen) && (
           <div className="sidebar-title">
             <h2>🛠️ Админ-панель</h2>
             <p className="sidebar-subtitle">Самоделкин</p>
@@ -42,19 +56,20 @@ export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps)
             key={item.path}
             href={item.path}
             className={`sidebar-item ${activeItem === item.path ? 'active' : ''}`}
-            onClick={() => setActiveItem(item.path)}
-            title={collapsed ? item.label : ''}
+            onClick={() => handleItemClick(item.path)}
+            title={collapsed && !isMobileOpen ? item.label : ''}
+            aria-current={activeItem === item.path ? 'page' : undefined}
           >
             <span className="sidebar-icon">{item.icon}</span>
-            {!collapsed && <span className="sidebar-label">{item.label}</span>}
-            {!collapsed && activeItem === item.path && (
+            {(!collapsed || isMobileOpen) && <span className="sidebar-label">{item.label}</span>}
+            {(!collapsed || isMobileOpen) && activeItem === item.path && (
               <span className="sidebar-active-indicator"></span>
             )}
           </Link>
         ))}
       </nav>
       
-      {!collapsed && (
+      {(!collapsed || isMobileOpen) && (
         <div className="sidebar-footer">
           <div className="system-status">
             <div className="status-indicator active"></div>

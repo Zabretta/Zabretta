@@ -11,9 +11,10 @@
   left: 0;
   top: 0;
   bottom: 0;
-  z-index: 1000;
-  transition: width 0.3s ease;
+  z-index: 1100;
+  transition: transform 0.3s ease, width 0.3s ease;
   box-shadow: 5px 0 20px rgba(0, 0, 0, 0.5);
+  will-change: transform;
 }
 
 .admin-sidebar.collapsed {
@@ -26,11 +27,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .sidebar-toggle {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: rgba(139, 69, 19, 0.2);
   border: 1px solid #8B4513;
@@ -41,6 +43,8 @@
   justify-content: center;
   transition: all 0.3s ease;
   flex-shrink: 0;
+  font-size: 18px;
+  touch-action: manipulation;
 }
 
 .sidebar-toggle:hover {
@@ -68,18 +72,22 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sidebar-item {
   display: flex;
   align-items: center;
-  padding: 14px 20px;
+  padding: 16px 20px;
   color: #D2B48C;
   text-decoration: none;
   transition: all 0.3s ease;
   position: relative;
   white-space: nowrap;
   overflow: hidden;
+  min-height: 48px;
+  touch-action: manipulation;
 }
 
 .sidebar-item:hover {
@@ -124,6 +132,7 @@
 .sidebar-footer {
   padding: 20px 16px;
   border-top: 2px solid rgba(139, 69, 19, 0.3);
+  flex-shrink: 0;
 }
 
 .system-status {
@@ -156,14 +165,89 @@
   font-weight: 500;
 }
 
-/* Адаптивность */
+/* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
   .admin-sidebar {
     transform: translateX(-100%);
     width: 280px;
+    border-right: none;
+    box-shadow: 5px 0 25px rgba(0, 0, 0, 0.7);
+    z-index: 1200;
   }
   
   .admin-sidebar.mobile-open {
     transform: translateX(0);
+  }
+  
+  /* Улучшение для тач-интерфейса */
+  .sidebar-toggle {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+  
+  .sidebar-item {
+    padding: 18px 20px;
+    min-height: 56px;
+  }
+  
+  .sidebar-icon {
+    font-size: 22px;
+    margin-right: 20px;
+  }
+  
+  .sidebar-label {
+    font-size: 16px;
+  }
+  
+  .sidebar-title h2 {
+    font-size: 20px;
+  }
+  
+  .sidebar-subtitle {
+    font-size: 13px;
+  }
+  
+  /* Оверлей для закрытия меню */
+  .mobile-sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1150;
+    animation: fadeIn 0.3s ease;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  /* Улучшение скролла на мобильных */
+  .sidebar-nav {
+    padding: 10px 0;
+  }
+}
+
+/* Очень маленькие экраны (телефоны в портретной ориентации) */
+@media (max-width: 480px) {
+  .admin-sidebar {
+    width: 100%;
+    max-width: 320px;
+  }
+  
+  .sidebar-header {
+    padding: 16px;
+  }
+  
+  .sidebar-toggle {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .sidebar-item {
+    padding: 16px;
   }
 }

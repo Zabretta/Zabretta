@@ -1,8 +1,17 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 
 interface AdminContextType {
+  // Управление сайдбаром
+  sidebarCollapsed: boolean;
+  isMobileSidebarOpen: boolean;
+  isMobileView: boolean;
+  toggleSidebar: () => void;
+  closeMobileSidebar: () => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  
+  // Управление пользователями (существующий функционал)
   selectedUsers: Set<string>;
   toggleUserSelection: (userId: string) => void;
   clearSelection: () => void;
@@ -14,6 +23,51 @@ interface AdminContextType {
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: ReactNode }) {
+  // Состояния для управления сайдбаром
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
+
+  // Определение мобильного вида
+  useEffect(() => {
+    const checkMobileView = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobileView(mobile);
+      
+      // Закрываем мобильное меню при переходе на десктоп
+      if (!mobile && isMobileSidebarOpen) {
+        setIsMobileSidebarOpen(false);
+      }
+    };
+
+    checkMobileView();
+    window.addEventListener('resize', checkMobileView);
+    
+    return () => window.removeEventListener('resize', checkMobileView);
+  }, [isMobileSidebarOpen]);
+
+  // Управление сайдбаром
+  const toggleSidebar = useCallback(() => {
+    if (isMobileView) {
+      // На мобильных: открываем/закрываем меню
+      setIsMobileSidebarOpen(prev => !prev);
+    } else {
+      // На десктопе: сворачиваем/разворачиваем
+      setSidebarCollapsedState(prev => !prev);
+    }
+  }, [isMobileView]);
+
+  const closeMobileSidebar = useCallback(() => {
+    if (isMobileView && isMobileSidebarOpen) {
+      setIsMobileSidebarOpen(false);
+    }
+  }, [isMobileView, isMobileSidebarOpen]);
+
+  const setSidebarCollapsed = useCallback((collapsed: boolean) => {
+    setSidebarCollapsedState(collapsed);
+  }, []);
+
+  // Существующий функционал управления пользователями
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
 
   const toggleUserSelection = useCallback((userId: string) => {
@@ -40,6 +94,15 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const selectedCount = selectedUsers.size;
 
   const contextValue: AdminContextType = {
+    // Состояния сайдбара
+    sidebarCollapsed,
+    isMobileSidebarOpen,
+    isMobileView,
+    toggleSidebar,
+    closeMobileSidebar,
+    setSidebarCollapsed,
+    
+    // Существующий функционал
     selectedUsers,
     toggleUserSelection,
     clearSelection,

@@ -22,8 +22,8 @@
 
 .mobile-toggle {
   display: none;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 8px;
   background: rgba(139, 69, 19, 0.2);
   border: 1px solid #8B4513;
@@ -33,10 +33,15 @@
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
+  touch-action: manipulation;
 }
 
 .mobile-toggle:hover {
   background: rgba(210, 105, 30, 0.3);
+}
+
+.mobile-toggle:active {
+  transform: scale(0.95);
 }
 
 .header-title {
@@ -58,8 +63,8 @@
 }
 
 .notifications-btn {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: rgba(139, 69, 19, 0.2);
   border: 1px solid #8B4513;
@@ -71,11 +76,16 @@
   justify-content: center;
   transition: all 0.3s ease;
   position: relative;
+  touch-action: manipulation;
 }
 
 .notifications-btn:hover {
   background: rgba(210, 105, 30, 0.3);
   transform: scale(1.1);
+}
+
+.notifications-btn:active {
+  transform: scale(0.95);
 }
 
 .notification-badge {
@@ -111,6 +121,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   min-width: 160px;
+  touch-action: manipulation;
 }
 
 .user-btn:hover {
@@ -118,8 +129,13 @@
   border-color: #D2691E;
 }
 
+.user-btn:active {
+  transform: scale(0.98);
+}
+
 .user-avatar {
   font-size: 20px;
+  flex-shrink: 0;
 }
 
 .user-name {
@@ -143,6 +159,18 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   z-index: 1001;
   overflow: hidden;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .user-info {
@@ -150,11 +178,24 @@
   text-align: center;
 }
 
-.user-email {
+.user-avatar-large {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.user-display-name {
   color: #F5DEB3;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 5px 0;
+}
+
+.user-email {
+  color: #D2B48C;
   font-size: 14px;
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
   word-break: break-all;
+  line-height: 1.4;
 }
 
 .user-role {
@@ -162,7 +203,7 @@
   font-size: 12px;
   font-weight: 500;
   margin: 0;
-  padding: 4px 12px;
+  padding: 6px 16px;
   background: rgba(139, 69, 19, 0.2);
   border-radius: 15px;
   display: inline-block;
@@ -194,6 +235,10 @@
   color: #FFD700;
 }
 
+.dropdown-item:active {
+  background: rgba(139, 69, 19, 0.2);
+}
+
 .dropdown-overlay {
   position: fixed;
   top: 0;
@@ -204,7 +249,7 @@
   background: transparent;
 }
 
-/* Адаптивность */
+/* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
   .admin-header {
     padding: 0 16px;
@@ -213,15 +258,43 @@
   
   .mobile-toggle {
     display: flex;
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
   }
   
   .header-title {
     font-size: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+  }
+  
+  .header-right {
+    gap: 12px;
+  }
+  
+  .notifications-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+  
+  .notification-badge {
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    top: -3px;
+    right: -3px;
   }
   
   .user-btn {
     min-width: auto;
     padding: 8px;
+    width: 44px;
+    height: 44px;
+    justify-content: center;
   }
   
   .user-name {
@@ -229,7 +302,60 @@
   }
   
   .user-dropdown {
-    width: 200px;
-    right: 16px;
+    width: 280px;
+    right: 0;
+    top: calc(100% + 8px);
+  }
+}
+
+/* Очень маленькие экраны */
+@media (max-width: 480px) {
+  .admin-header {
+    padding: 0 12px;
+    height: 56px;
+  }
+  
+  .header-left {
+    gap: 12px;
+  }
+  
+  .mobile-toggle {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+  
+  .header-title {
+    font-size: 15px;
+    max-width: 150px;
+  }
+  
+  .notifications-btn {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .user-btn {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .user-dropdown {
+    width: calc(100vw - 24px);
+    right: 12px;
+    left: 12px;
+    margin: 0 auto;
+  }
+}
+
+/* Ландшафтная ориентация на мобильных */
+@media (max-width: 900px) and (orientation: landscape) {
+  .admin-header {
+    height: 56px;
+    padding: 0 12px;
+  }
+  
+  .header-title {
+    font-size: 15px;
   }
 }

@@ -1,4 +1,3 @@
-// app/layout.tsx
 import { AuthProvider } from '@/components/useAuth';
 import { SettingsProvider } from '@/components/SettingsContext';
 import type { Metadata } from 'next';

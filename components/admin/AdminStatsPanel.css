@@ -383,6 +383,119 @@
   background: linear-gradient(135deg, #8B4513, #D2691E);
 }
 
+/* === СТИЛИ ДЛЯ РАЗДЕЛА "ИНФОРМАЦИЯ О СИСТЕМАХ" === */
+
+.systems-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.system-info-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  background: linear-gradient(135deg, rgba(26, 18, 11, 0.4), rgba(0, 0, 0, 0.6));
+  border: 1px solid rgba(139, 69, 19, 0.3);
+  border-radius: 12px;
+  padding: 28px;
+  transition: all 0.3s ease;
+}
+
+.system-info-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(210, 105, 30, 0.6);
+  box-shadow: 0 10px 25px rgba(139, 69, 19, 0.2);
+}
+
+.system-icon {
+  font-size: 48px;
+  flex-shrink: 0;
+}
+
+.system-content {
+  flex: 1;
+}
+
+.system-content h4 {
+  color: #FFD700;
+  font-size: 18px;
+  margin: 0 0 12px 0;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.system-content p {
+  color: #D2B48C;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 10px 0;
+}
+
+.system-content strong {
+  color: #F5DEB3;
+  font-weight: 600;
+}
+
+/* === СТИЛИ ДЛЯ ИНДИКАТОРОВ ЗАГРУЗКИ === */
+
+.loading-stats,
+.loading-controls,
+.loading-history {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  background: rgba(26, 18, 11, 0.3);
+  border: 2px dashed rgba(139, 69, 19, 0.3);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.loading-stats .loading-spinner,
+.loading-history .loading-spinner {
+  font-size: 48px;
+  margin-bottom: 20px;
+  animation: spin 2s linear infinite;
+}
+
+.loading-controls .loading-spinner-small {
+  font-size: 32px;
+  margin-bottom: 16px;
+  animation: spin 1.5s linear infinite;
+}
+
+.loading-stats p,
+.loading-controls p,
+.loading-history p {
+  color: #A0522D;
+  font-size: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Адаптивность для новых блоков */
+@media (max-width: 768px) {
+  .systems-info {
+    grid-template-columns: 1fr;
+  }
+  
+  .system-info-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .system-icon {
+    margin-bottom: 15px;
+  }
+}
+
 /* Адаптивность */
 @media (max-width: 1024px) {
   .details-grid {

@@ -9,51 +9,69 @@ export default function AdminStatsPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [history, setHistory] = useState<AdminStatsHistory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [formula, setFormula] = useState('Показано = фиктивных(307 - реальные/2) + реальные');
+  
+  // УДАЛЕНО: формула больше не нужна
+  // const [formula, setFormula] = useState('Показано = фиктивных(307 - реальные/2) + реальные');
 
   const loadStatsData = async () => {
     try {
       setLoading(true);
       
-      // ИСПРАВЛЕНО: Используем getStatsForAdmin() вместо getStats()
+      // Используем getStatsForAdmin() для получения полных данных
       const statsResponse = await mockAPI.stats.getStatsForAdmin();
-      const detailedResponse = await mockAPI.stats.getDetailedStats();
       
-      if (statsResponse.success && detailedResponse.success) {
+      if (statsResponse.success) {
         const statsData = statsResponse.data!;
-        const detailed = detailedResponse.data!;
         
-        // ВЫЧИСЛЯЕМ ФЛАГ: фиктивные скрыты, если fakeTotal === 0
-        const areFakeTotalsHidden = statsData.fakeTotal === 0;
-        
-        // ИСПРАВЛЕНО: Добавляем свойство areFakeTotalsHidden в объект stats
+        // ИСПРАВЛЕНО: Создаем объект AdminStats из новых полей
         setStats({
-          shownOnline: statsData.online,
-          realOnline: statsData.realOnline,
-          fakeOnline: statsData.simulationOnline,
-          shownTotal: statsData.total,
-          realTotal: statsData.realTotal || detailed.realTotal, // Приоритет из statsResponse
-          fakeTotal: statsData.fakeTotal || detailed.fakeTotal, // Приоритет из statsResponse
+          // Система 1: "Кулибиных на сайте"
+          onlineShown: statsData.onlineShown,
+          onlineReal: statsData.realOnline || statsData.onlineReal,
+          onlineFake: statsData.onlineFake,
+          isOnlineSimulationActive: statsData.isOnlineSimulationActive,
+          
+          // Система 2: "Кулибиных всего"
+          totalShown: statsData.totalShown,
+          totalReal: statsData.totalReal,
+          totalFake: statsData.totalFake,
+          isTotalSimulationActive: statsData.isTotalSimulationActive,
+          
+          // Статические данные
           projectsCreated: statsData.projectsCreated,
           adviceGiven: statsData.adviceGiven,
-          isSimulationActive: statsData.isSimulationActive,
           lastUpdate: statsData.lastUpdate,
-          areFakeTotalsHidden: areFakeTotalsHidden // ← ДОБАВЛЕНО ФЛАГ
+          
+          // УДАЛЕНО: устаревшие поля
+          // shownOnline: statsData.online, - заменено на onlineShown
+          // realOnline: statsData.realOnline, - заменено на onlineReal
+          // fakeOnline: statsData.simulationOnline, - заменено на onlineFake
+          // shownTotal: statsData.total, - заменено на totalShown
+          // realTotal: statsData.realTotal, - заменено на totalReal
+          // fakeTotal: statsData.fakeTotal, - заменено на totalFake
+          // isSimulationActive: statsData.isSimulationActive, - заменено на isOnlineSimulationActive
+          // areFakeTotalsHidden: areFakeTotalsHidden - заменено на isTotalSimulationActive
         });
         
-        // Мокап истории изменений
+        // Обновляем историю изменений для новой системы
         setHistory([
           {
             timestamp: new Date(Date.now() - 3600000).toISOString(),
-            action: 'Сброс счетчиков',
-            changes: { total: '100 → 50' },
+            action: 'Корректировка фиктивных "всего"',
+            changes: { totalFake: '207 → 208' },
             admin: 'admin'
           },
           {
             timestamp: new Date(Date.now() - 7200000).toISOString(),
-            action: 'Корректировка онлайн',
-            changes: { online: '245 → 250' },
+            action: 'Включение имитации онлайн',
+            changes: { onlineFake: '0 → 150' },
             admin: 'admin'
+          },
+          {
+            timestamp: new Date(Date.now() - 10800000).toISOString(),
+            action: 'Регистрация нового пользователя',
+            changes: { totalReal: '45 → 46' },
+            admin: 'system'
           }
         ]);
       }
@@ -71,35 +89,47 @@ export default function AdminStatsPage() {
   const handleAction = async (action: string, value?: any) => {
     try {
       switch (action) {
-        case 'resetTotal':
-          // ИСПРАВЛЕНО: Переключение по флагу с проверкой существования метода
-          if (stats?.areFakeTotalsHidden) {
-            // Используем опциональную цепочку вызовов, если метод не существует
-            await mockAPI.stats.restoreFakeTotal?.();
-          } else {
-            await mockAPI.stats.resetTotalToZero();
-          }
+        // ИСПРАВЛЕНО: Новые методы для управления двумя системами
+        case 'toggleOnlineSimulation':
+          await mockAPI.stats.toggleOnlineSimulation();
           break;
-        case 'toggleSimulation':
-          // ИСПРАВЛЕНО: Используем правильный метод в зависимости от текущего состояния
-          if (stats?.isSimulationActive) {
-            await mockAPI.stats.disableSimulation();
-          } else {
-            await mockAPI.stats.enableSimulation();
-          }
+        case 'toggleTotalSimulation':
+          await mockAPI.stats.toggleTotalSimulation();
           break;
-        case 'updateFormula':
-          // В будущем: сохранение новой формулы
-          setFormula(value);
+        case 'incrementTotalFake':
+          await mockAPI.stats.incrementTotalFake();
           break;
-        case 'addRealOnline':
-          await mockAPI.stats.addRealOnline();
+        case 'decrementTotalFake':
+          await mockAPI.stats.decrementTotalFake();
           break;
-        case 'removeRealOnline':
-          await mockAPI.stats.removeRealOnline();
-          break;
+          
+        // УДАЛЕНО: Старые методы, которые больше не используются
+        // case 'resetTotal':
+        //   if (stats?.areFakeTotalsHidden) {
+        //     await mockAPI.stats.restoreFakeTotal?.();
+        //   } else {
+        //     await mockAPI.stats.resetTotalToZero();
+        //   }
+        //   break;
+        // case 'toggleSimulation':
+        //   if (stats?.isSimulationActive) {
+        //     await mockAPI.stats.disableSimulation();
+        //   } else {
+        //     await mockAPI.stats.enableSimulation();
+        //   }
+        //   break;
+        // case 'updateFormula':
+        //   setFormula(value);
+        //   break;
+        // case 'addRealOnline':
+        //   await mockAPI.stats.addRealOnline();
+        //   break;
+        // case 'removeRealOnline':
+        //   await mockAPI.stats.removeRealOnline();
+        //   break;
       }
       
+      // Перезагружаем данные после выполнения действия
       await loadStatsData();
     } catch (error) {
       console.error('Ошибка выполнения действия:', error);
@@ -119,7 +149,8 @@ export default function AdminStatsPage() {
     <AdminStatsPanel
       stats={stats}
       history={history}
-      formula={formula}
+      // УДАЛЕНО: формула больше не передается
+      // formula={formula}
       onAction={handleAction}
     />
   );

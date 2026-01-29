@@ -16,31 +16,38 @@ export default function AdminDashboard({
   realtime, 
   onToggleRealtime 
 }: AdminDashboardProps) {
+  // Проверяем, загружены ли данные статистики
+  const isLoading = !stats || Object.keys(stats).length === 0;
+
   const statCards = [
     {
       title: 'Онлайн сейчас',
-      value: stats.shownOnline.toLocaleString(),
-      subtitle: `Реальных: ${stats.realOnline} • Имитация: ${stats.fakeOnline}`,
+      value: isLoading ? '...' : stats.onlineShown?.toLocaleString() || '0',
+      subtitle: isLoading 
+        ? 'Загрузка...' 
+        : `Реальных: ${stats.onlineReal || 0} • Имитация: ${stats.onlineFake || 0}`,
       color: '#2E8B57',
       icon: '👥'
     },
     {
       title: 'Всего пользователей',
-      value: stats.shownTotal.toLocaleString(),
-      subtitle: `Реальных: ${stats.realTotal} • Имитация: ${stats.fakeTotal}`,
+      value: isLoading ? '...' : stats.totalShown?.toLocaleString() || '207',
+      subtitle: isLoading 
+        ? 'Загрузка...' 
+        : `Реальных: ${stats.totalReal || 0} • Имитация: ${stats.totalFake || 207}`,
       color: '#4169E1',
       icon: '📊'
     },
     {
       title: 'Создано самоделок',
-      value: stats.projectsCreated.toLocaleString(),
+      value: isLoading ? '...' : stats.projectsCreated?.toLocaleString() || '7543',
       subtitle: 'Статичное значение',
       color: '#FF8C00',
       icon: '🛠️'
     },
     {
       title: 'Ценных советов',
-      value: stats.adviceGiven.toLocaleString(),
+      value: isLoading ? '...' : stats.adviceGiven?.toLocaleString() || '15287',
       subtitle: 'Статичное значение',
       color: '#9370DB',
       icon: '💡'
@@ -49,25 +56,51 @@ export default function AdminDashboard({
 
   const quickActions = [
     {
-      label: 'Сбросить счетчики',
-      description: 'Установить "Кулибиных всего" на реальное значение',
-      icon: '🔄',
-      action: 'resetTotal'
+      label: isLoading 
+        ? 'Загрузка...' 
+        : (stats.isOnlineSimulationActive ? 'Выключить имитацию онлайн' : 'Имитация онлайн выключена'),
+      description: isLoading 
+        ? 'Загрузка данных...' 
+        : (stats.isOnlineSimulationActive 
+            ? 'Отключить искусственных пользователей онлайн' 
+            : 'Имитация онлайн отключена'),
+      icon: isLoading ? '⏳' : (stats.isOnlineSimulationActive ? '⚡' : '🔌'),
+      action: 'toggleOnlineSimulation',
+      disabled: isLoading
     },
     {
-      label: stats.isSimulationActive ? 'Выключить имитацию' : 'Имитация выключена',
-      description: 'Отключить искусственных пользователей онлайн',
-      icon: '⚡',
-      action: 'toggleSimulation',
-      disabled: !stats.isSimulationActive
+      label: isLoading 
+        ? 'Загрузка...' 
+        : (stats.isTotalSimulationActive ? 'Скрыть фиктивных "всего"' : 'Фиктивные "всего" скрыты'),
+      description: isLoading 
+        ? 'Загрузка данных...' 
+        : (stats.isTotalSimulationActive 
+            ? 'Скрыть фиктивных пользователей из общего счёта' 
+            : 'Фиктивные пользователи "всего" скрыты'),
+      icon: isLoading ? '⏳' : (stats.isTotalSimulationActive ? '📉' : '📈'),
+      action: 'toggleTotalSimulation',
+      disabled: isLoading
     },
     {
       label: 'Обновить сейчас',
       description: 'Принудительное обновление всех данных',
-      icon: '📈',
-      action: 'refresh'
+      icon: '🔄',
+      action: 'refresh',
+      disabled: isLoading
     }
   ];
+
+  // Если данные загружаются, показываем индикатор загрузки
+  if (isLoading) {
+    return (
+      <div className="admin-dashboard loading">
+        <div className="loading-indicator">
+          <div className="spinner">🛠️</div>
+          <p>Загрузка данных статистики...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-dashboard">
@@ -77,11 +110,12 @@ export default function AdminDashboard({
           <button 
             className={`realtime-toggle ${realtime ? 'active' : ''}`}
             onClick={onToggleRealtime}
+            disabled={isLoading}
           >
             {realtime ? '🟢' : '⚫'} Реальное время
           </button>
           <span className="last-update">
-            Обновлено: {new Date(stats.lastUpdate).toLocaleTimeString()}
+            Обновлено: {new Date(stats.lastUpdate || new Date()).toLocaleTimeString()}
           </span>
         </div>
       </div>
@@ -106,7 +140,7 @@ export default function AdminDashboard({
             <button
               key={index}
               className="quick-action-btn"
-              onClick={() => onQuickAction(action.action)}
+              onClick={() => !action.disabled && onQuickAction(action.action)}
               disabled={action.disabled}
               title={action.description}
             >
@@ -122,13 +156,15 @@ export default function AdminDashboard({
         <div className="system-status-grid">
           <div className="status-item">
             <span className="status-label">Имитация онлайн</span>
-            <span className={`status-value ${stats.isSimulationActive ? 'active' : 'inactive'}`}>
-              {stats.isSimulationActive ? '🟢 Активна' : '🔴 Выключена'}
+            <span className={`status-value ${stats.isOnlineSimulationActive ? 'active' : 'inactive'}`}>
+              {stats.isOnlineSimulationActive ? '🟢 Активна (100-200)' : '🔴 Выключена'}
             </span>
           </div>
           <div className="status-item">
-            <span className="status-label">Формула расчета</span>
-            <span className="status-value">Показано = фиктивных(307 - реальные/2) + реальные</span>
+            <span className="status-label">Имитация "всего"</span>
+            <span className={`status-value ${stats.isTotalSimulationActive ? 'active' : 'inactive'}`}>
+              {stats.isTotalSimulationActive ? `🟢 Активна (${stats.totalFake || 207} фиктивных)` : '🔴 Выключена'}
+            </span>
           </div>
           <div className="status-item">
             <span className="status-label">Режим работы</span>

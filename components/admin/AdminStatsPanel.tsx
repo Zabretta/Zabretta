@@ -1,78 +1,121 @@
 "use client";
 
 import { AdminStats, AdminStatsHistory } from '@/types/admin';
-import { useState } from 'react';
 import './AdminStatsPanel.css';
 
 interface AdminStatsPanelProps {
   stats: AdminStats;
   history: AdminStatsHistory[];
-  formula: string;
   onAction: (action: string, value?: any) => void;
 }
 
 export default function AdminStatsPanel({ 
   stats, 
   history, 
-  formula, 
   onAction 
 }: AdminStatsPanelProps) {
-  const [editMode, setEditMode] = useState(false);
-  const [editValues, setEditValues] = useState({
-    fakeTotal: 307,
-    realTotal: stats.realTotal
-  });
+  // Проверяем, загружены ли данные
+  const isLoading = !stats || Object.keys(stats).length === 0;
 
+  // ИСПРАВЛЕНО: Защита от undefined с опциональной цепочкой и запасными значениями
   const detailedStats = [
     {
-      label: 'Показано онлайн',
-      value: stats.shownOnline.toLocaleString(),
-      details: `Реальных: ${stats.realOnline} • Имитация: ${stats.fakeOnline}`,
-      color: '#2E8B57'
+      label: 'Кулибиных на сайте',
+      value: isLoading ? '...' : stats.onlineShown?.toLocaleString() || '150',
+      details: isLoading 
+        ? 'Загрузка...' 
+        : `Реальных: ${stats.onlineReal || 0} • Имитация: ${stats.onlineFake || 150}`,
+      color: '#2E8B57',
+      tooltip: isLoading 
+        ? 'Загрузка данных...' 
+        : (stats.isOnlineSimulationActive 
+            ? 'Диапазон имитации: 100-200 пользователей' 
+            : 'Имитация отключена, показываются только реальные')
     },
     {
-      label: 'Показано всего',
-      value: stats.shownTotal.toLocaleString(),
-      details: `Реальных: ${stats.realTotal} • Имитация: ${stats.fakeTotal}`,
-      color: '#4169E1'
+      label: 'Кулибиных всего',
+      value: isLoading ? '...' : stats.totalShown?.toLocaleString() || '207',
+      details: isLoading 
+        ? 'Загрузка...' 
+        : `Реальных: ${stats.totalReal || 0} • Имитация: ${stats.totalFake || 207}`,
+      color: '#4169E1',
+      tooltip: `Фиктивная константа: 207 (регулируется кнопками)`
     },
     {
-      label: 'Статус имитации',
-      value: stats.isSimulationActive ? '🟢 Активна' : '🔴 Выключена',
-      details: stats.isSimulationActive ? 'Искусственные изменения каждые 5 сек' : 'Только реальные пользователи',
-      color: stats.isSimulationActive ? '#FF8C00' : '#CD5C5C'
+      label: 'Статус имитации онлайн',
+      value: isLoading 
+        ? '...' 
+        : (stats.isOnlineSimulationActive ? '🟢 Активна' : '🔴 Выключена'),
+      details: isLoading 
+        ? 'Загрузка...' 
+        : (stats.isOnlineSimulationActive 
+            ? 'Искусственные изменения каждые 5 сек (100-200)' 
+            : 'Только реальные пользователи онлайн'),
+      color: isLoading ? '#CCCCCC' : (stats.isOnlineSimulationActive ? '#FF8C00' : '#CD5C5C')
+    },
+    {
+      label: 'Статус имитации "всего"',
+      value: isLoading 
+        ? '...' 
+        : (stats.isTotalSimulationActive ? '🟢 Активна' : '🔴 Выключена'),
+      details: isLoading 
+        ? 'Загрузка...' 
+        : (stats.isTotalSimulationActive 
+            ? `Показываются реальные + ${stats.totalFake || 207} фиктивных` 
+            : 'Показываются только реальные зарегистрированные'),
+      color: isLoading ? '#CCCCCC' : (stats.isTotalSimulationActive ? '#32CD32' : '#DC143C')
     }
   ];
 
+  // ИСПРАВЛЕНО: Защита от undefined для кнопок управления
   const manualControls = [
     {
-      label: 'Добавить реального онлайн',
-      description: '+1 к реальным пользователям онлайн',
-      action: 'addRealOnline',
-      icon: '➕'
+      label: isLoading 
+        ? 'Загрузка...' 
+        : (stats.isOnlineSimulationActive ? 'Выключить имитацию онлайн' : 'Включить имитацию онлайн'),
+      description: isLoading 
+        ? 'Загрузка данных...' 
+        : (stats.isOnlineSimulationActive 
+            ? 'Отключить искусственных пользователей онлайн' 
+            : 'Включить искусственных пользователей онлайн (диапазон 100-200)'),
+      action: 'toggleOnlineSimulation',
+      icon: isLoading ? '⏳' : (stats.isOnlineSimulationActive ? '🔌' : '⚡'),
+      color: isLoading ? '#CCCCCC' : (stats.isOnlineSimulationActive ? '#CD5C5C' : '#2E8B57'),
+      disabled: isLoading
     },
     {
-      label: 'Убрать реального онлайн',
-      description: '-1 от реальных пользователей онлайн',
-      action: 'removeRealOnline',
-      icon: '➖'
+      label: isLoading 
+        ? 'Загрузка...' 
+        : (stats.isTotalSimulationActive ? 'Скрыть фиктивных "всего"' : 'Показать фиктивных "всего"'),
+      description: isLoading 
+        ? 'Загрузка данных...' 
+        : (stats.isTotalSimulationActive 
+            ? 'Скрыть фиктивных пользователей из общего счёта' 
+            : `Показать фиктивных пользователей в общем счёте (${stats.totalFake || 207})`),
+      action: 'toggleTotalSimulation',
+      icon: isLoading ? '⏳' : (stats.isTotalSimulationActive ? '📉' : '📈'),
+      color: isLoading ? '#CCCCCC' : (stats.isTotalSimulationActive ? '#DC143C' : '#32CD32'),
+      disabled: isLoading
     },
     {
-      label: stats.areFakeTotalsHidden ? 'Показать фиктивных' : 'Скрыть фиктивных',
-      description: stats.areFakeTotalsHidden 
-        ? 'Восстановить отображение фиктивных пользователей' 
-        : 'Скрыть фиктивных пользователей из общего счёта',
-      action: 'resetTotal',
-      icon: stats.areFakeTotalsHidden ? '📈' : '🚫'
+      label: isLoading ? 'Загрузка...' : 'Добавить +1 фиктивного "всего"',
+      description: isLoading 
+        ? 'Загрузка данных...' 
+        : `+1 к фиктивным пользователям "всего" (${stats.totalFake || 207} → ${(stats.totalFake || 207) + 1})`,
+      action: 'incrementTotalFake',
+      icon: isLoading ? '⏳' : '➕',
+      color: '#4169E1',
+      disabled: isLoading
     },
     {
-      label: stats.isSimulationActive ? 'Выключить имитацию' : 'Включить имитацию',
-      description: stats.isSimulationActive 
-        ? 'Отключить искусственных пользователей' 
-        : 'Включить искусственных пользователей',
-      action: 'toggleSimulation',
-      icon: stats.isSimulationActive ? '🔌' : '⚡',
-      disabled: false // Убираем блокировку полностью
+      label: isLoading ? 'Загрузка...' : 'Убрать -1 фиктивного "всего"',
+      description: isLoading 
+        ? 'Загрузка данных...' 
+        : `-1 от фиктивных пользователей "всего" (${stats.totalFake || 207} → ${Math.max(0, (stats.totalFake || 207) - 1)})`,
+      action: 'decrementTotalFake',
+      icon: isLoading ? '⏳' : '➖',
+      color: '#FF8C00',
+      disabled: isLoading
     }
   ];
 
@@ -80,94 +123,94 @@ export default function AdminStatsPanel({
     <div className="admin-stats-panel">
       <div className="stats-header">
         <h2>Управление статистикой</h2>
-        <p className="stats-subtitle">Детальный контроль системных счетчиков</p>
+        <p className="stats-subtitle">Две независимые системы имитации</p>
       </div>
       
       <div className="stats-details">
         <h3>Текущие значения</h3>
-        <div className="details-grid">
-          {detailedStats.map((stat, index) => (
-            <div key={index} className="detail-card" style={{ borderLeftColor: stat.color }}>
-              <div className="detail-label">{stat.label}</div>
-              <div className="detail-value">{stat.value}</div>
-              <div className="detail-info">{stat.details}</div>
-            </div>
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="loading-stats">
+            <div className="loading-spinner">🛠️</div>
+            <p>Загрузка данных статистики...</p>
+          </div>
+        ) : (
+          <div className="details-grid">
+            {detailedStats.map((stat, index) => (
+              <div 
+                key={index} 
+                className="detail-card" 
+                style={{ borderLeftColor: stat.color }}
+                title={stat.tooltip || stat.details}
+              >
+                <div className="detail-label">{stat.label}</div>
+                <div className="detail-value">{stat.value}</div>
+                <div className="detail-info">{stat.details}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       
       <div className="stats-section">
-        <div className="section-header">
-          <h3>Формула расчета</h3>
-          <button 
-            className="edit-btn"
-            onClick={() => setEditMode(!editMode)}
-          >
-            {editMode ? '💾 Сохранить' : '✏️ Редактировать'}
-          </button>
-        </div>
-        
-        <div className="formula-container">
-          {editMode ? (
-            <div className="formula-edit">
-              <div className="formula-input">
-                <label>Фиктивных изначально:</label>
-                <input
-                  type="number"
-                  value={editValues.fakeTotal}
-                  onChange={(e) => setEditValues({...editValues, fakeTotal: parseInt(e.target.value)})}
-                  min="0"
-                  max="1000"
-                />
-              </div>
-              <div className="formula-preview">
-                <code>
-                  Показано = фиктивных({editValues.fakeTotal} - реальные/2) + реальные
-                </code>
-              </div>
-              <button 
-                className="apply-btn"
-                onClick={() => {
-                  onAction('updateFormula', `Показано = фиктивных(${editValues.fakeTotal} - реальные/2) + реальные`);
-                  setEditMode(false);
-                }}
-              >
-                Применить
-              </button>
+        <h3>Информация о системах</h3>
+        <div className="systems-info">
+          <div className="system-info-card">
+            <div className="system-icon">👥</div>
+            <div className="system-content">
+              <h4>Система 1: "Кулибиных на сайте"</h4>
+              <p>Имитирует онлайн-пользователей в диапазоне <strong>100-200</strong> человек.</p>
+              <p>Генератор работает каждые 5 секунд, если система включена.</p>
+              <p>Показывает: <strong>реальные онлайн + фиктивные онлайн</strong></p>
             </div>
-          ) : (
-            <div className="formula-display">
-              <code>{formula}</code>
-              <div className="formula-explanation">
-                <p>Каждые 2 реальных пользователя уменьшают фиктивных на 1</p>
-              </div>
+          </div>
+          
+          <div className="system-info-card">
+            <div className="system-icon">📊</div>
+            <div className="system-content">
+              <h4>Система 2: "Кулибиных всего"</h4>
+              <p>Использует фиктивную константу <strong>207</strong> пользователей.</p>
+              <p>Админ может регулировать значение кнопками "+1" и "-1".</p>
+              <p>Показывает: <strong>реальные зарегистрированные + фиктивные "всего"</strong></p>
             </div>
-          )}
+          </div>
         </div>
       </div>
       
       <div className="stats-section">
         <h3>Ручное управление</h3>
-        <div className="manual-controls">
-          {manualControls.map((control, index) => (
-            <button
-              key={index}
-              className="control-btn"
-              onClick={() => onAction(control.action)}
-              disabled={control.disabled}
-              title={control.description}
-            >
-              <span className="control-icon">{control.icon}</span>
-              <span className="control-label">{control.label}</span>
-              <span className="control-description">{control.description}</span>
-            </button>
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="loading-controls">
+            <div className="loading-spinner-small">⏳</div>
+            <p>Загрузка элементов управления...</p>
+          </div>
+        ) : (
+          <div className="manual-controls">
+            {manualControls.map((control, index) => (
+              <button
+                key={index}
+                className="control-btn"
+                onClick={() => !control.disabled && onAction(control.action)}
+                disabled={control.disabled}
+                style={{ borderLeftColor: control.color }}
+                title={control.description}
+              >
+                <span className="control-icon">{control.icon}</span>
+                <span className="control-label">{control.label}</span>
+                <span className="control-description">{control.description}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       
       <div className="stats-section">
         <h3>История изменений</h3>
-        {history.length > 0 ? (
+        {isLoading ? (
+          <div className="loading-history">
+            <div className="loading-spinner">📊</div>
+            <p>Загрузка истории изменений...</p>
+          </div>
+        ) : history.length > 0 ? (
           <div className="history-list">
             {history.map((record, index) => (
               <div key={index} className="history-item">

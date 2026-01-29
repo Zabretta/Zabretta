@@ -21,10 +21,10 @@ function WorkbenchContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [communityStats, setCommunityStats] = useState({
-    online: 0,
-    total: 0,
-    projectsCreated: 0,
-    adviceGiven: 0
+    online: 150,      // Начальное значение - середина диапазона 100-200
+    total: 207,       // Начальное значение - константа фиктивных
+    projectsCreated: 7543,
+    adviceGiven: 15287
   });
   const [isInitialized, setIsInitialized] = useState(false);
   // ДОБАВЛЕНО: состояние для подсказки поворота экрана
@@ -70,16 +70,24 @@ function WorkbenchContent() {
         localStorage.setItem('samodelkin_stats_reset', 'true');
       }
       
-      // ИСПРАВЛЕНО: Используем getStatsForUsers() вместо getStats()
+      // Используем getStatsForUsers() для получения данных для пользователей
       const response = await mockAPI.stats.getStatsForUsers();
       if (response.success && response.data) {
-        setCommunityStats({
-          online: response.data.online,
-          total: response.data.total,
-          projectsCreated: response.data.projectsCreated,
-          adviceGiven: response.data.adviceGiven
+        // ИСПРАВЛЕНО: Теперь данные приходят в новом формате, но сохраняем обратную совместимость
+        const newStats = {
+          online: response.data.online || 150,        // Кулибиных на сайте (сумма реальных + фиктивных)
+          total: response.data.total || 207,          // Кулибиных всего (сумма реальных + 207)
+          projectsCreated: response.data.projectsCreated || 7543,
+          adviceGiven: response.data.adviceGiven || 15287
+        };
+        
+        setCommunityStats(newStats);
+        console.log('[СТАТИСТИКА] Статистика для пользователей загружена:', {
+          online: newStats.online,
+          total: newStats.total,
+          onlineShown: response.data.onlineShown,
+          totalShown: response.data.totalShown
         });
-        console.log('[СТАТИСТИКА] Статистика для пользователей загружена:', response.data);
       }
     } catch (error) {
       console.error('Ошибка загрузки статистики: ', error);
@@ -98,12 +106,22 @@ function WorkbenchContent() {
   useEffect(() => {
     const intervalId = setInterval(async () => {
       try {
+        // ИСПРАВЛЕНО: simulateOnlineChange() теперь работает корректно с проверкой isOnlineSimulationActive
         const response = await mockAPI.stats.simulateOnlineChange();
         if (response.success && response.data) {
-          setCommunityStats(prev => ({
-            ...prev,
-            online: response.data!.online
+          // ИСПРАВЛЕНО: Исправлена ошибка - правильный синтаксис с prevState
+          setCommunityStats(prevState => ({
+            ...prevState,
+            online: response.data!.online || prevState.online
           }));
+          
+          // Дополнительное логирование для отладки
+          console.log('[ИНТЕРВАЛ] Обновление онлайн:', {
+            новое: response.data!.online,
+            onlineShown: response.data!.onlineShown,
+            onlineFake: response.data!.onlineFake,
+            isOnlineSimulationActive: response.data!.isOnlineSimulationActive
+          });
         }
       } catch (error) {
         console.error('Ошибка при имитации изменения статуса онлайн:', error);
@@ -375,14 +393,21 @@ function WorkbenchContent() {
                 </div>
               </div>
 
+              {/* ИСПРАВЛЕНО: Блок статистики теперь получает данные из двух независимых систем */}
               <div className="community-stats">
-                <div className="stat-item">
+                <div className="stat-item" title="Реальные онлайн + фиктивные онлайн (диапазон 100-200)">
                   <span className="stat-number">{communityStats.online.toLocaleString()}</span>
-                  <span className="stat-label">Кулибиных онлайн</span>
+                  <span className="stat-label">Кулибиных на сайте</span>
+                  <div className="stat-hint">
+                    {communityStats.online > 0 ? '👥 Активность обновляется каждые 5 сек' : '🔄 Загрузка...'}
+                  </div>
                 </div>
-                <div className="stat-item">
+                <div className="stat-item" title="Реальные зарегистрированные + 207 фиктивных">
                   <span className="stat-number">{communityStats.total.toLocaleString()}</span>
                   <span className="stat-label">Кулибиных всего</span>
+                  <div className="stat-hint">
+                    Сообщество мастеров и изобретателей
+                  </div>
                 </div>
                 <div className="stat-item">
                   <span className="stat-number">{communityStats.projectsCreated.toLocaleString()}</span>

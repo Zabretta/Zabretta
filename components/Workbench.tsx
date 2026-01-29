@@ -398,16 +398,10 @@ function WorkbenchContent() {
                 <div className="stat-item" title="Реальные онлайн + фиктивные онлайн (диапазон 100-200)">
                   <span className="stat-number">{communityStats.online.toLocaleString()}</span>
                   <span className="stat-label">Кулибиных на сайте</span>
-                  <div className="stat-hint">
-                    {communityStats.online > 0 ? '👥 Активность обновляется каждые 5 сек' : '🔄 Загрузка...'}
-                  </div>
                 </div>
                 <div className="stat-item" title="Реальные зарегистрированные + 207 фиктивных">
                   <span className="stat-number">{communityStats.total.toLocaleString()}</span>
                   <span className="stat-label">Кулибиных всего</span>
-                  <div className="stat-hint">
-                    Сообщество мастеров и изобретателей
-                  </div>
                 </div>
                 <div className="stat-item">
                   <span className="stat-number">{communityStats.projectsCreated.toLocaleString()}</span>

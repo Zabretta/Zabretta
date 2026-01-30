@@ -1167,6 +1167,99 @@ const generateFakeOnline = (currentFake: number): number => {
   return currentFake;
 };
 
+// === НОВЫЕ ФУНКЦИИ: УПРАВЛЕНИЕ РЕАЛЬНЫМИ ОНЛАЙН ПОЛЬЗОВАТЕЛЯМИ ===
+
+// НОВАЯ ФУНКЦИЯ: Управление реальными онлайн пользователями
+const updateRealOnline = (change: number): StatsData => {
+  const currentStats = loadStatsFromStorage();
+  
+  // Изменяем количество реальных онлайн
+  const newRealOnline = Math.max(0, currentStats.realOnline + change);
+  
+  // Пересчитываем onlineShown в зависимости от состояния имитации
+  const newOnlineShown = currentStats.isOnlineSimulationActive 
+    ? newRealOnline + currentStats.onlineFake
+    : newRealOnline;
+  
+  const updatedStats: StatsData = {
+    ...currentStats,
+    realOnline: newRealOnline,
+    onlineShown: newOnlineShown,
+    // Для обратной совместимости
+    online: newOnlineShown,
+    lastUpdate: new Date().toISOString()
+  };
+  
+  saveStatsToStorage(updatedStats);
+  
+  console.log(`[STATS] Реальные онлайн: ${currentStats.realOnline} → ${newRealOnline}, onlineShown=${newOnlineShown}`);
+  
+  return updatedStats;
+};
+
+// НОВАЯ ФУНКЦИЯ: Увеличение реальных онлайн на 1
+const incrementRealOnline = async (): Promise<APIResponse<StatsData>> => {
+  console.log('[API MOCKS] Увеличение реальных онлайн на 1...');
+  await simulateNetworkDelay();
+  
+  const updatedStats = updateRealOnline(1);
+  
+  return {
+    success: true,
+    data: updatedStats,
+    timestamp: new Date().toISOString()
+  };
+};
+
+// НОВАЯ ФУНКЦИЯ: Уменьшение реальных онлайн на 1
+const decrementRealOnline = async (): Promise<APIResponse<StatsData>> => {
+  console.log('[API MOCKS] Уменьшение реальных онлайн на 1...');
+  await simulateNetworkDelay();
+  
+  const updatedStats = updateRealOnline(-1);
+  
+  return {
+    success: true,
+    data: updatedStats,
+    timestamp: new Date().toISOString()
+  };
+};
+
+// НОВАЯ ФУНКЦИЯ: Установка конкретного значения реальных онлайн
+const setRealOnline = async (count: number): Promise<APIResponse<StatsData>> => {
+  console.log(`[API MOCKS] Установка реальных онлайн в ${count}...`);
+  await simulateNetworkDelay();
+  
+  const currentStats = loadStatsFromStorage();
+  
+  // Устанавливаем конкретное значение
+  const newRealOnline = Math.max(0, count);
+  
+  // Пересчитываем onlineShown в зависимости от состояния имитации
+  const newOnlineShown = currentStats.isOnlineSimulationActive 
+    ? newRealOnline + currentStats.onlineFake
+    : newRealOnline;
+  
+  const updatedStats: StatsData = {
+    ...currentStats,
+    realOnline: newRealOnline,
+    onlineShown: newOnlineShown,
+    // Для обратной совместимости
+    online: newOnlineShown,
+    lastUpdate: new Date().toISOString()
+  };
+  
+  saveStatsToStorage(updatedStats);
+  
+  console.log(`[STATS] Установлены реальные онлайн: ${newRealOnline}, onlineShown=${newOnlineShown}`);
+  
+  return {
+    success: true,
+    data: updatedStats,
+    timestamp: new Date().toISOString()
+  };
+};
+
 // === НОВЫЕ ФУНКЦИИ: РАЗДЕЛЕНИЕ ДАННЫХ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ И АДМИНА ===
 
 // Получить реальные данные (только для внутреннего использования)
@@ -1252,30 +1345,45 @@ const getStatsForAdmin = async (): Promise<APIResponse<StatsData & {
   return mockResponse;
 };
 
-// ИЗМЕНЕНО: simulateOnlineChange() - теперь работает только при включенной имитации
+// ИЗМЕНЕНО: simulateOnlineChange() - теперь РЕАЛЬНО работает только при включенной имитации
 const simulateOnlineChange = async (): Promise<APIResponse<StatsData>> => {
   console.log('[API MOCKS] Имитация изменения онлайн пользователей...');
   await simulateNetworkDelay();
   
   const currentStats = loadStatsFromStorage();
   
-  // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем, включена ли имитация
+  // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Если имитация выключена - показываем только реальных пользователей
   if (!currentStats.isOnlineSimulationActive) {
-    console.log('[STATS] Имитация онлайн отключена, пропускаем генерацию');
+    console.log('[STATS] Имитация онлайн отключена, показываем только реальных пользователей');
+    
+    const updatedStats: StatsData = {
+      ...currentStats,
+      // ОБЯЗАТЕЛЬНО: при выключенной имитации фиктивных нет
+      onlineFake: 0,
+      onlineShown: currentStats.realOnline, // ВАЖНО: показываем реальных пользователей
+      // Для обратной совместимости
+      simulationOnline: 0,
+      online: currentStats.realOnline,
+      lastUpdate: new Date().toISOString()
+    };
+    
+    saveStatsToStorage(updatedStats);
+    
+    console.log(`[STATS] Имитация выключена: onlineFake=0, realOnline=${currentStats.realOnline}, onlineShown=${currentStats.realOnline}`);
+    
     return {
       success: true,
-      data: currentStats,
+      data: updatedStats,
       timestamp: new Date().toISOString()
     };
   }
   
-  // Генерация нового значения фиктивных онлайн
+  // Если имитация включена - генерируем новые значения
   const newFakeOnline = generateFakeOnline(currentStats.onlineFake);
   const newOnlineShown = currentStats.realOnline + newFakeOnline;
   
   const updatedStats: StatsData = {
     ...currentStats,
-    // Обновляем значения для системы 1
     onlineFake: newFakeOnline,
     onlineShown: newOnlineShown,
     // Для обратной совместимости
@@ -1321,7 +1429,8 @@ const toggleOnlineSimulation = async (): Promise<APIResponse<StatsData>> => {
   
   saveStatsToStorage(updatedStats);
   
-  console.log(`[STATS] Имитация онлайн ${newState ? 'включена' : 'выключена'}`);
+  console.log(`[STATS] Имитация онлайн ${newState ? 'включена' : 'выключена'}. 
+               onlineFake=${updatedStats.onlineFake}, onlineShown=${updatedStats.onlineShown}`);
   
   const mockResponse: APIResponse<StatsData> = {
     success: true,
@@ -1333,27 +1442,64 @@ const toggleOnlineSimulation = async (): Promise<APIResponse<StatsData>> => {
   return mockResponse;
 };
 
-// Включение/выключение имитации "всего"
-const toggleTotalSimulation = async (): Promise<APIResponse<StatsData>> => {
-  console.log('[API MOCKS] Переключение имитации "всего"...');
+// Увеличить счетчики при регистрации - ВЫЗЫВАТЬ ПРИ КАЖДОЙ УСПЕШНОЙ РЕГИСТРАЦИИ!
+const incrementOnRegistration = async (): Promise<APIResponse<StatsData>> => {
+  console.log('[API MOCKS] Увеличение счетчиков при регистрации НОВОГО ПОЛЬЗОВАТЕЛЯ...');
   await simulateNetworkDelay();
   
   const currentStats = loadStatsFromStorage();
-  const newState = !currentStats.isTotalSimulationActive;
+  
+  // ВАЖНО: увеличиваем реальных зарегистрированных
+  const newTotalReal = currentStats.totalReal + 1;
+  
+  // ВАЖНО: totalShown должен быть суммой реальных + фиктивных
+  const newTotalShown = newTotalReal + currentStats.totalFake;
   
   const updatedStats: StatsData = {
     ...currentStats,
-    isTotalSimulationActive: newState,
-    totalFake: newState ? FAKE_TOTAL_CONSTANT : 0,
-    totalShown: newState ? (currentStats.totalReal + FAKE_TOTAL_CONSTANT) : currentStats.totalReal,
+    totalReal: newTotalReal,           // Увеличили реальных
+    totalShown: newTotalShown,         // Обновили сумму
     // Для обратной совместимости
-    total: newState ? (currentStats.totalReal + FAKE_TOTAL_CONSTANT) : currentStats.totalReal,
+    total: newTotalShown,
     lastUpdate: new Date().toISOString()
   };
   
   saveStatsToStorage(updatedStats);
   
-  console.log(`[STATS] Имитация "всего" ${newState ? 'включена' : 'выключена'}`);
+  console.log('[API MOCKS] Регистрация: totalReal:', newTotalReal, 'totalShown:', newTotalShown);
+  return {
+    success: true,
+    data: updatedStats,
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Включение/выключение имитации "всего" - КНОПКА ВКЛ/ВЫКЛ ФИКТИВНЫХ В АДМИНКЕ
+const toggleTotalSimulation = async (): Promise<APIResponse<StatsData>> => {
+  console.log('[API MOCKS] Админ: переключение показа фиктивных "всего"...');
+  await simulateNetworkDelay();
+  
+  const currentStats = loadStatsFromStorage();
+  const newState = !currentStats.isTotalSimulationActive;
+  
+  // ВАЖНО: если включаем - возвращаем стандартное значение 207, если выключаем - 0
+  const newTotalFake = newState ? FAKE_TOTAL_CONSTANT : 0;
+  // ВАЖНО: всегда totalShown = totalReal + totalFake
+  const newTotalShown = currentStats.totalReal + newTotalFake;
+  
+  const updatedStats: StatsData = {
+    ...currentStats,
+    isTotalSimulationActive: newState,
+    totalFake: newTotalFake,
+    totalShown: newTotalShown,
+    // Для обратной совместимости
+    total: newTotalShown,
+    lastUpdate: new Date().toISOString()
+  };
+  
+  saveStatsToStorage(updatedStats);
+  
+  console.log(`[STATS] Показ фиктивных ${newState ? 'вкл' : 'выкл'}: totalFake=${newTotalFake}, totalShown=${newTotalShown}`);
   
   const mockResponse: APIResponse<StatsData> = {
     success: true,
@@ -1361,29 +1507,34 @@ const toggleTotalSimulation = async (): Promise<APIResponse<StatsData>> => {
     timestamp: new Date().toISOString()
   };
   
-  console.log('[API MOCKS] Имитация "всего" переключена:', mockResponse);
+  console.log('[API MOCKS] Показ фиктивных переключен:', mockResponse);
   return mockResponse;
 };
 
-// Увеличение фиктивных "всего" на 1
+// Увеличение фиктивных "всего" на 1 - КНОПКА +1 В АДМИНКЕ
 const incrementTotalFake = async (): Promise<APIResponse<StatsData>> => {
-  console.log('[API MOCKS] Увеличение фиктивных "всего" на 1...');
+  console.log('[API MOCKS] Админ: увеличение фиктивных "всего" на 1...');
   await simulateNetworkDelay();
   
   const currentStats = loadStatsFromStorage();
   
+  // ВАЖНО: увеличиваем только фиктивных
+  const newTotalFake = currentStats.totalFake + 1;
+  // ВАЖНО: пересчитываем сумму
+  const newTotalShown = currentStats.totalReal + newTotalFake;
+  
   const updatedStats: StatsData = {
     ...currentStats,
-    totalFake: currentStats.totalFake + 1,
-    totalShown: currentStats.totalReal + (currentStats.totalFake + 1),
+    totalFake: newTotalFake,           // Увеличили фиктивных
+    totalShown: newTotalShown,         // Обновили сумму
     // Для обратной совместимости
-    total: currentStats.totalReal + (currentStats.totalFake + 1),
+    total: newTotalShown,
     lastUpdate: new Date().toISOString()
   };
   
   saveStatsToStorage(updatedStats);
   
-  console.log(`[STATS] Фиктивные "всего": ${currentStats.totalFake} → ${updatedStats.totalFake}`);
+  console.log(`[STATS] Админ +1: totalFake ${currentStats.totalFake}→${newTotalFake}, totalShown=${newTotalShown}`);
   
   const mockResponse: APIResponse<StatsData> = {
     success: true,
@@ -1395,26 +1546,30 @@ const incrementTotalFake = async (): Promise<APIResponse<StatsData>> => {
   return mockResponse;
 };
 
-// Уменьшение фиктивных "всего" на 1
+// Уменьшение фиктивных "всего" на 1 - КНОПКА -1 В АДМИНКЕ
 const decrementTotalFake = async (): Promise<APIResponse<StatsData>> => {
-  console.log('[API MOCKS] Уменьшение фиктивных "всего" на 1...');
+  console.log('[API MOCKS] Админ: уменьшение фиктивных "всего" на 1...');
   await simulateNetworkDelay();
   
   const currentStats = loadStatsFromStorage();
-  const newFakeTotal = Math.max(0, currentStats.totalFake - 1);
+  
+  // ВАЖНО: уменьшаем фиктивных, но не ниже 0
+  const newTotalFake = Math.max(0, currentStats.totalFake - 1);
+  // ВАЖНО: пересчитываем сумму
+  const newTotalShown = currentStats.totalReal + newTotalFake;
   
   const updatedStats: StatsData = {
     ...currentStats,
-    totalFake: newFakeTotal,
-    totalShown: currentStats.totalReal + newFakeTotal,
+    totalFake: newTotalFake,           // Уменьшили фиктивных
+    totalShown: newTotalShown,         // Обновили сумму
     // Для обратной совместимости
-    total: currentStats.totalReal + newFakeTotal,
+    total: newTotalShown,
     lastUpdate: new Date().toISOString()
   };
   
   saveStatsToStorage(updatedStats);
   
-  console.log(`[STATS] Фиктивные "всего": ${currentStats.totalFake} → ${updatedStats.totalFake}`);
+  console.log(`[STATS] Админ -1: totalFake ${currentStats.totalFake}→${newTotalFake}, totalShown=${newTotalShown}`);
   
   const mockResponse: APIResponse<StatsData> = {
     success: true,
@@ -1425,13 +1580,6 @@ const decrementTotalFake = async (): Promise<APIResponse<StatsData>> => {
   console.log('[API MOCKS] Фиктивные "всего" уменьшены:', mockResponse);
   return mockResponse;
 };
-
-// УДАЛЕНО: Старые функции, которые больше не нужны
-// - resetTotalToZero() - заменено на toggleTotalSimulation()
-// - restoreFakeTotal() - заменено на toggleTotalSimulation()
-// - disableSimulation() - заменено на toggleOnlineSimulation()
-// - enableSimulation() - заменено на toggleOnlineSimulation()
-// - addRealOnline() и removeRealOnline() - отключены по требованию
 
 // Получить детальную информацию (обновленная версия)
 const getDetailedStats = async (): Promise<APIResponse<{
@@ -1668,6 +1816,11 @@ export const mockAPI = {
       // Определяем роль: если логин admin - даем роль админа
       const isAdmin = userData.login.toLowerCase() === 'admin';
       
+      // === ВСТАВЛЕНО: Увеличиваем счетчик реальных пользователей ===
+      // ВАЖНО: Увеличиваем счетчик реальных пользователей
+      await incrementOnRegistration();
+      // ============================================================
+      
       const mockResponse: APIResponse<User> = {
         success: true,
         data: {
@@ -1834,7 +1987,20 @@ export const mockAPI = {
       console.log('[API MOCKS] Загрузка реальной статистики...');
       await simulateNetworkDelay();
       
-      const realStats = getRealStats();
+      const stats = loadStatsFromStorage();
+      
+      // Возвращаем только реальные данные
+      const realStats: StatsData = {
+        ...stats,
+        totalShown: stats.totalReal, // Только реальные пользователи
+        onlineShown: stats.realOnline, // Только реальные онлайн
+        onlineFake: 0, // Фиктивные не показываем
+        totalFake: 0, // Фиктивные не показываем
+        // Для обратной совместимости
+        online: stats.realOnline,
+        total: stats.totalReal,
+        simulationOnline: 0,
+      };
       
       const mockResponse: APIResponse<StatsData> = {
         success: true,
@@ -1847,36 +2013,15 @@ export const mockAPI = {
     },
 
     // Увеличить счетчики при регистрации
-    incrementOnRegistration: async (): Promise<APIResponse<StatsData>> => {
-      console.log('[API MOCKS] Увеличение счетчиков при регистрации...');
-      await simulateNetworkDelay();
-      
-      const currentStats = loadStatsFromStorage();
-      
-      // Увеличиваем реальных зарегистрированных
-      const newTotalReal = currentStats.totalReal + 1;
-      
-      const updatedStats: StatsData = {
-        ...currentStats,
-        totalReal: newTotalReal,
-        totalShown: newTotalReal + currentStats.totalFake,
-        // Для обратной совместимости
-        total: newTotalReal + currentStats.totalFake,
-        lastUpdate: new Date().toISOString()
-      };
-      
-      saveStatsToStorage(updatedStats);
-      
-      console.log('[API MOCKS] Реальных зарегистрировано:', newTotalReal);
-      return {
-        success: true,
-        data: updatedStats,
-        timestamp: new Date().toISOString()
-      };
-    },
+    incrementOnRegistration,
 
-    // ИЗМЕНЕНО: simulateOnlineChange() теперь работает корректно
+    // ИСПРАВЛЕНА: simulateOnlineChange() теперь правильно работает
     simulateOnlineChange,
+
+    // НОВЫЕ ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ РЕАЛЬНЫМИ ОНЛАЙН:
+    incrementRealOnline,
+    decrementRealOnline,
+    setRealOnline,
 
     // Сбросить статистику (для разработки)
     resetStats: async (): Promise<APIResponse<{ reset: boolean }>> => {
@@ -1895,13 +2040,6 @@ export const mockAPI = {
       return mockResponse;
     },
 
-    // УДАЛЕНО: resetTotalToZero() - заменено на toggleTotalSimulation()
-    // УДАЛЕНО: restoreFakeTotal() - заменено на toggleTotalSimulation()
-    // УДАЛЕНО: disableSimulation() - заменено на toggleOnlineSimulation()
-    // УДАЛЕНО: enableSimulation() - заменено на toggleOnlineSimulation()
-
-    // УДАЛЕНО: addRealOnline() и removeRealOnline() - отключены по требованию
-    
     // НОВЫЕ ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ ДВУМЯ СИСТЕМАМИ:
     toggleOnlineSimulation,
     toggleTotalSimulation,

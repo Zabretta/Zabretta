@@ -20,10 +20,20 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  // Защита от повторной отправки формы
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Защита от повторной отправки
+    if (isSubmitting) {
+      console.log('[AUTH] Форма уже отправляется, пропускаем...');
+      return;
+    }
+    
     setIsLoading(true);
+    setIsSubmitting(true);
     setMessage(null);
 
     try {
@@ -44,14 +54,9 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
         if (result.success && result.data) {
           setMessage({ text: 'Регистрация прошла успешно!', type: 'success' });
           
-          // Увеличиваем счетчики статистики после успешной регистрации
-          try {
-            await mockAPI.stats.incrementOnRegistration();
-            console.log('[STATS] Счетчики увеличены после регистрации');
-          } catch (statsError) {
-            console.error('[STATS] Ошибка увеличения счетчиков:', statsError);
-            // Не прерываем процесс регистрации, даже если счетчики не обновились
-          }
+          // ⚠️ ВНИМАНИЕ: УДАЛЕН ВЫЗОВ incrementOnRegistration()
+          // Функция mockAPI.auth.register() УЖЕ увеличивает счетчик totalReal внутри себя
+          // Дополнительный вызов привел бы к двойному увеличению
           
           // Сохраняем пользователя
           localStorage.setItem('samodelkin_auth_token', 'demo_token_' + Date.now());
@@ -90,6 +95,8 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
       setMessage({ text: error.message || 'Произошла ошибка', type: 'error' });
     } finally {
       setIsLoading(false);
+      // Сбрасываем флаг отправки с задержкой, чтобы предотвратить мгновенный повторный вызов
+      setTimeout(() => setIsSubmitting(false), 1000);
     }
   };
 
@@ -100,7 +107,15 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Защита от повторной отправки
+    if (isSubmitting) {
+      console.log('[AUTH] Форма уже отправляется, пропускаем...');
+      return;
+    }
+    
     setIsLoading(true);
+    setIsSubmitting(true);
     setMessage(null);
     
     try {
@@ -122,6 +137,8 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
     } catch (error: any) {
       setMessage({ text: error.message || 'Произошла ошибка', type: 'error' });
       setIsLoading(false);
+    } finally {
+      setTimeout(() => setIsSubmitting(false), 1000);
     }
   };
 
@@ -165,17 +182,19 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 required
+                disabled={isLoading}
               />
             </div>
             
             <div className="auth-form-actions">
-              <button type="submit" disabled={isLoading}>
+              <button type="submit" disabled={isLoading || isSubmitting}>
                 {isLoading ? 'Отправка...' : 'Отправить инструкции'}
               </button>
               <button 
                 type="button" 
                 className="secondary-btn"
                 onClick={() => setMode('login')}
+                disabled={isLoading}
               >
                 Назад к входу
               </button>
@@ -191,6 +210,7 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   required
+                  disabled={isLoading}
                 />
               </div>
             )}
@@ -202,6 +222,7 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 value={formData.login}
                 onChange={(e) => setFormData({...formData, login: e.target.value})}
                 required
+                disabled={isLoading}
               />
             </div>
             
@@ -212,12 +233,14 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                 required
+                disabled={isLoading}
               />
               <button 
                 type="button" 
                 className="toggle-password"
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex={-1}
+                disabled={isLoading}
               >
                 {showPassword ? "🙈" : "👁️"}
               </button>
@@ -232,12 +255,14 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
                     value={formData.passwordConfirm}
                     onChange={(e) => setFormData({...formData, passwordConfirm: e.target.value})}
                     required
+                    disabled={isLoading}
                   />
                   <button 
                     type="button" 
                     className="toggle-password"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     tabIndex={-1}
+                    disabled={isLoading}
                   >
                     {showConfirmPassword ? "🙈" : "👁️"}
                   </button>
@@ -248,6 +273,7 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
                     checked={formData.agreement}
                     onChange={(e) => setFormData({...formData, agreement: e.target.checked})}
                     required
+                    disabled={isLoading}
                   />
                   <span>Я принимаю правила сайта</span>
                 </label>
@@ -259,12 +285,17 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 type="button" 
                 className="forgot-password-btn"
                 onClick={handleForgotPassword}
+                disabled={isLoading}
               >
                 Забыли пароль?
               </button>
             )}
 
-            <button type="submit" className="auth-submit-btn" disabled={isLoading}>
+            <button 
+              type="submit" 
+              className="auth-submit-btn" 
+              disabled={isLoading || isSubmitting}
+            >
               {isLoading ? 'Отправка...' : mode === 'register' ? 'Создать аккаунт' : 'Войти'}
             </button>
           </form>

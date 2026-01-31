@@ -1,5 +1,4 @@
-// Marketplace.tsx - с поиском, центрированным заголовком и API из mocks.ts
-"use client";
+"use client"
 
 import { useState, useMemo, ChangeEvent, useEffect } from "react";
 import { mockAPI } from "../api/mocks";
@@ -25,7 +24,7 @@ interface MarketItem {
 }
 
 export default function Marketplace({ onClose }: MarketplaceProps) {
-  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [activeFilter, setActiveFilter] = useState<ItemType | "all">("all");
   const [isCreatingAd, setIsCreatingAd] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -34,22 +33,27 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
   const [items, setItems] = useState<MarketItem[]>([]);
 
   const filters = [
-    { id: "all", label: "Все объявления" },
-    { id: "sell", label: "Продажа" },
-    { id: "buy", label: "Покупка" },
-    { id: "free", label: "Бесплатно" },
-    { id: "exchange", label: "Обмен" },
-    { id: "auction", label: "Аукцион" }
+    { id: "all" as ItemType | "all", label: "Все объявления" },
+    { id: "sell" as ItemType | "all", label: "Продажа" },
+    { id: "buy" as ItemType | "all", label: "Покупка" },
+    { id: "free" as ItemType | "all", label: "Бесплатно" },
+    { id: "exchange" as ItemType | "all", label: "Обмен" },
+    { id: "auction" as ItemType | "all", label: "Аукцион" }
   ];
 
-  // Загрузка данных с API
+  // Загрузка данных с помощью API
   useEffect(() => {
     const loadItems = async () => {
       setIsLoading(true);
       setApiError(null);
       
       try {
-        const result = await mockAPI.marketplace.loadItems(activeFilter);
+        // Создаем объект фильтра на основе activeFilter
+        const filters = {
+          type: activeFilter === "all" ? undefined : activeFilter
+        };
+        
+        const result = await mockAPI.marketplace.loadItems(filters);
         
         if (result.success && result.data) {
           setItems(result.data);
@@ -142,8 +146,8 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
         alert(result.error || "Не удалось создать объявление");
       }
     } catch (error) {
-      console.error("Ошибка создания объявления:", error);
-      alert("Не удалось создать объявление. Попробуйте еще раз.");
+      console.error("Ошибка при создании объявления:", error);
+      alert("Не удалось создать объявление. Попробуйте ещё раз.");
     } finally {
       setIsLoading(false);
     }
@@ -154,7 +158,12 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
     setIsLoading(true);
     
     try {
-      const result = await mockAPI.marketplace.contactAuthor(itemId);
+      const result = await mockAPI.marketplace.contactAuthor({
+        itemId: itemId,
+        message: "Здравствуйте! Я заинтересован в вашем объявлении",
+        contactMethod: "message" // или 'email', 'phone' в зависимости от выбора пользователя
+        // contactInfo: "опциональная контактная информация"
+      });
       
       if (result.success) {
         const item = items.find(i => i.id === itemId);
@@ -163,8 +172,8 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
         alert(result.error || "Не удалось отправить сообщение");
       }
     } catch (error) {
-      console.error("Ошибка отправки сообщения:", error);
-      alert("Не удалось отправить сообщение. Попробуйте еще раз.");
+      console.error("Ошибка при отправке сообщения:", error);
+      alert("Не удалось отправить сообщение. Попробуйте ещё раз.");
     } finally {
       setIsLoading(false);
     }
@@ -313,23 +322,23 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
               <div className="type-selector">
                 <label className="type-option">
                   <input type="radio" name="type" value="sell" defaultChecked />
-                  <span>Продажа</span>
+                  Продажа
                 </label>
                 <label className="type-option">
                   <input type="radio" name="type" value="buy" />
-                  <span>Покупка</span>
+                  Покупка
                 </label>
                 <label className="type-option">
                   <input type="radio" name="type" value="free" />
-                  <span>Бесплатно</span>
+                  Бесплатно
                 </label>
                 <label className="type-option">
                   <input type="radio" name="type" value="exchange" />
-                  <span>Обмен</span>
+                  Обмен
                 </label>
                 <label className="type-option">
                   <input type="radio" name="type" value="auction" />
-                  <span>Аукцион</span>
+                  Аукцион
                 </label>
               </div>
 
@@ -399,7 +408,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                   type="text" 
                   name="contact"
                   required 
-                  placeholder="Телефон, email или другой способ связи" 
+                  placeholder="Телефон, электронная почта или другой способ связи" 
                 />
               </div>
 
@@ -468,7 +477,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                   <div className="item-meta">
                     <div className="item-price">
                       {item.price === "free" ? (
-                        <span className="price-free">Бесплатно</span>
+                        <span className="free-price">Бесплатно</span>
                       ) : (
                         <>
                           <span className="price-amount">{item.price.toLocaleString()} ₽</span>
@@ -484,9 +493,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                       <span className="author-name">{item.author}</span>
                       <span className="author-rating">★ {item.rating}</span>
                     </div>
-                    <button 
-                      className="contact-btn"
-                      onClick={() => handleContact(item.id)}
+                    <button className="contact-btn" onClick={() => handleContact(item.id)}
                       disabled={isLoading}
                     >
                       Связаться

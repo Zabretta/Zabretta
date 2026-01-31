@@ -41,6 +41,135 @@
   margin: 0;
 }
 
+/* === Стили для поиска === */
+.search-container {
+  flex: 1;
+  max-width: 500px;
+  margin: 0 25px;
+  position: relative;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input {
+  width: 100%;
+  padding: 14px 50px 14px 20px;
+  background: rgba(43, 32, 28, 0.9);
+  border: 2px solid #8B7355;
+  border-radius: 50px;
+  color: #F5DEB3;
+  font-size: 1em;
+  font-weight: 500;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.search-input::placeholder {
+  color: #BCAAA4;
+  opacity: 0.8;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #D2691E;
+  background: rgba(43, 32, 28, 1);
+  box-shadow: 0 4px 15px rgba(210, 105, 30, 0.3);
+}
+
+.search-icon {
+  position: absolute;
+  right: 20px;
+  color: #BCAAA4;
+  font-size: 1.2em;
+  pointer-events: none;
+  transition: color 0.3s ease;
+}
+
+.search-input:focus + .search-icon {
+  color: #D2691E;
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 50px;
+  background: none;
+  border: none;
+  color: #8B7355;
+  font-size: 1.1em;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.clear-search-btn:hover {
+  color: #D2691E;
+  background: rgba(210, 105, 30, 0.1);
+}
+
+/* Выпадающие подсказки */
+.search-suggestions {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  background: rgba(43, 32, 28, 0.98);
+  border: 2px solid #8B4513;
+  border-radius: 10px;
+  z-index: 1000;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+}
+
+.suggestion-item {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border-bottom: 1px solid rgba(93, 64, 55, 0.5);
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover {
+  background: rgba(139, 69, 19, 0.3);
+}
+
+.suggestion-icon {
+  color: #D2691E;
+  font-size: 0.9em;
+}
+
+.suggestion-text {
+  color: #D7CCC8;
+  font-size: 0.95em;
+}
+
+/* Сообщение об ошибке */
+.api-error-message {
+  text-align: center;
+  background: rgba(183, 28, 28, 0.2);
+  color: #EF9A9A;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #C62828;
+  margin-top: 15px;
+  font-weight: 500;
+}
+
 .close-marketplace {
   background: rgba(139, 69, 19, 0.3);
   border: 2px solid #8B4513;

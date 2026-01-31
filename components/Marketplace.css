@@ -311,6 +311,198 @@
   margin-bottom: 0;
 }
 
+/* === Стили для загрузки файлов === */
+.file-input-container {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.file-input {
+  width: 100%;
+  padding: 14px 20px;
+  background: rgba(245, 222, 179, 0.1);
+  border: 2px solid #8B7355;
+  border-radius: 6px;
+  color: #D7CCC8;
+  font-size: 1em;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.file-input::-webkit-file-upload-button {
+  background: rgba(139, 69, 19, 0.3);
+  border: 1px solid #8B4513;
+  border-radius: 4px;
+  color: #F5DEB3;
+  padding: 8px 16px;
+  margin-right: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.file-input::-webkit-file-upload-button:hover {
+  background: rgba(210, 105, 30, 0.4);
+  border-color: #D2691E;
+}
+
+.file-input:focus {
+  outline: none;
+  border-color: #D2691E;
+  background: rgba(245, 222, 179, 0.15);
+  box-shadow: 0 0 0 2px rgba(210, 105, 30, 0.2);
+}
+
+.file-input::file-selector-button {
+  background: rgba(139, 69, 19, 0.3);
+  border: 1px solid #8B4513;
+  border-radius: 4px;
+  color: #F5DEB3;
+  padding: 8px 16px;
+  margin-right: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.file-input::file-selector-button:hover {
+  background: rgba(210, 105, 30, 0.4);
+  border-color: #D2691E;
+}
+
+.file-input-info {
+  display: block;
+  margin-top: 8px;
+  color: #8B7355;
+  font-size: 0.85em;
+  font-style: italic;
+}
+
+.file-preview {
+  margin-top: 15px;
+  display: none;
+}
+
+.file-preview.active {
+  display: block;
+}
+
+.file-preview-image {
+  max-width: 200px;
+  max-height: 150px;
+  border-radius: 6px;
+  border: 2px solid #5D4037;
+  object-fit: cover;
+}
+
+.file-remove-btn {
+  background: rgba(183, 28, 28, 0.2);
+  border: 1px solid #C62828;
+  color: #EF9A9A;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 0.85em;
+  margin-left: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.file-remove-btn:hover {
+  background: rgba(198, 40, 40, 0.3);
+}
+
+/* === Стили для чекбокса "Цена договорная" === */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  margin: 25px 0 15px 0;
+  padding: 16px 20px;
+  background: rgba(93, 64, 55, 0.2);
+  border-radius: 10px;
+  border: 1px solid #5D4037;
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.checkbox-label:hover {
+  background: rgba(93, 64, 55, 0.3);
+  border-color: #8B7355;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.checkbox-label:has(input[type="checkbox"]:checked) {
+  background: rgba(139, 69, 19, 0.15);
+  border-color: #8B4513;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #D2691E;
+  background: rgba(245, 222, 179, 0.1);
+  border: 2px solid #8B7355;
+  border-radius: 6px;
+  position: relative;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.checkbox-label input[type="checkbox"]:checked {
+  background-color: #D2691E;
+  border-color: #D2691E;
+  position: relative;
+}
+
+.checkbox-label input[type="checkbox"]:checked::before {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.checkbox-label input[type="checkbox"]:focus {
+  outline: 2px solid rgba(210, 105, 30, 0.5);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(210, 105, 30, 0.1);
+}
+
+.checkbox-label span {
+  color: #F5DEB3;
+  font-size: 1.05em;
+  font-weight: 600;
+  flex: 1;
+  line-height: 1.4;
+}
+
+.checkbox-label:hover span {
+  color: #FFE4B5;
+}
+
+.checkbox-hint {
+  display: block;
+  margin-top: 8px;
+  color: #8B7355;
+  font-size: 0.85em;
+  font-style: italic;
+  margin-left: 36px;
+  line-height: 1.4;
+}
+
 /* Секция выбора срока публикации */
 .duration-section {
   background: rgba(93, 64, 55, 0.3);
@@ -553,19 +745,6 @@
   outline: none;
   border-color: #D2691E;
   background: rgba(245, 222, 179, 0.15);
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.checkbox-label input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
 }
 
 .form-actions {
@@ -880,6 +1059,20 @@
   .filter-btn {
     min-width: 120px;
   }
+  
+  .checkbox-label {
+    padding: 14px 16px;
+    margin: 20px 0 12px 0;
+  }
+  
+  .checkbox-label input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+  }
+  
+  .checkbox-hint {
+    margin-left: 34px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -894,5 +1087,31 @@
   .submit-btn,
   .cancel-btn {
     width: 100%;
+  }
+  
+  .file-input {
+    padding: 12px 15px;
+  }
+  
+  .file-input::-webkit-file-upload-button {
+    padding: 6px 12px;
+    margin-right: 10px;
+  }
+  
+  .checkbox-label {
+    padding: 12px 14px;
+  }
+  
+  .checkbox-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .checkbox-label input[type="checkbox"]:checked::before {
+    font-size: 12px;
+  }
+  
+  .checkbox-hint {
+    margin-left: 32px;
   }
 }

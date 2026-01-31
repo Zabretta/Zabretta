@@ -6,6 +6,7 @@ import { APIResponse } from './types';
 // === ТИПЫ БАРАХОЛКИ ===
 
 export type ItemType = "sell" | "buy" | "free" | "exchange" | "auction";
+export type DurationType = "2weeks" | "1month" | "2months";
 
 export interface MarketItem {
   id: number;
@@ -22,6 +23,8 @@ export interface MarketItem {
   updatedAt?: string;
   views?: number;
   contacts?: number;
+  expirationDate?: string; // Дата истечения срока объявления
+  duration?: DurationType; // Выбранный срок публикации
 }
 
 export interface CreateItemData {
@@ -32,6 +35,7 @@ export interface CreateItemData {
   type: ItemType;
   imageUrl?: string;
   negotiable?: boolean;
+  duration?: DurationType; // Добавлено: срок публикации
 }
 
 export interface ContactAuthorData {
@@ -48,6 +52,7 @@ export interface MarketFilters {
   maxPrice?: number;
   search?: string;
   sortBy?: 'newest' | 'oldest' | 'price_low' | 'price_high' | 'rating';
+  activeOnly?: boolean; // Только активные объявления (не истекшие)
 }
 
 // === УТИЛИТЫ ===
@@ -55,6 +60,49 @@ export interface MarketFilters {
 const simulateNetworkDelay = () => new Promise(resolve => 
   setTimeout(resolve, Math.random() * 500 + 200)
 );
+
+// Функция для расчета даты истечения
+const calculateExpirationDate = (duration?: DurationType): string => {
+  if (!duration) return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // По умолчанию 30 дней
+  
+  const now = new Date();
+  const expirationDate = new Date(now);
+  
+  switch (duration) {
+    case "2weeks":
+      expirationDate.setDate(now.getDate() + 14);
+      break;
+    case "1month":
+      expirationDate.setMonth(now.getMonth() + 1);
+      break;
+    case "2months":
+      expirationDate.setMonth(now.getMonth() + 2);
+      break;
+  }
+  
+  return expirationDate.toISOString();
+};
+
+// Функция проверки истекших объявлений
+const isExpired = (expirationDate?: string): boolean => {
+  if (!expirationDate) return false;
+  return new Date(expirationDate) < new Date();
+};
+
+// Функция для автоматической очистки истекших объявлений
+const cleanupExpiredItems = (): void => {
+  try {
+    const userItems = JSON.parse(localStorage.getItem('marketplace_user_items') || '[]');
+    const activeItems = userItems.filter((item: MarketItem) => !isExpired(item.expirationDate));
+    
+    if (activeItems.length !== userItems.length) {
+      localStorage.setItem('marketplace_user_items', JSON.stringify(activeItems));
+      console.log(`[MARKET] Автоочистка: удалено ${userItems.length - activeItems.length} истекших объявлений`);
+    }
+  } catch (error) {
+    console.error('[MARKET] Ошибка при автоочистке объявлений:', error);
+  }
+};
 
 // Демо данные для барахолки
 const DEMO_ITEMS: MarketItem[] = [
@@ -72,7 +120,9 @@ const DEMO_ITEMS: MarketItem[] = [
     createdAt: "2024-03-10T14:30:00Z",
     updatedAt: "2024-03-12T09:15:00Z",
     views: 124,
-    contacts: 8
+    contacts: 8,
+    expirationDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(), // Через 45 дней
+    duration: "1month"
   },
   {
     id: 2,
@@ -88,7 +138,9 @@ const DEMO_ITEMS: MarketItem[] = [
     createdAt: "2024-03-14T11:20:00Z",
     updatedAt: "2024-03-14T11:20:00Z",
     views: 89,
-    contacts: 5
+    contacts: 5,
+    expirationDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // Через 60 дней
+    duration: "2months"
   },
   {
     id: 3,
@@ -104,7 +156,9 @@ const DEMO_ITEMS: MarketItem[] = [
     createdAt: "2024-03-13T16:45:00Z",
     updatedAt: "2024-03-13T16:45:00Z",
     views: 156,
-    contacts: 12
+    contacts: 12,
+    expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // Через 30 дней
+    duration: "1month"
   },
   {
     id: 4,
@@ -120,7 +174,9 @@ const DEMO_ITEMS: MarketItem[] = [
     createdAt: "2024-03-12T09:30:00Z",
     updatedAt: "2024-03-12T09:30:00Z",
     views: 67,
-    contacts: 3
+    contacts: 3,
+    expirationDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // Через 14 дней
+    duration: "2weeks"
   },
   {
     id: 5,
@@ -136,7 +192,9 @@ const DEMO_ITEMS: MarketItem[] = [
     createdAt: "2024-03-11T13:15:00Z",
     updatedAt: "2024-03-11T13:15:00Z",
     views: 203,
-    contacts: 15
+    contacts: 15,
+    expirationDate: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(), // Через 20 дней
+    duration: "2weeks"
   },
   {
     id: 6,
@@ -152,7 +210,9 @@ const DEMO_ITEMS: MarketItem[] = [
     createdAt: "2024-03-15T10:00:00Z",
     updatedAt: "2024-03-15T10:00:00Z",
     views: 45,
-    contacts: 2
+    contacts: 2,
+    expirationDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // Через 60 дней
+    duration: "2months"
   }
 ];
 
@@ -197,9 +257,14 @@ const applyFilters = (items: MarketItem[], filters: MarketFilters): MarketItem[]
     );
   }
   
+  // Фильтр по активности (только не истекшие объявления)
+  if (filters.activeOnly) {
+    result = result.filter(item => !isExpired(item.expirationDate));
+  }
+  
   // Сортировка
   if (filters.sortBy) {
-    result.sort((a, b) => {
+    result.sort((a: MarketItem, b: MarketItem) => {
       switch (filters.sortBy) {
         case 'newest':
           return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
@@ -230,6 +295,9 @@ const applyFilters = (items: MarketItem[], filters: MarketFilters): MarketItem[]
 export const loadMarketItems = async (filters?: MarketFilters): Promise<APIResponse<MarketItem[]>> => {
   console.log(`[API MOCKS] Загрузка объявлений с фильтрами:`, filters);
   await simulateNetworkDelay();
+  
+  // Автоматическая очистка истекших объявлений перед загрузкой
+  cleanupExpiredItems();
   
   // 1. Загружаем пользовательские объявления из localStorage
   let userItems: MarketItem[] = [];
@@ -298,7 +366,10 @@ export const createMarketItem = async (itemData: CreateItemData): Promise<APIRes
     };
   }
   
-  // Создаем новое объявление
+  // Установка срока по умолчанию, если не указан
+  const duration = itemData.duration || "1month";
+  
+  // Создаем новое объявление с датой истечения
   const newItem: MarketItem = {
     ...itemData,
     id: Date.now(),
@@ -307,7 +378,9 @@ export const createMarketItem = async (itemData: CreateItemData): Promise<APIRes
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     views: 0,
-    contacts: 0
+    contacts: 0,
+    duration: duration,
+    expirationDate: calculateExpirationDate(duration)
   };
   
   // Сохраняем в localStorage
@@ -317,6 +390,7 @@ export const createMarketItem = async (itemData: CreateItemData): Promise<APIRes
     localStorage.setItem('marketplace_user_items', JSON.stringify(userItems));
     
     console.log('[API MOCKS] Объявление создано и сохранено:', newItem);
+    console.log(`[MARKET] Объявление будет активно до: ${newItem.expirationDate}`);
     
   } catch (error) {
     console.error('[MARKET] Ошибка сохранения объявления:', error);
@@ -347,6 +421,26 @@ export const contactItemAuthor = async (contactData: ContactAuthorData): Promise
       error: 'Не указан ID объявления',
       timestamp: new Date().toISOString()
     };
+  }
+  
+  // Проверяем, не истекло ли объявление
+  try {
+    const userItems = JSON.parse(localStorage.getItem('marketplace_user_items') || '[]');
+    const userItem = userItems.find((item: MarketItem) => item.id === contactData.itemId);
+    
+    // Также проверяем демо-объявления
+    const demoItem = DEMO_ITEMS.find(item => item.id === contactData.itemId);
+    const targetItem = userItem || demoItem;
+    
+    if (targetItem && isExpired(targetItem.expirationDate)) {
+      return {
+        success: false,
+        error: 'Срок действия этого объявления истек',
+        timestamp: new Date().toISOString()
+      };
+    }
+  } catch (error) {
+    console.error('[MARKET] Ошибка проверки срока объявления:', error);
   }
   
   // Создаем запись о контакте
@@ -399,6 +493,16 @@ export const getMarketItemById = async (itemId: number): Promise<APIResponse<Mar
     
     if (userItem) {
       console.log(`[MARKET] Найдено пользовательское объявление #${itemId}`);
+      // Проверяем, не истекло ли объявление
+      if (isExpired(userItem.expirationDate)) {
+        console.log(`[MARKET] Объявление #${itemId} истекло`);
+        return {
+          success: false,
+          error: 'Срок действия этого объявления истек',
+          timestamp: new Date().toISOString()
+        };
+      }
+      
       return {
         success: true,
         data: userItem,
@@ -445,9 +549,24 @@ export const updateMarketItem = async (itemId: number, updates: Partial<MarketIt
       };
     }
     
+    // Проверяем, не истекло ли объявление
+    const currentItem = userItems[itemIndex];
+    if (isExpired(currentItem.expirationDate)) {
+      return {
+        success: false,
+        error: 'Нельзя обновить истекшее объявление',
+        timestamp: new Date().toISOString()
+      };
+    }
+    
+    // Если обновляется срок, пересчитываем дату истечения
+    if (updates.duration) {
+      updates.expirationDate = calculateExpirationDate(updates.duration);
+    }
+    
     // Обновляем объявление
     const updatedItem = {
-      ...userItems[itemIndex],
+      ...currentItem,
       ...updates,
       updatedAt: new Date().toISOString()
     };
@@ -516,6 +635,195 @@ export const deleteMarketItem = async (itemId: number): Promise<APIResponse<{ de
   }
 };
 
+// Получение активных объявлений пользователя
+export const getUserActiveItems = async (): Promise<APIResponse<MarketItem[]>> => {
+  console.log('[API MOCKS] Получение активных объявлений пользователя');
+  await simulateNetworkDelay();
+  
+  try {
+    const userItems = JSON.parse(localStorage.getItem('marketplace_user_items') || '[]');
+    const activeItems = userItems.filter((item: MarketItem) => !isExpired(item.expirationDate));
+    
+    console.log(`[MARKET] Активных объявлений пользователя: ${activeItems.length} из ${userItems.length}`);
+    
+    const mockResponse: APIResponse<MarketItem[]> = {
+      success: true,
+      data: activeItems,
+      timestamp: new Date().toISOString()
+    };
+    
+    return mockResponse;
+    
+  } catch (error) {
+    console.error('[MARKET] Ошибка получения активных объявлений:', error);
+    return {
+      success: false,
+      error: 'Ошибка получения активных объявлений',
+      timestamp: new Date().toISOString()
+    };
+  }
+};
+
+// Получение истекших объявлений пользователя
+export const getUserExpiredItems = async (): Promise<APIResponse<MarketItem[]>> => {
+  console.log('[API MOCKS] Получение истекших объявлений пользователя');
+  await simulateNetworkDelay();
+  
+  try {
+    const userItems = JSON.parse(localStorage.getItem('marketplace_user_items') || '[]');
+    const expiredItems = userItems.filter((item: MarketItem) => isExpired(item.expirationDate));
+    
+    console.log(`[MARKET] Истекших объявлений пользователя: ${expiredItems.length} из ${userItems.length}`);
+    
+    const mockResponse: APIResponse<MarketItem[]> = {
+      success: true,
+      data: expiredItems,
+      timestamp: new Date().toISOString()
+    };
+    
+    return mockResponse;
+    
+  } catch (error) {
+    console.error('[MARKET] Ошибка получения истекших объявлений:', error);
+    return {
+      success: false,
+      error: 'Ошибка получения истекших объявлений',
+      timestamp: new Date().toISOString()
+    };
+  }
+};
+
+// Продление срока объявления
+export const extendItemDuration = async (
+  itemId: number, 
+  duration: DurationType
+): Promise<APIResponse<MarketItem>> => {
+  console.log(`[API MOCKS] Продление объявления #${itemId} на срок: ${duration}`);
+  await simulateNetworkDelay();
+  
+  try {
+    const userItems = JSON.parse(localStorage.getItem('marketplace_user_items') || '[]');
+    const itemIndex = userItems.findIndex((item: MarketItem) => item.id === itemId);
+    
+    if (itemIndex === -1) {
+      return {
+        success: false,
+        error: 'Объявление не найдено или вы не являетесь его автором',
+        timestamp: new Date().toISOString()
+      };
+    }
+    
+    const currentItem = userItems[itemIndex];
+    
+    // Проверяем, не истекло ли объявление
+    if (isExpired(currentItem.expirationDate)) {
+      return {
+        success: false,
+        error: 'Нельзя продлить истекшее объявление. Создайте новое.',
+        timestamp: new Date().toISOString()
+      };
+    }
+    
+    // Рассчитываем новую дату истечения
+    const newExpirationDate = calculateExpirationDate(duration);
+    
+    // Обновляем объявление
+    const updatedItem = {
+      ...currentItem,
+      duration,
+      expirationDate: newExpirationDate,
+      updatedAt: new Date().toISOString()
+    };
+    
+    userItems[itemIndex] = updatedItem;
+    localStorage.setItem('marketplace_user_items', JSON.stringify(userItems));
+    
+    console.log(`[API MOCKS] Объявление #${itemId} продлено до: ${newExpirationDate}`);
+    
+    const mockResponse: APIResponse<MarketItem> = {
+      success: true,
+      data: updatedItem,
+      timestamp: new Date().toISOString()
+    };
+    
+    return mockResponse;
+    
+  } catch (error) {
+    console.error('[MARKET] Ошибка продления объявления:', error);
+    return {
+      success: false,
+      error: 'Ошибка продления объявления',
+      timestamp: new Date().toISOString()
+    };
+  }
+};
+
+// Получение статистики по срокам объявлений
+export const getDurationStats = async (): Promise<APIResponse<{
+  totalItems: number;
+  activeItems: number;
+  expiredItems: number;
+  byDuration: Record<DurationType, number>;
+  recentExpirations: Array<{ itemId: number; title: string; expiredAt: string }>;
+}>> => {
+  console.log('[API MOCKS] Получение статистики по срокам объявлений');
+  await simulateNetworkDelay();
+  
+  try {
+    const userItems = JSON.parse(localStorage.getItem('marketplace_user_items') || '[]');
+    
+    // Статистика по активности
+    const activeItems = userItems.filter((item: MarketItem) => !isExpired(item.expirationDate));
+    const expiredItems = userItems.filter((item: MarketItem) => isExpired(item.expirationDate));
+    
+    // Статистика по срокам
+    const byDuration: Record<DurationType, number> = {
+      "2weeks": userItems.filter((item: MarketItem) => item.duration === "2weeks").length,
+      "1month": userItems.filter((item: MarketItem) => item.duration === "1month").length,
+      "2months": userItems.filter((item: MarketItem) => item.duration === "2months").length
+    };
+    
+    // Недавно истекшие объявления
+    const recentExpirations = expiredItems
+      .sort((a: MarketItem, b: MarketItem) => new Date(b.expirationDate || 0).getTime() - new Date(a.expirationDate || 0).getTime())
+      .slice(0, 5)
+      .map((item: MarketItem) => ({
+        itemId: item.id,
+        title: item.title,
+        expiredAt: item.expirationDate || ''
+      }));
+    
+    const mockResponse: APIResponse<{
+      totalItems: number;
+      activeItems: number;
+      expiredItems: number;
+      byDuration: Record<DurationType, number>;
+      recentExpirations: Array<{ itemId: number; title: string; expiredAt: string }>;
+    }> = {
+      success: true,
+      data: {
+        totalItems: userItems.length,
+        activeItems: activeItems.length,
+        expiredItems: expiredItems.length,
+        byDuration,
+        recentExpirations
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('[API MOCKS] Статистика по срокам:', mockResponse.data);
+    return mockResponse;
+    
+  } catch (error) {
+    console.error('[MARKET] Ошибка получения статистики по срокам:', error);
+    return {
+      success: false,
+      error: 'Ошибка получения статистики по срокам',
+      timestamp: new Date().toISOString()
+    };
+  }
+};
+
 // Получение статистики барахолки (для админки)
 export const getMarketStats = async (): Promise<APIResponse<{
   totalItems: number;
@@ -523,6 +831,11 @@ export const getMarketStats = async (): Promise<APIResponse<{
   dailyAverage: number;
   topLocations: Array<{ location: string; count: number }>;
   recentActivity: Array<{ date: string; created: number; contacts: number }>;
+  expirationStats: {
+    active: number;
+    expired: number;
+    expiringSoon: number;
+  };
 }>> => {
   console.log('[API MOCKS] Получение статистики барахолки');
   await simulateNetworkDelay();
@@ -533,17 +846,17 @@ export const getMarketStats = async (): Promise<APIResponse<{
     
     // Статистика по типам
     const itemsByType: Record<ItemType | 'total', number> = {
-      sell: allItems.filter(item => item.type === 'sell').length,
-      buy: allItems.filter(item => item.type === 'buy').length,
-      free: allItems.filter(item => item.type === 'free').length,
-      exchange: allItems.filter(item => item.type === 'exchange').length,
-      auction: allItems.filter(item => item.type === 'auction').length,
+      sell: allItems.filter((item: MarketItem) => item.type === 'sell').length,
+      buy: allItems.filter((item: MarketItem) => item.type === 'buy').length,
+      free: allItems.filter((item: MarketItem) => item.type === 'free').length,
+      exchange: allItems.filter((item: MarketItem) => item.type === 'exchange').length,
+      auction: allItems.filter((item: MarketItem) => item.type === 'auction').length,
       total: allItems.length
     };
     
     // Топ локаций
     const locationCounts: Record<string, number> = {};
-    allItems.forEach(item => {
+    allItems.forEach((item: MarketItem) => {
       locationCounts[item.location] = (locationCounts[item.location] || 0) + 1;
     });
     
@@ -551,6 +864,21 @@ export const getMarketStats = async (): Promise<APIResponse<{
       .map(([location, count]) => ({ location, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
+    
+    // Статистика по истечению сроков (только для пользовательских объявлений)
+    const activeItems = userItems.filter((item: MarketItem) => !isExpired(item.expirationDate));
+    const expiredItems = userItems.filter((item: MarketItem) => isExpired(item.expirationDate));
+    
+    // Объявления, срок которых истекает в ближайшие 3 дня
+    const threeDaysFromNow = new Date();
+    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+    
+    const expiringSoon = userItems.filter((item: MarketItem) => {
+      if (!item.expirationDate) return false;
+      const expDate = new Date(item.expirationDate);
+      const now = new Date();
+      return expDate > now && expDate <= threeDaysFromNow;
+    });
     
     // Демо данные для активности
     const recentActivity = [
@@ -567,6 +895,11 @@ export const getMarketStats = async (): Promise<APIResponse<{
       dailyAverage: number;
       topLocations: Array<{ location: string; count: number }>;
       recentActivity: Array<{ date: string; created: number; contacts: number }>;
+      expirationStats: {
+        active: number;
+        expired: number;
+        expiringSoon: number;
+      };
     }> = {
       success: true,
       data: {
@@ -574,7 +907,12 @@ export const getMarketStats = async (): Promise<APIResponse<{
         itemsByType,
         dailyAverage: Math.round(allItems.length / 30),
         topLocations,
-        recentActivity
+        recentActivity,
+        expirationStats: {
+          active: activeItems.length,
+          expired: expiredItems.length,
+          expiringSoon: expiringSoon.length
+        }
       },
       timestamp: new Date().toISOString()
     };
@@ -604,5 +942,11 @@ export const marketAPI = {
   deleteItem: deleteMarketItem,
   
   // Дополнительные функции
-  getStats: getMarketStats
+  getStats: getMarketStats,
+  
+  // Новые функции для управления сроками
+  getUserActiveItems: getUserActiveItems,
+  getUserExpiredItems: getUserExpiredItems,
+  extendItemDuration: extendItemDuration,
+  getDurationStats: getDurationStats
 };

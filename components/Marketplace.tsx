@@ -9,6 +9,7 @@ interface MarketplaceProps {
 }
 
 type ItemType = "sell" | "buy" | "free" | "exchange" | "auction";
+type DurationType = "2weeks" | "1month" | "2months";
 
 interface MarketItem {
   id: number;
@@ -21,6 +22,8 @@ interface MarketItem {
   type: ItemType;
   imageUrl?: string;
   negotiable?: boolean;
+  expirationDate?: string; // Добавлено новое поле
+  duration?: DurationType; // Добавлено для отслеживания выбранного срока
 }
 
 export default function Marketplace({ onClose }: MarketplaceProps) {
@@ -31,6 +34,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [items, setItems] = useState<MarketItem[]>([]);
+  const [selectedDuration, setSelectedDuration] = useState<DurationType>("1month"); // Состояние для выбранного срока
 
   const filters = [
     { id: "all" as ItemType | "all", label: "Все объявления" },
@@ -40,6 +44,32 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
     { id: "exchange" as ItemType | "all", label: "Обмен" },
     { id: "auction" as ItemType | "all", label: "Аукцион" }
   ];
+
+  const durationOptions = [
+    { id: "2weeks" as DurationType, label: "2 недели", description: "Короткий срок" },
+    { id: "1month" as DurationType, label: "1 месяц", description: "Стандартный срок" },
+    { id: "2months" as DurationType, label: "2 месяца", description: "Длительный срок" }
+  ];
+
+  // Функция для расчета даты истечения
+  const calculateExpirationDate = (duration: DurationType): string => {
+    const now = new Date();
+    const expirationDate = new Date(now);
+    
+    switch (duration) {
+      case "2weeks":
+        expirationDate.setDate(now.getDate() + 14);
+        break;
+      case "1month":
+        expirationDate.setMonth(now.getMonth() + 1);
+        break;
+      case "2months":
+        expirationDate.setMonth(now.getMonth() + 2);
+        break;
+    }
+    
+    return expirationDate.toISOString().split('T')[0]; // Возвращаем дату в формате YYYY-MM-DD
+  };
 
   // Загрузка данных с помощью API
   useEffect(() => {
@@ -113,6 +143,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
 
   const handleCancelCreateAd = () => {
     setIsCreatingAd(false);
+    setSelectedDuration("1month"); // Сбрасываем выбор срока
   };
 
   // Используем API из mocks.ts
@@ -125,6 +156,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
       const formData = new FormData(form);
       
       const priceValue = formData.get("price") as string;
+      const expirationDate = calculateExpirationDate(selectedDuration);
       
       const newItemData = {
         title: formData.get("title") as string || "Новое объявление",
@@ -134,14 +166,17 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
         author: "Текущий пользователь",
         type: (formData.get("type") as ItemType) || "sell",
         negotiable: formData.get("negotiable") === "on",
+        expirationDate: expirationDate,
+        duration: selectedDuration
       };
       
       const result = await mockAPI.marketplace.createItem(newItemData);
       
       if (result.success && result.data) {
         setItems(prev => [result.data!, ...prev]);
-        alert(`Объявление "${result.data.title}" успешно создано!`);
+        alert(`Объявление "${result.data.title}" успешно создано! Будет активно до ${expirationDate}`);
         setIsCreatingAd(false);
+        setSelectedDuration("1month"); // Сбрасываем выбор срока
       } else {
         alert(result.error || "Не удалось создать объявление");
       }
@@ -224,6 +259,16 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
       "auction": "🔨"
     };
     return icons[type];
+  };
+
+  const formatExpirationDate = (dateString?: string) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
   };
 
   return (
@@ -322,23 +367,23 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
               <div className="type-selector">
                 <label className="type-option">
                   <input type="radio" name="type" value="sell" defaultChecked />
-                  Продажа
+                  <span>Продажа</span>
                 </label>
                 <label className="type-option">
                   <input type="radio" name="type" value="buy" />
-                  Покупка
+                  <span>Покупка</span>
                 </label>
                 <label className="type-option">
                   <input type="radio" name="type" value="free" />
-                  Бесплатно
+                  <span>Бесплатно</span>
                 </label>
                 <label className="type-option">
                   <input type="radio" name="type" value="exchange" />
-                  Обмен
+                  <span>Обмен</span>
                 </label>
                 <label className="type-option">
                   <input type="radio" name="type" value="auction" />
-                  Аукцион
+                  <span>Аукцион</span>
                 </label>
               </div>
 
@@ -402,6 +447,51 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                 />
               </div>
 
+              {/* Новая секция: Срок публикации */}
+              <div className="duration-section">
+                <div className="duration-header">
+                  <h4>Срок публикации объявления</h4>
+                  <div className="duration-notice">
+                    <span className="notice-icon">ℹ️</span>
+                    <span className="notice-text">После окончания срока ваше объявление автоматически удалится и вы сможете подать новое</span>
+                  </div>
+                </div>
+                
+                <div className="duration-options">
+                  {durationOptions.map(option => (
+                    <div 
+                      key={option.id}
+                      className={`duration-option ${selectedDuration === option.id ? "active" : ""}`}
+                      onClick={() => setSelectedDuration(option.id)}
+                    >
+                      <div className="duration-option-header">
+                        <div className="duration-radio">
+                          <input
+                            type="radio"
+                            id={`duration-${option.id}`}
+                            name="duration"
+                            value={option.id}
+                            checked={selectedDuration === option.id}
+                            onChange={() => setSelectedDuration(option.id)}
+                          />
+                          <span className="radio-custom"></span>
+                        </div>
+                        <label 
+                          htmlFor={`duration-${option.id}`}
+                          className="duration-label"
+                        >
+                          {option.label}
+                        </label>
+                      </div>
+                      <div className="duration-description">{option.description}</div>
+                      <div className="duration-date">
+                        Активно до: {formatExpirationDate(calculateExpirationDate(option.id))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="form-group">
                 <label>Контактная информация *</label>
                 <input 
@@ -461,6 +551,14 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                   <span className="badge-icon">{getTypeIcon(item.type)}</span>
                   <span className="badge-text">{getTypeLabel(item.type)}</span>
                 </div>
+                {item.expirationDate && (
+                  <div className="item-expiration">
+                    <span className="expiration-icon">⏰</span>
+                    <span className="expiration-text">
+                      до {formatExpirationDate(item.expirationDate)}
+                    </span>
+                  </div>
+                )}
                 <div className="item-image">
                   {item.imageUrl ? (
                     <img src={item.imageUrl} alt={item.title} />

@@ -6,6 +6,12 @@ import "./Marketplace.css";
 
 interface MarketplaceProps {
   onClose: () => void;
+  currentUser?: {
+    id: string;
+    login: string;
+    email: string;
+    role?: string;
+  } | null;
 }
 
 type ItemType = "sell" | "buy" | "free" | "exchange" | "auction";
@@ -30,7 +36,7 @@ interface MarketItem {
   contacts?: number;
 }
 
-export default function Marketplace({ onClose }: MarketplaceProps) {
+export default function Marketplace({ onClose, currentUser }: MarketplaceProps) {
   const [activeFilter, setActiveFilter] = useState<ItemType | "all">("all");
   const [isCreatingAd, setIsCreatingAd] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -174,6 +180,10 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
   }, [items, searchQuery]);
 
   const handleCreateAd = () => {
+    if (!currentUser) {
+      alert("Для создания объявления необходимо войти в систему");
+      return;
+    }
     setIsCreatingAd(true);
   };
 
@@ -185,6 +195,12 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
 
   const handleSubmitAd = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!currentUser) {
+      alert("Для создания объявления необходимо войти в систему");
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -234,6 +250,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
         price: price, // Теперь правильный тип: number | "free"
         location: location.trim(),
         type: type,
+        author: currentUser.login, // ⚡ ИСПРАВЛЕНО: Добавлено обязательное поле author
         imageUrl: imageUrl, // Data URL или undefined
         negotiable: negotiable,
         duration: selectedDuration,
@@ -245,6 +262,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
         price: price === "free" ? "бесплатно" : `${price} ₽`
       });
       
+      // Вызываем API для создания объявления
       const result = await mockAPI.marketplace.createItem(newItemData);
       
       if (result.success && result.data) {
@@ -253,15 +271,21 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
         setImageFile(null);
         setImageUrl(undefined);
         
-        // Добавляем новое объявление в список
-        setItems(prev => [result.data!, ...prev]);
+        // Добавляем новое объявление в список с правильным автором
+        const newItemWithAuthor = {
+          ...result.data,
+          author: currentUser.login, // Устанавливаем правильного автора
+          rating: 4.5 // Начальный рейтинг
+        };
+        
+        setItems(prev => [newItemWithAuthor, ...prev]);
         
         // Показываем успешное сообщение с датой истечения
         const expirationDate = result.data.expirationDate ? 
           new Date(result.data.expirationDate).toLocaleDateString('ru-RU') : 
           'не указана';
         
-        alert(`✅ Объявление "${result.data.title}" успешно создано!\nБудет активно до: ${expirationDate}`);
+        alert(`✅ Объявление "${result.data.title}" успешно создано!\nАвтор: ${currentUser.login}\nБудет активно до: ${expirationDate}`);
         setIsCreatingAd(false);
         setSelectedDuration("1month");
       } else {
@@ -469,13 +493,21 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
             📝 Создать объявление
             {isLoading && " (загрузка...)"}
           </button>
-          <p className="auth-notice">Для создания объявления необходимо войти в систему</p>
+          <p className="auth-notice">
+            {currentUser 
+              ? `Вы вошли как: ${currentUser.login}` 
+              : "Для создания объявления необходимо войти в систему"}
+          </p>
         </div>
 
         {isCreatingAd && (
           <div className="create-ad-form-container">
             <form className="create-ad-form" onSubmit={handleSubmitAd}>
               <h3>Создание нового объявления</h3>
+              <div className="form-author-info">
+                <span className="author-label">Автор:</span>
+                <span className="author-name">{currentUser?.login || "Неизвестный"}</span>
+              </div>
               
               <div className="type-selector">
                 <label className="type-option">

@@ -466,8 +466,12 @@ function WorkbenchContent() {
         ))}
       </div>
 
+      {/* ⚡ ИСПРАВЛЕНО: Добавлена передача currentUser в Marketplace */}
       {isMarketplaceOpen && (
-        <Marketplace onClose={() => setIsMarketplaceOpen(false)} />
+        <Marketplace 
+          onClose={() => setIsMarketplaceOpen(false)}
+          currentUser={user}  // <-- ДОБАВЛЕНО: передача данных пользователя
+        />
       )}
       <RulesModal 
         isOpen={isRulesModalOpen} 

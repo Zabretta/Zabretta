@@ -14,7 +14,7 @@ export interface MarketItem {
   description: string;
   price: number | "free";
   location: string;
-  author: string;
+  author: string; // Реальное имя автора
   rating: number;
   type: ItemType;
   imageUrl?: string;
@@ -33,6 +33,7 @@ export interface CreateItemData {
   price: number | "free";
   location: string;
   type: ItemType;
+  author: string; // ⚡ ИСПРАВЛЕНО: Добавлено поле автора
   imageUrl?: string;
   negotiable?: boolean;
   duration?: DurationType; // Добавлено: срок публикации
@@ -104,7 +105,38 @@ const cleanupExpiredItems = (): void => {
   }
 };
 
-// Демо данные для барахолки
+// Функция для получения текущего пользователя из сессии
+const getCurrentUserFromSession = (): string => {
+  try {
+    // Пробуем получить пользователя из разных мест
+    const session = localStorage.getItem('samodelkin_session');
+    const userData = localStorage.getItem('samodelkin_user');
+    
+    if (session) {
+      const sessionData = JSON.parse(session);
+      if (sessionData.user && sessionData.user.login) {
+        return sessionData.user.login;
+      }
+    }
+    
+    if (userData) {
+      const user = JSON.parse(userData);
+      if (user.login) {
+        return user.login;
+      }
+    }
+    
+    // Если пользователь не найден, возвращаем fallback
+    console.warn('[MARKET] Не удалось получить данные пользователя из сессии');
+    return "Неизвестный пользователь";
+    
+  } catch (error) {
+    console.error('[MARKET] Ошибка получения пользователя из сессии:', error);
+    return "Ошибка загрузки пользователя";
+  }
+};
+
+// Демо данные для барахолки (оставляем как есть)
 const DEMO_ITEMS: MarketItem[] = [
   {
     id: 1,
@@ -112,16 +144,16 @@ const DEMO_ITEMS: MarketItem[] = [
     description: "Полный набор инструментов: молоток, отвертки, пассатижи, уровень, рулетка. Отличное состояние, все инструменты в рабочем состоянии. Набор идеально подходит для домашнего использования.",
     price: 2500,
     location: "Москва",
-    author: "Иван Кулибин",
+    author: "Иван Кулибин", // Демо-автор
     rating: 4.8,
     type: "sell",
-    imageUrl: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7…",
+    imageUrl: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7",
     negotiable: true,
     createdAt: "2024-03-10T14:30:00Z",
     updatedAt: "2024-03-12T09:15:00Z",
     views: 124,
     contacts: 8,
-    expirationDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(), // Через 45 дней
+    expirationDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
     duration: "1month"
   },
   {
@@ -130,16 +162,16 @@ const DEMO_ITEMS: MarketItem[] = [
     description: "Ищу 3D принтер с областью печати не менее 200x200x200 мм. Рассмотрю варианты как новые, так и б/у в хорошем состоянии. Готов забрать сам в пределах Москвы и области.",
     price: 15000,
     location: "Москва",
-    author: "Алексей Техников",
+    author: "Алексей Техников", // Демо-автор
     rating: 4.5,
     type: "buy",
-    imageUrl: "https://images.unsplash.com/photo-1581094794329-c8112a89af12…",
+    imageUrl: "https://images.unsplash.com/photo-1581094794329-c8112a89af12",
     negotiable: true,
     createdAt: "2024-03-14T11:20:00Z",
     updatedAt: "2024-03-14T11:20:00Z",
     views: 89,
     contacts: 5,
-    expirationDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // Через 60 дней
+    expirationDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
     duration: "2months"
   },
   {
@@ -148,16 +180,16 @@ const DEMO_ITEMS: MarketItem[] = [
     description: "Остались деревянные заготовки разных размеров: доски, бруски, фанера. Идеально для столярных проектов, поделок, обучения. Забирайте всё или частично. Самовывоз.",
     price: "free",
     location: "Санкт-Петербург",
-    author: "Мастер Деревяшкин",
+    author: "Мастер Деревяшкин", // Демо-автор
     rating: 4.9,
     type: "free",
-    imageUrl: "https://images.unsplash.com/photo-1505932799465-2933a69b647e…",
+    imageUrl: "https://images.unsplash.com/photo-1505932799465-2933a69b647e",
     negotiable: false,
     createdAt: "2024-03-13T16:45:00Z",
     updatedAt: "2024-03-13T16:45:00Z",
     views: 156,
     contacts: 12,
-    expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // Через 30 дней
+    expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     duration: "1month"
   },
   {
@@ -166,16 +198,16 @@ const DEMO_ITEMS: MarketItem[] = [
     description: "Паяльная станция Lukey 702, отличное состояние, почти не использовалась. Хочу обменять на качественный цифровой мультиметр. Рассмотрю другие предложения по инструментам.",
     price: 0,
     location: "Екатеринбург",
-    author: "Электроник Сергеич",
+    author: "Электроник Сергеич", // Демо-автор
     rating: 4.3,
     type: "exchange",
-    imageUrl: "https://images.unsplash.com/photo-1565262353505-4c4113c9c5b9…",
+    imageUrl: "https://images.unsplash.com/photo-1565262353505-4c4113c9c5b9",
     negotiable: true,
     createdAt: "2024-03-12T09:30:00Z",
     updatedAt: "2024-03-12T09:30:00Z",
     views: 67,
     contacts: 3,
-    expirationDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // Через 14 дней
+    expirationDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
     duration: "2weeks"
   },
   {
@@ -184,16 +216,16 @@ const DEMO_ITEMS: MarketItem[] = [
     description: "Винтажный рубанок Stanley №5, 1950-х годов выпуска. Отличное коллекционное состояние, полностью рабочий. Начальная цена 2000 руб. Аукцион продлится 7 дней.",
     price: 2000,
     location: "Новосибирск",
-    author: "Коллекционер Инструментов",
+    author: "Коллекционер Инструментов", // Демо-автор
     rating: 4.7,
     type: "auction",
-    imageUrl: "https://images.unsplash.com/photo-1572985025050-4d1855c57b2c…",
+    imageUrl: "https://images.unsplash.com/photo-1572985025050-4d1855c57b2c",
     negotiable: false,
     createdAt: "2024-03-11T13:15:00Z",
     updatedAt: "2024-03-11T13:15:00Z",
     views: 203,
     contacts: 15,
-    expirationDate: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(), // Через 20 дней
+    expirationDate: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
     duration: "2weeks"
   },
   {
@@ -202,16 +234,16 @@ const DEMO_ITEMS: MarketItem[] = [
     description: "Набор сверл по металлу от 1 до 10 мм, 25 штук. Качественный металл, острые кромки. Использовался пару раз, состояние как новое.",
     price: 800,
     location: "Казань",
-    author: "Слесарь Михаил",
+    author: "Слесарь Михаил", // Демо-автор
     rating: 4.6,
     type: "sell",
-    imageUrl: "https://images.unsplash.com/photo-1581094794329-c8112a89af12…",
+    imageUrl: "https://images.unsplash.com/photo-1581094794329-c8112a89af12",
     negotiable: true,
     createdAt: "2024-03-15T10:00:00Z",
     updatedAt: "2024-03-15T10:00:00Z",
     views: 45,
     contacts: 2,
-    expirationDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // Через 60 дней
+    expirationDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
     duration: "2months"
   }
 ];
@@ -253,7 +285,8 @@ const applyFilters = (items: MarketItem[], filters: MarketFilters): MarketItem[]
     const searchLower = filters.search.toLowerCase();
     result = result.filter(item => 
       item.title.toLowerCase().includes(searchLower) ||
-      item.description.toLowerCase().includes(searchLower)
+      item.description.toLowerCase().includes(searchLower) ||
+      item.author.toLowerCase().includes(searchLower)
     );
   }
   
@@ -366,15 +399,22 @@ export const createMarketItem = async (itemData: CreateItemData): Promise<APIRes
     };
   }
   
+  // Проверяем автора - если не передан, получаем из сессии
+  let author = itemData.author;
+  if (!author || author.trim() === '') {
+    author = getCurrentUserFromSession();
+    console.log('[MARKET] Автор не передан, используем из сессии:', author);
+  }
+  
   // Установка срока по умолчанию, если не указан
   const duration = itemData.duration || "1month";
   
-  // Создаем новое объявление с датой истечения
+  // Создаем новое объявление с правильным автором
   const newItem: MarketItem = {
     ...itemData,
+    author: author, // ⚡ ИСПРАВЛЕНО: Используем реального автора
     id: Date.now(),
     rating: 4.5, // Начальный рейтинг
-    author: "Текущий пользователь",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     views: 0,
@@ -389,8 +429,12 @@ export const createMarketItem = async (itemData: CreateItemData): Promise<APIRes
     userItems.unshift(newItem); // Добавляем в начало
     localStorage.setItem('marketplace_user_items', JSON.stringify(userItems));
     
-    console.log('[API MOCKS] Объявление создано и сохранено:', newItem);
-    console.log(`[MARKET] Объявление будет активно до: ${newItem.expirationDate}`);
+    console.log('[API MOCKS] Объявление создано и сохранено:', {
+      id: newItem.id,
+      title: newItem.title,
+      author: newItem.author, // Логируем реального автора
+      expirationDate: newItem.expirationDate
+    });
     
   } catch (error) {
     console.error('[MARKET] Ошибка сохранения объявления:', error);

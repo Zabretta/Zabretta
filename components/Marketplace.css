@@ -1039,6 +1039,25 @@
   gap: 3px;
 }
 
+/* Сделать дату создания полностью невидимой, но оставить в DOM */
+.item-date {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+/* Альтернативно: просто скрыть элемент */
+.item-date {
+  display: none;
+}
+
 .contact-btn {
   background: linear-gradient(to right, #5D4037, #8B4513);
   color: white;

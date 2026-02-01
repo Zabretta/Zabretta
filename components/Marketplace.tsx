@@ -22,8 +22,8 @@ interface MarketItem {
   type: ItemType;
   imageUrl?: string;
   negotiable?: boolean;
-  expirationDate?: string; // Добавлено новое поле
-  duration?: DurationType; // Добавлено для отслеживания выбранного срока
+  expirationDate?: string;
+  duration?: DurationType;
 }
 
 export default function Marketplace({ onClose }: MarketplaceProps) {
@@ -34,7 +34,11 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [items, setItems] = useState<MarketItem[]>([]);
-  const [selectedDuration, setSelectedDuration] = useState<DurationType>("1month"); // Состояние для выбранного срока
+  const [selectedDuration, setSelectedDuration] = useState<DurationType>("1month");
+  
+  // Состояния для фотографий
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const filters = [
     { id: "all" as ItemType | "all", label: "Все объявления" },
@@ -51,7 +55,6 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
     { id: "2months" as DurationType, label: "2 месяца", description: "Длительный срок" }
   ];
 
-  // Функция для расчета даты истечения
   const calculateExpirationDate = (duration: DurationType): string => {
     const now = new Date();
     const expirationDate = new Date(now);
@@ -68,17 +71,65 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
         break;
     }
     
-    return expirationDate.toISOString().split('T')[0]; // Возвращаем дату в формате YYYY-MM-DD
+    return expirationDate.toISOString().split('T')[0];
   };
 
-  // Загрузка данных с помощью API
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Файл слишком большой! Максимальный размер: 5MB.");
+        e.target.value = '';
+        return;
+      }
+      
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        alert("Неподдерживаемый формат файла! Разрешены: JPG, PNG, WebP, GIF.");
+        e.target.value = '';
+        return;
+      }
+      
+      setImageFile(file);
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setSelectedImage(event.target?.result as string);
+      };
+      reader.onerror = () => {
+        alert("Ошибка при загрузке изображения");
+        e.target.value = '';
+        setImageFile(null);
+        setSelectedImage(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImageFile(null);
+    const fileInput = document.querySelector('input[name="image"]') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
+  const handleImageUpload = async (file: File): Promise<string> => {
+    // В разработке: создаём Data URL из файла
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        resolve(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   useEffect(() => {
     const loadItems = async () => {
       setIsLoading(true);
       setApiError(null);
       
       try {
-        // Создаем объект фильтра на основе activeFilter
         const filters = {
           type: activeFilter === "all" ? undefined : activeFilter
         };
@@ -101,11 +152,9 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
     loadItems();
   }, [activeFilter]);
 
-  // Поиск по объявлениям
   const filteredItems = useMemo(() => {
     let filtered = items;
     
-    // Поиск по тексту
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(item => 
@@ -119,7 +168,6 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
     return filtered;
   }, [items, searchQuery]);
 
-  // Подсказки для поиска
   const searchSuggestions = useMemo(() => {
     if (!searchQuery.trim() || searchQuery.length < 2) return [];
     
@@ -143,10 +191,10 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
 
   const handleCancelCreateAd = () => {
     setIsCreatingAd(false);
-    setSelectedDuration("1month"); // Сбрасываем выбор срока
+    setSelectedDuration("1month");
+    handleRemoveImage();
   };
 
-  // Используем API из mocks.ts
   const handleSubmitAd = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -158,6 +206,24 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
       const priceValue = formData.get("price") as string;
       const expirationDate = calculateExpirationDate(selectedDuration);
       
+      let imageUrl: string | undefined;
+      
+      if (imageFile) {
+        try {
+          // Используем Data URL вместо внешних ссылок
+          imageUrl = await handleImageUpload(imageFile);
+          console.log('📸 Фото обработано:', {
+            fileName: imageFile.name,
+            fileSize: imageFile.size,
+            fileType: imageFile.type,
+            isDataUrl: imageUrl.startsWith('data:')
+          });
+        } catch (error) {
+          console.error('❌ Ошибка обработки изображения:', error);
+          alert('Не удалось обработать изображение. Объявление будет создано без фото.');
+        }
+      }
+      
       const newItemData = {
         title: formData.get("title") as string || "Новое объявление",
         description: formData.get("description") as string || "Описание",
@@ -167,16 +233,20 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
         type: (formData.get("type") as ItemType) || "sell",
         negotiable: formData.get("negotiable") === "on",
         expirationDate: expirationDate,
-        duration: selectedDuration
+        duration: selectedDuration,
+        imageUrl: imageUrl,
       };
       
       const result = await mockAPI.marketplace.createItem(newItemData);
       
       if (result.success && result.data) {
+        setSelectedImage(null);
+        setImageFile(null);
+        
         setItems(prev => [result.data!, ...prev]);
         alert(`Объявление "${result.data.title}" успешно создано! Будет активно до ${expirationDate}`);
         setIsCreatingAd(false);
-        setSelectedDuration("1month"); // Сбрасываем выбор срока
+        setSelectedDuration("1month");
       } else {
         alert(result.error || "Не удалось создать объявление");
       }
@@ -188,7 +258,6 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
     }
   };
 
-  // Используем API из mocks.ts
   const handleContact = async (itemId: number) => {
     setIsLoading(true);
     
@@ -196,8 +265,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
       const result = await mockAPI.marketplace.contactAuthor({
         itemId: itemId,
         message: "Здравствуйте! Я заинтересован в вашем объявлении",
-        contactMethod: "message" // или 'email', 'phone' в зависимости от выбора пользователя
-        // contactInfo: "опциональная контактная информация"
+        contactMethod: "message"
       });
       
       if (result.success) {
@@ -447,7 +515,6 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                 />
               </div>
 
-              {/* Новая секция: Срок публикации */}
               <div className="duration-section">
                 <div className="duration-header">
                   <h4>Срок публикации объявления</h4>
@@ -509,7 +576,28 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                   name="image"
                   accept="image/*"
                   className="file-input"
+                  onChange={handleImageSelect}
                 />
+                <p className="file-input-info">
+                  Максимальный размер: 5MB. Разрешены: JPG, PNG, WebP, GIF
+                </p>
+                
+                {selectedImage && (
+                  <div className="image-preview">
+                    <img 
+                      src={selectedImage} 
+                      alt="Превью фотографии" 
+                      className="preview-image"
+                    />
+                    <button 
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="remove-image-btn"
+                    >
+                      ✕ Удалить фото
+                    </button>
+                  </div>
+                )}
               </div>
 
               <label className="checkbox-label">
@@ -559,15 +647,36 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                     </span>
                   </div>
                 )}
-                <div className="item-image">
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={item.title} />
-                  ) : (
-                    <div className="image-placeholder">
-                      <span className="placeholder-icon">🛠️</span>
-                    </div>
-                  )}
+                
+                <div className="item-image-container">
+                  <div className="item-image">
+                    {item.imageUrl ? (
+                      <img 
+                        src={item.imageUrl} 
+                        alt={item.title}
+                        onError={(e) => {
+                          console.log('❌ Ошибка загрузки изображения:', item.imageUrl);
+                          e.currentTarget.style.display = 'none';
+                          const parent = e.currentTarget.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="image-placeholder">
+                                <span class="placeholder-icon">🛠️</span>
+                                <span class="placeholder-text">Нет фотографии</span>
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="image-placeholder">
+                        <span className="placeholder-icon">🛠️</span>
+                        <span className="placeholder-text">Нет фотографии</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+                
                 <div className="item-content">
                   <h3 className="item-title">{item.title}</h3>
                   <p className="item-description">{item.description}</p>

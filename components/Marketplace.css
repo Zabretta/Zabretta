@@ -1,11 +1,11 @@
-/* Marketplace.css - исправленный */
+/* Marketplace.css - фикс для показа фотографий */
 .marketplace-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--workshop-bg, #000000); /* Используем переменную */
+  background: var(--workshop-bg, #000000);
   z-index: 3000;
   overflow-y: auto;
   padding: 20px;
@@ -14,7 +14,7 @@
 .marketplace-container {
   max-width: 1200px;
   margin: 0 auto;
-  background: var(--workshop-container-bg, #000000); /* Используем переменную */
+  background: var(--workshop-container-bg, #000000);
   border: 3px solid #8B4513;
   border-radius: 15px;
   padding: 25px;
@@ -312,12 +312,6 @@
 }
 
 /* === Стили для загрузки файлов === */
-.file-input-container {
-  position: relative;
-  display: block;
-  width: 100%;
-}
-
 .file-input {
   width: 100%;
   padding: 14px 20px;
@@ -380,37 +374,57 @@
   font-style: italic;
 }
 
-.file-preview {
+/* === Стили для превью фотографий === */
+.image-preview {
   margin-top: 15px;
-  display: none;
+  padding: 15px;
+  background: rgba(93, 64, 55, 0.3);
+  border-radius: 8px;
+  border: 1px solid #5D4037;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
 }
 
-.file-preview.active {
-  display: block;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.file-preview-image {
-  max-width: 200px;
-  max-height: 150px;
+.preview-image {
+  max-width: 100%;
+  max-height: 200px;
   border-radius: 6px;
-  border: 2px solid #5D4037;
-  object-fit: cover;
+  margin-bottom: 10px;
+  border: 2px solid #8B7355;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.1);
 }
 
-.file-remove-btn {
+.remove-image-btn {
   background: rgba(183, 28, 28, 0.2);
   border: 1px solid #C62828;
   color: #EF9A9A;
   border-radius: 4px;
-  padding: 5px 10px;
-  font-size: 0.85em;
-  margin-left: 10px;
+  padding: 8px 16px;
+  font-size: 0.9em;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
 }
 
-.file-remove-btn:hover {
+.remove-image-btn:hover {
   background: rgba(198, 40, 40, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(198, 40, 40, 0.2);
 }
 
 /* === Стили для чекбокса "Цена договорная" === */
@@ -669,12 +683,13 @@
   border-radius: 6px;
   font-size: 0.8em;
   font-weight: 600;
-  z-index: 10;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 5px;
   border: 1px solid rgba(139, 157, 206, 0.3);
   backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .expiration-icon {
@@ -766,9 +781,15 @@
   transition: all 0.3s ease;
 }
 
-.submit-btn:hover {
+.submit-btn:hover:not(:disabled) {
   background: linear-gradient(to right, #43A047, #388E3C);
   transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(56, 142, 60, 0.3);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .cancel-btn {
@@ -801,6 +822,9 @@
   overflow: hidden;
   transition: all 0.3s ease;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .market-item:hover {
@@ -809,38 +833,58 @@
   box-shadow: 0 10px 25px rgba(139, 69, 19, 0.3);
 }
 
-/* Ключевое исправление: более плотный фон для бейджа */
+/* ИСПРАВЛЕННЫЙ БЕЙДЖ - ТЕПЕРЬ НЕ МЕШАЕТ ФОТО */
 .item-type-badge {
   position: absolute;
   top: 15px;
   left: 15px;
-  background: #8B4513 !important; /* Изменено: непрозрачный цвет вместо rgba */
+  background: linear-gradient(135deg, rgba(139, 69, 19, 0.95), rgba(160, 82, 45, 0.95)) !important;
   color: white !important;
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 0.85em;
   font-weight: 600;
-  z-index: 10;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  max-width: calc(100% - 30px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  opacity: 1 !important; /* Гарантируем непрозрачность */
 }
 
 .badge-icon {
-  font-size: 1.1em;
+  font-size: 1em;
+  flex-shrink: 0;
 }
 
 .badge-text {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ФИКС: ПЕРЕРАБОТАННАЯ СЕКЦИЯ ИЗОБРАЖЕНИЯ */
+.item-image-container {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #3E2723, #5D4037);
+  flex-shrink: 0;
 }
 
 .item-image {
-  height: 200px;
-  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
 }
 
@@ -848,7 +892,11 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
   transition: transform 0.5s ease;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .market-item:hover .item-image img {
@@ -858,36 +906,50 @@
 .image-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #5D4037, #8D6E63);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(135deg, #5D4037, #8D6E63);
+  color: #D7CCC8;
+  padding: 20px;
+  text-align: center;
 }
 
 .placeholder-icon {
   font-size: 3em;
-  color: #D7CCC8;
+  margin-bottom: 10px;
   opacity: 0.8;
 }
 
+.placeholder-text {
+  font-size: 0.9em;
+  opacity: 0.7;
+}
+
+/* ФИКС: КОНТЕНТ КАРТОЧКИ */
 .item-content {
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
   position: relative;
   z-index: 1;
 }
 
 .item-title {
-  color: #F5DEB3 !important; /* Гарантируем белый цвет */
+  color: #F5DEB3 !important;
   font-size: 1.3em;
   margin: 0 0 12px 0;
   line-height: 1.4;
+  font-weight: 600;
   word-wrap: break-word;
   overflow: hidden;
-  text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   line-clamp: 2;
+  background: transparent !important;
 }
 
 .item-description {
@@ -900,6 +962,7 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   line-clamp: 3;
+  flex-grow: 1;
 }
 
 .item-meta {
@@ -907,12 +970,15 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .item-price {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .price-amount {
@@ -924,6 +990,7 @@
 .free-price {
   color: #8BC34A;
   font-weight: 600;
+  font-size: 1.2em;
 }
 
 .negotiable-badge {
@@ -932,11 +999,16 @@
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.85em;
+  border: 1px solid rgba(255, 152, 0, 0.3);
 }
 
 .item-location {
   color: #8B9DCE;
   font-size: 0.9em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
 }
 
 .item-footer {
@@ -945,6 +1017,7 @@
   align-items: center;
   padding-top: 15px;
   border-top: 1px solid #5D4037;
+  margin-top: auto;
 }
 
 .item-author {
@@ -961,6 +1034,9 @@
 .author-rating {
   color: #FFD54F;
   font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .contact-btn {
@@ -973,10 +1049,18 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  white-space: nowrap;
 }
 
-.contact-btn:hover {
+.contact-btn:hover:not(:disabled) {
   background: linear-gradient(to right, #8B4513, #A0522D);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(139, 69, 19, 0.3);
+}
+
+.contact-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Состояния загрузки и пустого списка */
@@ -1073,6 +1157,12 @@
   .checkbox-hint {
     margin-left: 34px;
   }
+  
+  .item-type-badge {
+    max-width: calc(100% - 30px);
+    font-size: 0.8em;
+    padding: 6px 10px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1113,5 +1203,28 @@
   
   .checkbox-hint {
     margin-left: 32px;
+  }
+  
+  .image-preview {
+    padding: 12px;
+  }
+  
+  .preview-image {
+    max-height: 150px;
+  }
+  
+  .item-type-badge {
+    top: 10px;
+    left: 10px;
+    max-width: calc(100% - 20px);
+    font-size: 0.75em;
+    padding: 5px 8px;
+  }
+  
+  .item-expiration {
+    top: 10px;
+    right: 10px;
+    padding: 4px 8px;
+    font-size: 0.7em;
   }
 }

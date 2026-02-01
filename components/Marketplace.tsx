@@ -24,6 +24,10 @@ interface MarketItem {
   negotiable?: boolean;
   expirationDate?: string;
   duration?: DurationType;
+  createdAt?: string;
+  updatedAt?: string;
+  views?: number;
+  contacts?: number;
 }
 
 export default function Marketplace({ onClose }: MarketplaceProps) {
@@ -39,6 +43,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
   // Состояния для фотографий
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
   const filters = [
     { id: "all" as ItemType | "all", label: "Все объявления" },
@@ -54,25 +59,6 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
     { id: "1month" as DurationType, label: "1 месяц", description: "Стандартный срок" },
     { id: "2months" as DurationType, label: "2 месяца", description: "Длительный срок" }
   ];
-
-  const calculateExpirationDate = (duration: DurationType): string => {
-    const now = new Date();
-    const expirationDate = new Date(now);
-    
-    switch (duration) {
-      case "2weeks":
-        expirationDate.setDate(now.getDate() + 14);
-        break;
-      case "1month":
-        expirationDate.setMonth(now.getMonth() + 1);
-        break;
-      case "2months":
-        expirationDate.setMonth(now.getMonth() + 2);
-        break;
-    }
-    
-    return expirationDate.toISOString().split('T')[0];
-  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,13 +80,16 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
       
       const reader = new FileReader();
       reader.onload = (event) => {
-        setSelectedImage(event.target?.result as string);
+        const dataUrl = event.target?.result as string;
+        setSelectedImage(dataUrl);
+        setImageUrl(dataUrl); // Сохраняем Data URL для отправки в API
       };
       reader.onerror = () => {
         alert("Ошибка при загрузке изображения");
         e.target.value = '';
         setImageFile(null);
         setSelectedImage(null);
+        setImageUrl(undefined);
       };
       reader.readAsDataURL(file);
     }
@@ -109,19 +98,9 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
   const handleRemoveImage = () => {
     setSelectedImage(null);
     setImageFile(null);
+    setImageUrl(undefined);
     const fileInput = document.querySelector('input[name="image"]') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
-  };
-
-  const handleImageUpload = async (file: File): Promise<string> => {
-    // В разработке: создаём Data URL из файла
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        resolve(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    });
   };
 
   useEffect(() => {
@@ -130,16 +109,25 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
       setApiError(null);
       
       try {
-        const filters = {
-          type: activeFilter === "all" ? undefined : activeFilter
-        };
+        // Создаем объект фильтра для API
+        const filters: { type?: ItemType } = {};
+        if (activeFilter !== "all") {
+          filters.type = activeFilter;
+        }
         
+        console.log('📡 Загрузка объявлений с фильтрами:', filters);
         const result = await mockAPI.marketplace.loadItems(filters);
         
         if (result.success && result.data) {
+          console.log(`✅ Загружено ${result.data.length} объявлений`);
           setItems(result.data);
+          
+          // Логируем информацию о фото
+          const itemsWithPhotos = result.data.filter(item => item.imageUrl);
+          console.log(`📸 Объявлений с фото: ${itemsWithPhotos.length}/${result.data.length}`);
         } else {
           setApiError(result.error || "Не удалось загрузить объявления");
+          console.error('❌ Ошибка загрузки:', result.error);
         }
       } catch (error) {
         console.error("Ошибка загрузки объявлений:", error);
@@ -203,52 +191,82 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
       const form = e.target as HTMLFormElement;
       const formData = new FormData(form);
       
+      const title = formData.get("title") as string;
+      const description = formData.get("description") as string;
+      const location = formData.get("location") as string;
       const priceValue = formData.get("price") as string;
-      const expirationDate = calculateExpirationDate(selectedDuration);
+      const type = (formData.get("type") as ItemType) || "sell";
       
-      let imageUrl: string | undefined;
+      // Валидация обязательных полей (соответствует mocks-market.ts)
+      if (!title || title.trim().length < 5) {
+        alert('Название должно содержать минимум 5 символов');
+        setIsLoading(false);
+        return;
+      }
       
-      if (imageFile) {
-        try {
-          // Используем Data URL вместо внешних ссылок
-          imageUrl = await handleImageUpload(imageFile);
-          console.log('📸 Фото обработано:', {
-            fileName: imageFile.name,
-            fileSize: imageFile.size,
-            fileType: imageFile.type,
-            isDataUrl: imageUrl.startsWith('data:')
-          });
-        } catch (error) {
-          console.error('❌ Ошибка обработки изображения:', error);
-          alert('Не удалось обработать изображение. Объявление будет создано без фото.');
+      if (!description || description.trim().length < 20) {
+        alert('Описание должно содержать минимум 20 символов');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!location) {
+        alert('Укажите местоположение');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Правильное преобразование цены: число или "free"
+      let price: number | "free" = "free";
+      if (priceValue && priceValue.trim() !== "") {
+        const parsedPrice = parseInt(priceValue);
+        if (!isNaN(parsedPrice) && parsedPrice > 0) {
+          price = parsedPrice;
         }
       }
       
+      const negotiable = formData.get("negotiable") === "on";
+      
+      // Подготавливаем данные для API (соответствует CreateItemData из mocks-market.ts)
       const newItemData = {
-        title: formData.get("title") as string || "Новое объявление",
-        description: formData.get("description") as string || "Описание",
-        price: priceValue && !isNaN(parseInt(priceValue)) ? parseInt(priceValue) : "free" as number | "free",
-        location: formData.get("location") as string || "Не указано",
-        author: "Текущий пользователь",
-        type: (formData.get("type") as ItemType) || "sell",
-        negotiable: formData.get("negotiable") === "on",
-        expirationDate: expirationDate,
+        title: title.trim(),
+        description: description.trim(),
+        price: price, // Теперь правильный тип: number | "free"
+        location: location.trim(),
+        type: type,
+        imageUrl: imageUrl, // Data URL или undefined
+        negotiable: negotiable,
         duration: selectedDuration,
-        imageUrl: imageUrl,
       };
+      
+      console.log('📝 Отправка данных для создания объявления:', {
+        ...newItemData,
+        imageUrl: imageUrl ? `Data URL (${imageUrl.length} chars)` : 'нет фото',
+        price: price === "free" ? "бесплатно" : `${price} ₽`
+      });
       
       const result = await mockAPI.marketplace.createItem(newItemData);
       
       if (result.success && result.data) {
+        // Сбрасываем состояние
         setSelectedImage(null);
         setImageFile(null);
+        setImageUrl(undefined);
         
+        // Добавляем новое объявление в список
         setItems(prev => [result.data!, ...prev]);
-        alert(`Объявление "${result.data.title}" успешно создано! Будет активно до ${expirationDate}`);
+        
+        // Показываем успешное сообщение с датой истечения
+        const expirationDate = result.data.expirationDate ? 
+          new Date(result.data.expirationDate).toLocaleDateString('ru-RU') : 
+          'не указана';
+        
+        alert(`✅ Объявление "${result.data.title}" успешно создано!\nБудет активно до: ${expirationDate}`);
         setIsCreatingAd(false);
         setSelectedDuration("1month");
       } else {
         alert(result.error || "Не удалось создать объявление");
+        console.error('❌ Ошибка создания объявления:', result.error);
       }
     } catch (error) {
       console.error("Ошибка при создании объявления:", error);
@@ -270,9 +288,10 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
       
       if (result.success) {
         const item = items.find(i => i.id === itemId);
-        alert(`Сообщение автору "${item?.author}" отправлено!`);
+        alert(`✅ Сообщение автору "${item?.author}" отправлено!`);
       } else {
         alert(result.error || "Не удалось отправить сообщение");
+        console.error('❌ Ошибка отправки сообщения:', result.error);
       }
     } catch (error) {
       console.error("Ошибка при отправке сообщения:", error);
@@ -337,6 +356,32 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
       month: 'long',
       year: 'numeric'
     });
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU');
+  };
+
+  // Функция для расчета даты истечения для превью в форме
+  const calculatePreviewExpirationDate = (duration: DurationType): string => {
+    const now = new Date();
+    const expirationDate = new Date(now);
+    
+    switch (duration) {
+      case "2weeks":
+        expirationDate.setDate(now.getDate() + 14);
+        break;
+      case "1month":
+        expirationDate.setMonth(now.getMonth() + 1);
+        break;
+      case "2months":
+        expirationDate.setMonth(now.getMonth() + 2);
+        break;
+    }
+    
+    return expirationDate.toISOString();
   };
 
   return (
@@ -457,11 +502,12 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Название объявления *</label>
+                  <label>Название объявления * (мин. 5 символов)</label>
                   <input 
                     type="text" 
                     name="title"
                     required 
+                    minLength={5}
                     placeholder="Например: Набор инструментов для начинающего" 
                   />
                 </div>
@@ -470,7 +516,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                   <input 
                     type="number" 
                     name="price"
-                    placeholder="Укажите цену" 
+                    placeholder="Укажите цену или оставьте пустым для 'Бесплатно'" 
                   />
                 </div>
               </div>
@@ -506,11 +552,12 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
               </div>
 
               <div className="form-group">
-                <label>Подробное описание *</label>
+                <label>Подробное описание * (мин. 20 символов)</label>
                 <textarea 
                   name="description"
                   rows={4} 
                   required 
+                  minLength={20}
                   placeholder="Опишите товар/услугу подробно: состояние, характеристики, дополнительные условия..."
                 />
               </div>
@@ -552,7 +599,7 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                       </div>
                       <div className="duration-description">{option.description}</div>
                       <div className="duration-date">
-                        Активно до: {formatExpirationDate(calculateExpirationDate(option.id))}
+                        Активно до: {formatExpirationDate(calculatePreviewExpirationDate(option.id))}
                       </div>
                     </div>
                   ))}
@@ -655,17 +702,20 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                         src={item.imageUrl} 
                         alt={item.title}
                         onError={(e) => {
-                          console.log('❌ Ошибка загрузки изображения:', item.imageUrl);
+                          console.log('❌ Ошибка загрузки изображения для объявления:', item.id, item.title);
                           e.currentTarget.style.display = 'none';
                           const parent = e.currentTarget.parentElement;
                           if (parent) {
                             parent.innerHTML = `
                               <div class="image-placeholder">
                                 <span class="placeholder-icon">🛠️</span>
-                                <span class="placeholder-text">Нет фотографии</span>
+                                <span class="placeholder-text">Фото не загрузилось</span>
                               </div>
                             `;
                           }
+                        }}
+                        onLoad={() => {
+                          console.log('✅ Фото загружено для объявления:', item.id, item.title);
                         }}
                       />
                     ) : (
@@ -697,8 +747,15 @@ export default function Marketplace({ onClose }: MarketplaceProps) {
                   
                   <div className="item-footer">
                     <div className="item-author">
-                      <span className="author-name">{item.author}</span>
-                      <span className="author-rating">★ {item.rating}</span>
+                      <div>
+                        <span className="author-name">{item.author}</span>
+                        <span className="author-rating">★ {item.rating?.toFixed(1) || "4.5"}</span>
+                      </div>
+                      {item.createdAt && (
+                        <div className="item-date">
+                          {formatDate(item.createdAt)}
+                        </div>
+                      )}
                     </div>
                     <button className="contact-btn" onClick={() => handleContact(item.id)}
                       disabled={isLoading}

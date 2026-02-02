@@ -36,7 +36,7 @@ interface MarketItem {
   updatedAt?: string;
   views?: number;
   contacts?: number;
-  category?: ItemCategory; // НОВОЕ ПОЛЕ: категория объявления
+  category?: ItemCategory;
 }
 
 export default function Marketplace({ onClose, currentUser }: MarketplaceProps) {
@@ -48,9 +48,8 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
   const [apiError, setApiError] = useState<string | null>(null);
   const [items, setItems] = useState<MarketItem[]>([]);
   const [selectedDuration, setSelectedDuration] = useState<DurationType>("1month");
-  const [selectedCategory, setSelectedCategory] = useState<string>(""); // НОВОЕ СОСТОЯНИЕ: выбранная категория для фильтрации
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   
-  // Состояния для фотографий
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
@@ -92,7 +91,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       reader.onload = (event) => {
         const dataUrl = event.target?.result as string;
         setSelectedImage(dataUrl);
-        setImageUrl(dataUrl); // Сохраняем Data URL для отправки в API
+        setImageUrl(dataUrl);
       };
       reader.onerror = () => {
         alert("Ошибка при загрузке изображения");
@@ -119,7 +118,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       setApiError(null);
       
       try {
-        // Создаем объект фильтра для API
         const filters: { type?: ItemType } = {};
         if (activeFilter !== "all") {
           filters.type = activeFilter;
@@ -132,7 +130,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
           console.log(`✅ Загружено ${result.data.length} объявлений`);
           setItems(result.data);
           
-          // Логируем информацию о фото
           const itemsWithPhotos = result.data.filter(item => item.imageUrl);
           console.log(`📸 Объявлений с фото: ${itemsWithPhotos.length}/${result.data.length}`);
         } else {
@@ -153,12 +150,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
   const filteredItems = useMemo(() => {
     let filtered = items;
     
-    // ФИЛЬТРАЦИЯ ПО КАТЕГОРИИ (если выбрана)
     if (selectedCategory) {
       filtered = filtered.filter(item => item.category === selectedCategory);
     }
     
-    // ФИЛЬТРАЦИЯ ПО ТЕКСТУ ПОИСКА
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(item => 
@@ -170,7 +165,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     }
     
     return filtered;
-  }, [items, searchQuery, selectedCategory]); // Добавить selectedCategory в зависимости
+  }, [items, searchQuery, selectedCategory]);
 
   const searchSuggestions = useMemo(() => {
     if (!searchQuery.trim() || searchQuery.length < 2) return [];
@@ -222,9 +217,8 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       const location = formData.get("location") as string;
       const priceValue = formData.get("price") as string;
       const type = (formData.get("type") as ItemType) || "sell";
-      const category = formData.get("category") as ItemCategory; // НОВОЕ: получаем категорию
+      const category = formData.get("category") as ItemCategory;
       
-      // Валидация обязательных полей (соответствует mocks-market.ts)
       if (!title || title.trim().length < 5) {
         alert('Название должно содержать минимум 5 символов');
         setIsLoading(false);
@@ -243,27 +237,40 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         return;
       }
       
-      // Правильное преобразование цены: число или "free"
+      const negotiable = formData.get("negotiable") === "on";
+      
+      // ⚡ ИСПРАВЛЕННАЯ ЛОГИКА ЦЕНЫ
       let price: number | "free" = "free";
+      
       if (priceValue && priceValue.trim() !== "") {
         const parsedPrice = parseInt(priceValue);
-        if (!isNaN(parsedPrice) && parsedPrice > 0) {
-          price = parsedPrice;
+        if (!isNaN(parsedPrice)) {
+          if (parsedPrice > 0) {
+            price = parsedPrice;
+          } else if (parsedPrice === 0 && negotiable) {
+            // Если цена 0 И стоит галочка "договорная" - это договорная цена
+            price = 0;
+          } else if (parsedPrice === 0) {
+            // Если цена 0 И НЕТ галочки "договорная" - это бесплатно
+            price = "free";
+          }
         }
       }
       
-      const negotiable = formData.get("negotiable") === "on";
+      // Если negotiable=true, но price="free", меняем на price=0
+      if (negotiable && price === "free") {
+        price = 0;
+      }
       
-      // Подготавливаем данные для API (соответствует CreateItemData из mocks-market.ts)
       const newItemData = {
         title: title.trim(),
         description: description.trim(),
-        price: price, // Теперь правильный тип: number | "free"
+        price: price,
         location: location.trim(),
         type: type,
-        author: currentUser.login, // ⚡ ИСПРАВЛЕНО: Добавлено обязательное поле author
-        category: category, // НОВОЕ: добавляем категорию
-        imageUrl: imageUrl, // Data URL или undefined
+        author: currentUser.login,
+        category: category,
+        imageUrl: imageUrl,
         negotiable: negotiable,
         duration: selectedDuration,
       };
@@ -272,33 +279,40 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         ...newItemData,
         imageUrl: imageUrl ? `Data URL (${imageUrl.length} chars)` : 'нет фото',
         price: price === "free" ? "бесплатно" : `${price} ₽`,
+        negotiable: negotiable,
         category: category || 'не выбрана'
       });
       
-      // Вызываем API для создания объявления
       const result = await mockAPI.marketplace.createItem(newItemData);
       
       if (result.success && result.data) {
-        // Сбрасываем состояние
         setSelectedImage(null);
         setImageFile(null);
         setImageUrl(undefined);
         
-        // Добавляем новое объявление в список с правильным автором
         const newItemWithAuthor = {
           ...result.data,
-          author: currentUser.login, // Устанавливаем правильного автора
-          rating: 4.5 // Начальный рейтинг
+          author: currentUser.login,
+          rating: 4.5
         };
         
         setItems(prev => [newItemWithAuthor, ...prev]);
         
-        // Показываем успешное сообщение с датой истечения
         const expirationDate = result.data.expirationDate ? 
           new Date(result.data.expirationDate).toLocaleDateString('ru-RU') : 
           'не указана';
         
-        alert(`✅ Объявление "${result.data.title}" успешно создано!\nАвтор: ${currentUser.login}\nБудет активно до: ${expirationDate}`);
+        // Улучшенное сообщение об успехе
+        let priceMessage = "";
+        if (price === "free") {
+          priceMessage = "Цена: Бесплатно";
+        } else if (price === 0 && negotiable) {
+          priceMessage = "Цена: Договорная";
+        } else {
+          priceMessage = `Цена: ${price} ₽${negotiable ? " (договорная)" : ""}`;
+        }
+        
+        alert(`✅ Объявление "${result.data.title}" успешно создано!\nАвтор: ${currentUser.login}\n${priceMessage}\nБудет активно до: ${expirationDate}`);
         setIsCreatingAd(false);
         setSelectedDuration("1month");
       } else {
@@ -401,7 +415,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     return date.toLocaleDateString('ru-RU');
   };
 
-  // Функция для расчета даты истечения для превью в форме
   const calculatePreviewExpirationDate = (duration: DurationType): string => {
     const now = new Date();
     const expirationDate = new Date(now);
@@ -429,7 +442,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
             <h1 className="marketplace-title">БАРАХОЛКА</h1>
             
             <div className="search-container">
-              {/* ВЫПАДАЮЩИЙ СПИСОК КАТЕГОРИЙ ДЛЯ ПОИСКА */}
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
@@ -584,6 +596,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
                     name="price"
                     placeholder="Укажите цену или оставьте пустым для 'Бесплатно'" 
                   />
+                  <p className="price-hint">
+                    ⓘ Оставьте поле пустым или укажите 0 для "Бесплатно". 
+                    Если хотите указать "Договорная" - поставьте галочку ниже.
+                  </p>
                 </div>
               </div>
 
@@ -799,8 +815,11 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
                   
                   <div className="item-meta">
                     <div className="item-price">
+                      {/* ⚡ ИСПРАВЛЕННАЯ ЛОГИКА ОТОБРАЖЕНИЯ ЦЕНЫ */}
                       {item.price === "free" ? (
                         <span className="free-price">Бесплатно</span>
+                      ) : item.price === 0 && item.negotiable ? (
+                        <span className="negotiable-price">Договорная</span>
                       ) : (
                         <>
                           <span className="price-amount">{item.price.toLocaleString()} ₽</span>

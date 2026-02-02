@@ -419,10 +419,10 @@ export const createMarketItem = async (itemData: CreateItemData): Promise<APIRes
   // Установка срока по умолчанию, если не указан
   const duration = itemData.duration || "1month";
   
-  // Создаем новое объявление с правильным автором
+  // ⚡ ИСПРАВЛЕННЫЙ КОД: Создаем новое объявление с правильным автором
   const newItem: MarketItem = {
     ...itemData,
-    author: author, // ⚡ ИСПРАВЛЕНО: Используем реального автора
+    author: author, // Используем реального автора
     id: Date.now(),
     rating: 4.5, // Начальный рейтинг
     createdAt: new Date().toISOString(),
@@ -430,7 +430,9 @@ export const createMarketItem = async (itemData: CreateItemData): Promise<APIRes
     views: 0,
     contacts: 0,
     duration: duration,
-    expirationDate: calculateExpirationDate(duration)
+    expirationDate: calculateExpirationDate(duration),
+    // ⚡ ВАЖНОЕ ИСПРАВЛЕНИЕ: Явно сохраняем negotiable
+    negotiable: itemData.negotiable !== undefined ? itemData.negotiable : false
   };
   
   // Сохраняем в localStorage
@@ -443,6 +445,8 @@ export const createMarketItem = async (itemData: CreateItemData): Promise<APIRes
       id: newItem.id,
       title: newItem.title,
       author: newItem.author, // Логируем реального автора
+      price: newItem.price,
+      negotiable: newItem.negotiable, // ⚡ Логируем negotiable
       expirationDate: newItem.expirationDate,
       category: newItem.category // Логируем категорию
     });

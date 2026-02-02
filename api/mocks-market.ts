@@ -7,6 +7,8 @@ import { APIResponse } from './types';
 
 export type ItemType = "sell" | "buy" | "free" | "exchange" | "auction";
 export type DurationType = "2weeks" | "1month" | "2months";
+export type ItemCategory = "tools" | "materials" | "furniture" | "electronics" | "cooking" | 
+                          "auto" | "sport" | "robot" | "handmade" | "stolar" | "hammer" | "other";
 
 export interface MarketItem {
   id: number;
@@ -25,6 +27,7 @@ export interface MarketItem {
   contacts?: number;
   expirationDate?: string; // Дата истечения срока объявления
   duration?: DurationType; // Выбранный срок публикации
+  category?: ItemCategory; // НОВОЕ ПОЛЕ: категория объявления
 }
 
 export interface CreateItemData {
@@ -37,6 +40,7 @@ export interface CreateItemData {
   imageUrl?: string;
   negotiable?: boolean;
   duration?: DurationType; // Добавлено: срок публикации
+  category?: ItemCategory; // НОВОЕ ПОЛЕ: категория объявления
 }
 
 export interface ContactAuthorData {
@@ -52,6 +56,7 @@ export interface MarketFilters {
   minPrice?: number;
   maxPrice?: number;
   search?: string;
+  category?: string; // НОВОЕ ПОЛЕ: фильтр по категории
   sortBy?: 'newest' | 'oldest' | 'price_low' | 'price_high' | 'rating';
   activeOnly?: boolean; // Только активные объявления (не истекшие)
 }
@@ -290,6 +295,11 @@ const applyFilters = (items: MarketItem[], filters: MarketFilters): MarketItem[]
     );
   }
   
+  // НОВЫЙ ФИЛЬТР: по категории
+  if (filters.category) {
+    result = result.filter(item => item.category === filters.category);
+  }
+  
   // Фильтр по активности (только не истекшие объявления)
   if (filters.activeOnly) {
     result = result.filter(item => !isExpired(item.expirationDate));
@@ -433,7 +443,8 @@ export const createMarketItem = async (itemData: CreateItemData): Promise<APIRes
       id: newItem.id,
       title: newItem.title,
       author: newItem.author, // Логируем реального автора
-      expirationDate: newItem.expirationDate
+      expirationDate: newItem.expirationDate,
+      category: newItem.category // Логируем категорию
     });
     
   } catch (error) {

@@ -41,12 +41,167 @@
   margin: 0;
 }
 
-/* === Стили для поиска === */
+/* === Стили для поиска и фильтра по категориям === */
 .search-container {
   flex: 1;
   max-width: 500px;
   margin: 0 25px;
   position: relative;
+}
+
+/* Выпадающий список категорий для поиска */
+.category-filter {
+  width: 100%;
+  padding: 14px 20px;
+  background: rgba(43, 32, 28, 0.9);
+  border: 2px solid #8B7355;
+  border-radius: 50px;
+  color: #F5DEB3;
+  font-size: 1em;
+  font-weight: 500;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  margin-bottom: 15px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  position: relative;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B7355' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 20px center;
+  background-size: 16px;
+  padding-right: 50px;
+}
+
+.category-filter:hover {
+  border-color: #D2691E;
+  background-color: rgba(43, 32, 28, 1);
+}
+
+.category-filter:focus {
+  outline: none;
+  border-color: #D2691E;
+  background-color: rgba(43, 32, 28, 1);
+  box-shadow: 0 4px 15px rgba(210, 105, 30, 0.3);
+}
+
+.category-filter option {
+  background: rgba(43, 32, 28, 0.95);
+  color: #F5DEB3;
+  padding: 10px;
+  font-size: 1em;
+}
+
+/* Стили для состояния "Все категории" */
+.category-filter option[value=""] {
+  color: #BCAAA4;
+  font-style: italic;
+}
+
+/* Стили для выбранной категории */
+.category-filter:not([value=""]) {
+  color: #FFE4B5;
+  font-weight: 600;
+  border-color: #D2691E;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D2691E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+/* ===== ВАЖНОЕ ИСПРАВЛЕНИЕ ===== */
+/* Стили для выпадающего списка категорий в форме создания объявления */
+.create-ad-form .form-group select[name="category"] {
+  width: 100%;
+  padding: 14px 20px;
+  background: rgba(245, 222, 179, 0.1);
+  border: 2px solid #8B7355;
+  border-radius: 6px;
+  color: #F5DEB3;
+  font-size: 1em;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  position: relative;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B7355' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 20px center;
+  background-size: 16px;
+  background-color: rgba(245, 222, 179, 0.1);
+  padding-right: 50px;
+}
+
+.create-ad-form .form-group select[name="category"]:hover {
+  border-color: #D2691E;
+  background-color: rgba(245, 222, 179, 0.15);
+}
+
+.create-ad-form .form-group select[name="category"]:focus {
+  outline: none;
+  border-color: #D2691E;
+  background-color: rgba(245, 222, 179, 0.15);
+  box-shadow: 0 0 0 2px rgba(210, 105, 30, 0.2);
+}
+
+.create-ad-form .form-group select[name="category"] option {
+  background: rgba(43, 32, 28, 0.95);
+  color: #F5DEB3;
+  padding: 10px;
+  font-size: 1em;
+}
+
+/* Стили для состояния "Выберите категорию" */
+.create-ad-form .form-group select[name="category"] option[value=""] {
+  color: #BCAAA4;
+  font-style: italic;
+}
+
+/* Стили для выбранной категории в форме */
+.create-ad-form .form-group select[name="category"]:not([value=""]) {
+  color: #FFE4B5;
+  font-weight: 600;
+  border-color: #D2691E;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D2691E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+/* ===== КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Убираем стрелки у скрытых радио-кнопок ===== */
+/* Очень специфичные селекторы, чтобы не задеть другие элементы */
+
+/* Убираем фоновые изображения у всех input элементов, которые не являются select */
+.create-ad-form input:not([type="submit"]):not([type="button"]),
+.type-option input,
+.duration-option input,
+.checkbox-label input {
+  background-image: none !important;
+  background-position: initial !important;
+  background-repeat: initial !important;
+  background-size: initial !important;
+  padding-right: initial !important;
+}
+
+/* Убираем фоновые изображения у всех элементов внутри type-option */
+.type-option *,
+.duration-option * {
+  background-image: none !important;
+}
+
+/* Убираем фоновые изображения у радио-кнопок в type-selector */
+.type-selector .type-option input[type="radio"],
+.duration-options .duration-option input[type="radio"] {
+  background-image: none !important;
+  background: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+/* Явно указываем, что у радио-кнопок не должно быть фоновых изображений */
+input[type="radio"],
+input[type="checkbox"] {
+  background-image: none !important;
+  background: none !important;
 }
 
 .search-input-wrapper {
@@ -289,32 +444,48 @@
   font-size: 1.8em;
 }
 
-/* Стили для блока информации об авторе в форме */
+/* Стили для строки автора в форме */
 .form-author-info {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   margin-bottom: 20px;
-  padding: 12px 15px;
-  background: rgba(93, 64, 55, 0.3);
+  padding: 12px 20px;
+  background: rgba(139, 69, 19, 0.15);
   border-radius: 8px;
-  border: 1px solid #5D4037;
+  border: 1px solid rgba(139, 69, 19, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .author-label {
   color: #BCAAA4;
-  font-size: 0.95em;
+  font-size: 1.05em;
   font-weight: 600;
 }
 
 .author-name {
-  color: #F5DEB3;
-  font-size: 1em;
-  font-weight: bold;
-  padding: 4px 10px;
-  background: rgba(139, 69, 19, 0.2);
-  border-radius: 4px;
-  border: 1px solid #8B4513;
+  color: #FFE4B5;
+  font-size: 1.15em;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  padding: 4px 12px;
+  background: linear-gradient(135deg, rgba(139, 69, 19, 0.3), rgba(160, 82, 45, 0.3));
+  border-radius: 6px;
+  border: 1px solid rgba(210, 105, 30, 0.4);
+  min-width: 120px;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+}
+
+.author-name:hover {
+  background: linear-gradient(135deg, rgba(139, 69, 19, 0.4), rgba(210, 105, 30, 0.4));
+  border-color: rgba(210, 105, 30, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(210, 105, 30, 0.2);
 }
 
 .form-group {
@@ -768,9 +939,20 @@
   font-size: 1.1em;
 }
 
+/* Общие стили для select в форме (кроме категорий) */
+.create-ad-form select:not([name="category"]) {
+  width: 100%;
+  padding: 14px;
+  background: rgba(245, 222, 179, 0.1);
+  border: 2px solid #8B7355;
+  border-radius: 6px;
+  color: #D7CCC8;
+  font-size: 1em;
+  box-sizing: border-box;
+}
+
 .create-ad-form input[type="text"],
 .create-ad-form input[type="number"],
-.create-ad-form select,
 .create-ad-form textarea {
   width: 100%;
   padding: 14px;
@@ -1211,16 +1393,11 @@
     padding: 6px 10px;
   }
   
-  .form-author-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 10px;
-  }
-  
-  .author-label,
-  .author-name {
-    font-size: 0.9em;
+  /* Адаптивность для категорий в поиске */
+  .category-filter {
+    padding: 12px 45px 12px 15px;
+    font-size: 0.95em;
+    background-position: right 15px center;
   }
 }
 
@@ -1287,11 +1464,20 @@
     font-size: 0.7em;
   }
   
+  /* Адаптивность строки автора */
   .form-author-info {
-    padding: 8px 10px;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 15px;
+  }
+  
+  .author-label {
+    font-size: 0.95em;
   }
   
   .author-name {
-    padding: 3px 8px;
+    font-size: 1em;
+    padding: 3px 10px;
+    min-width: 100px;
   }
 }

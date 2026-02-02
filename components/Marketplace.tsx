@@ -16,6 +16,8 @@ interface MarketplaceProps {
 
 type ItemType = "sell" | "buy" | "free" | "exchange" | "auction";
 type DurationType = "2weeks" | "1month" | "2months";
+type ItemCategory = "tools" | "materials" | "furniture" | "electronics" | "cooking" | 
+                   "auto" | "sport" | "robot" | "handmade" | "stolar" | "hammer" | "other";
 
 interface MarketItem {
   id: number;
@@ -34,6 +36,7 @@ interface MarketItem {
   updatedAt?: string;
   views?: number;
   contacts?: number;
+  category?: ItemCategory; // НОВОЕ ПОЛЕ: категория объявления
 }
 
 export default function Marketplace({ onClose, currentUser }: MarketplaceProps) {
@@ -45,6 +48,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
   const [apiError, setApiError] = useState<string | null>(null);
   const [items, setItems] = useState<MarketItem[]>([]);
   const [selectedDuration, setSelectedDuration] = useState<DurationType>("1month");
+  const [selectedCategory, setSelectedCategory] = useState<string>(""); // НОВОЕ СОСТОЯНИЕ: выбранная категория для фильтрации
   
   // Состояния для фотографий
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -149,6 +153,12 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
   const filteredItems = useMemo(() => {
     let filtered = items;
     
+    // ФИЛЬТРАЦИЯ ПО КАТЕГОРИИ (если выбрана)
+    if (selectedCategory) {
+      filtered = filtered.filter(item => item.category === selectedCategory);
+    }
+    
+    // ФИЛЬТРАЦИЯ ПО ТЕКСТУ ПОИСКА
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(item => 
@@ -160,7 +170,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     }
     
     return filtered;
-  }, [items, searchQuery]);
+  }, [items, searchQuery, selectedCategory]); // Добавить selectedCategory в зависимости
 
   const searchSuggestions = useMemo(() => {
     if (!searchQuery.trim() || searchQuery.length < 2) return [];
@@ -212,6 +222,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       const location = formData.get("location") as string;
       const priceValue = formData.get("price") as string;
       const type = (formData.get("type") as ItemType) || "sell";
+      const category = formData.get("category") as ItemCategory; // НОВОЕ: получаем категорию
       
       // Валидация обязательных полей (соответствует mocks-market.ts)
       if (!title || title.trim().length < 5) {
@@ -251,6 +262,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         location: location.trim(),
         type: type,
         author: currentUser.login, // ⚡ ИСПРАВЛЕНО: Добавлено обязательное поле author
+        category: category, // НОВОЕ: добавляем категорию
         imageUrl: imageUrl, // Data URL или undefined
         negotiable: negotiable,
         duration: selectedDuration,
@@ -259,7 +271,8 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       console.log('📝 Отправка данных для создания объявления:', {
         ...newItemData,
         imageUrl: imageUrl ? `Data URL (${imageUrl.length} chars)` : 'нет фото',
-        price: price === "free" ? "бесплатно" : `${price} ₽`
+        price: price === "free" ? "бесплатно" : `${price} ₽`,
+        category: category || 'не выбрана'
       });
       
       // Вызываем API для создания объявления
@@ -416,6 +429,27 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
             <h1 className="marketplace-title">БАРАХОЛКА</h1>
             
             <div className="search-container">
+              {/* ВЫПАДАЮЩИЙ СПИСОК КАТЕГОРИЙ ДЛЯ ПОИСКА */}
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="category-filter"
+              >
+                <option value="">Все категории</option>
+                <option value="tools">Инструменты</option>
+                <option value="materials">Материалы</option>
+                <option value="furniture">Мебель</option>
+                <option value="electronics">Электроника</option>
+                <option value="cooking">Кулинария</option>
+                <option value="auto">Авто</option>
+                <option value="sport">Спорт</option>
+                <option value="robot">Робототехника</option>
+                <option value="handmade">Рукоделие</option>
+                <option value="stolar">Столярка</option>
+                <option value="hammer">Кузнечное дело</option>
+                <option value="other">Другое</option>
+              </select>
+              
               <div className="search-input-wrapper">
                 <input
                   type="text"

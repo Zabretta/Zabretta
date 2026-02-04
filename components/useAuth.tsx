@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { mockAPI } from '../api/mocks';
 
 interface User {
   id: string;
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
   useEffect(() => {
     console.log('🔍 useAuth: проверка сохраненной сессии');
+    
     const token = localStorage.getItem('samodelkin_auth_token');
     const userData = localStorage.getItem('samodelkin_user');
     
@@ -39,9 +41,15 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         const parsedUser = JSON.parse(userData);
         console.log('✅ useAuth: пользователь восстановлен:', parsedUser.id);
         setUser(parsedUser);
+        
+        // Добавляем пользователя в онлайн-сессии
+        mockAPI.sessions.addUserSession(parsedUser.id);
       } catch (error) {
         console.error('❌ useAuth: ошибка загрузки данных пользователя:', error);
-        logout();
+        
+        localStorage.removeItem('samodelkin_auth_token');
+        localStorage.removeItem('samodelkin_user');
+        setUser(null);
       }
     } else {
       console.log('👤 useAuth: нет сохраненной сессии');
@@ -56,11 +64,19 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     setUser(userData);
     setAuthModalOpen(false);
     
-    console.log('✅ useAuth: пользователь установлен в контекст');
+    // Добавляем в активные сессии
+    mockAPI.sessions.addUserSession(userData.id);
+    
+    console.log('✅ useAuth: пользователь установлен в контекст и добавлен в сессии');
   };
 
   const logout = () => {
     console.log('🚪 useAuth: выход пользователя');
+    
+    // Удаляем из активных сессий перед выходом
+    if (user) {
+      mockAPI.sessions.removeUserSession(user.id);
+    }
     
     localStorage.removeItem('samodelkin_auth_token');
     localStorage.removeItem('samodelkin_user');

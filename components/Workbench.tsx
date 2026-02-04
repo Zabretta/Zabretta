@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import "./Workbench.css";
@@ -125,6 +125,10 @@ function WorkbenchContent() {
             isOnlineSimulationActive: response.data!.isOnlineSimulationActive
           });
         }
+        
+        // ДОБАВЛЕНО: Очистка старых сессий каждые 60 секунд
+        mockAPI.sessions.cleanupOldSessions();
+        
       } catch (error) {
         console.error('Ошибка при имитации изменения статуса онлайн:', error);
       }

@@ -7,6 +7,7 @@ import { statsAPI } from './mocks-stats';
 import { authAPI } from './mocks-auth';
 import { rulesAPI } from './mocks-rules';
 import { marketAPI } from './mocks-market';
+import { sessionsAPI } from './mocks-sessions'; // <-- ДОБАВЛЕН ИМПОРТ СЕССИЙ
 
 // === БАЗОВЫЕ ТИПЫ (ВЫНЕСТИ В api/types.ts - УЖЕ ВЫНЕСЛИ) ===
 
@@ -129,8 +130,11 @@ export const mockAPI = {
   stats: statsAPI,
 
   // Админ-панель API (теперь импортируется)
-  admin: adminAPI
+  admin: adminAPI,
+
+  // Система сессий (НОВЫЙ МОДУЛЬ)
+  sessions: sessionsAPI
 };
 
 // Экспорт всех API для гибкости
-export { adminAPI, statsAPI, authAPI, rulesAPI, marketAPI };
+export { adminAPI, statsAPI, authAPI, rulesAPI, marketAPI, sessionsAPI };

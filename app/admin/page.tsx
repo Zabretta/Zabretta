@@ -1,81 +1,35 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useAdminData } from '@/components/admin/AdminDataContext';
 import AdminDashboard from '@/components/admin/AdminDashboard';
-import { mockAPI } from '@/api/mocks';
-import { AdminStats } from '@/types/admin';
 
 export default function AdminPage() {
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [realtime, setRealtime] = useState(true);
+  // Используем данные из общего контекста вместо локального состояния
+  const { stats, loading, realtime, toggleRealtime, handleAction } = useAdminData();
 
-  const loadDashboardData = async (isInitialLoad = true) => {
-    try {
-      // Показываем спиннер ТОЛЬКО при первой загрузке
-      if (isInitialLoad) {
-        setLoading(true);
-      }
-      
-      // ИСПРАВЛЕНО: Используем getStatsForAdmin() вместо getStats()
-      const statsResponse = await mockAPI.stats.getStatsForAdmin();
-      const detailedResponse = await mockAPI.stats.getDetailedStats();
-      
-      if (statsResponse.success && statsResponse.data && detailedResponse.success && detailedResponse.data) {
-        const detailed = detailedResponse.data;
-        
-        // ИСПРАВЛЕНО: Берём realTotal и fakeTotal из ОСНОВНОГО ответа (statsResponse)
-        setStats({
-          shownOnline: statsResponse.data.online,
-          realOnline: statsResponse.data.realOnline,
-          fakeOnline: statsResponse.data.simulationOnline,
-          shownTotal: statsResponse.data.total,
-          realTotal: statsResponse.data.realTotal || detailed.realTotal, // Приоритет из statsResponse
-          fakeTotal: statsResponse.data.fakeTotal || detailed.fakeTotal, // Приоритет из statsResponse
-          projectsCreated: statsResponse.data.projectsCreated,
-          adviceGiven: statsResponse.data.adviceGiven,
-          isSimulationActive: statsResponse.data.isSimulationActive,
-          lastUpdate: statsResponse.data.lastUpdate
-        });
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки данных:', error);
-    } finally {
-      // Выключаем спиннер ТОЛЬКО при первой загрузке
-      if (isInitialLoad) {
-        setLoading(false);
-      }
-    }
-  };
-
-  useEffect(() => {
-    // Первая загрузка - со спиннером
-    loadDashboardData(true);
-    
-    if (realtime) {
-      // Последующие обновления - БЕЗ спиннера
-      const interval = setInterval(() => loadDashboardData(false), 10000);
-      return () => clearInterval(interval);
-    }
-  }, [realtime]);
-
+  // Адаптируем handleAction для совместимости с AdminDashboard
+  // AdminDashboard ожидает старые названия действий
   const handleQuickAction = async (action: string) => {
-    switch (action) {
-      case 'resetTotal':
-        await mockAPI.stats.resetTotalToZero();
-        break;
-      case 'toggleSimulation':
-        if (stats?.isSimulationActive) {
-          await mockAPI.stats.disableSimulation();
-        }
-        break;
-      case 'refresh':
-        await loadDashboardData(false); // Обновление без спиннера
-        break;
+    // Маппинг старых action на новые (которые понимает handleAction)
+    const actionMap: Record<string, string> = {
+      'toggleSimulation': 'toggleOnlineSimulation', // старое → новое
+      'refresh': 'refresh'
+    };
+    
+    const newAction = actionMap[action] || action;
+    
+    // Если это resetTotal (старое действие), выполняем специальную логику
+    if (action === 'resetTotal') {
+      // resetTotalToZero больше нет в API, используем новую логику
+      await handleAction('toggleTotalSimulation'); // Выключаем фиктивных
+      return;
     }
+    
+    // Для остальных действий используем стандартный handleAction
+    await handleAction(newAction);
   };
 
-  if (loading) {
+  if (loading || !stats) {
     return (
       <div className="admin-loading">
         <div className="loading-spinner">🛠️</div>
@@ -84,12 +38,41 @@ export default function AdminPage() {
     );
   }
 
+  // Преобразуем stats из нового формата в старый для совместимости с AdminDashboard
+  const compatibleStats = {
+    // Система 1: "Кулибиных на сайте"
+    onlineShown: stats.onlineShown,
+    onlineReal: stats.onlineReal,
+    onlineFake: stats.onlineFake,
+    isOnlineSimulationActive: stats.isOnlineSimulationActive,
+    
+    // Система 2: "Кулибиных всего"
+    totalShown: stats.totalShown,
+    totalReal: stats.totalReal,
+    totalFake: stats.totalFake,
+    isTotalSimulationActive: stats.isTotalSimulationActive,
+    
+    // Статические данные
+    projectsCreated: stats.projectsCreated,
+    adviceGiven: stats.adviceGiven,
+    lastUpdate: stats.lastUpdate,
+    
+    // Старые поля для обратной совместимости (если AdminDashboard их требует)
+    shownOnline: stats.onlineShown,
+    realOnline: stats.onlineReal,
+    fakeOnline: stats.onlineFake,
+    shownTotal: stats.totalShown,
+    realTotal: stats.totalReal,
+    fakeTotal: stats.totalFake,
+    isSimulationActive: stats.isOnlineSimulationActive
+  };
+
   return (
     <AdminDashboard
-      stats={stats!}
+      stats={compatibleStats}
       onQuickAction={handleQuickAction}
       realtime={realtime}
-      onToggleRealtime={() => setRealtime(!realtime)}
+      onToggleRealtime={toggleRealtime}
     />
   );
 }

@@ -30,9 +30,18 @@ export interface StatsData {
   lastUpdate: string;      // Время последнего обновления
 }
 
+// Тип для истории изменений
+export interface AdminStatsHistory {
+  timestamp: string;
+  action: string;
+  changes: Record<string, any>;
+  admin: string;
+}
+
 // === КОНСТАНТЫ ===
 
 const STATS_STORAGE_KEY = 'samodelkin_stats';
+const HISTORY_STORAGE_KEY = 'samodelkin_stats_history';
 const FAKE_ONLINE_MIN = 100;       // Минимальное значение фиктивных онлайн
 const FAKE_ONLINE_MAX = 200;       // Максимальное значение фиктивных онлайн
 const FAKE_ONLINE_START = 150;     // Стартовое значение в середине диапазона
@@ -144,6 +153,80 @@ const saveStatsToStorage = (stats: StatsData): void => {
     console.log('[STATS] Сохранено в localStorage. Онлайн:', stats.onlineShown, 'Всего:', stats.totalShown);
   } catch (error) {
     console.error('[STATS] Ошибка сохранения статистики в localStorage:', error);
+  }
+};
+
+// Добавляет запись в историю изменений
+const addHistoryRecord = (action: string, changes: Record<string, any>, admin: string = 'admin'): void => {
+  try {
+    const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
+    const history: AdminStatsHistory[] = savedHistory ? JSON.parse(savedHistory) : [];
+    
+    const newRecord: AdminStatsHistory = {
+      timestamp: new Date().toISOString(),
+      action,
+      changes,
+      admin
+    };
+    
+    history.unshift(newRecord); // Добавляем в начало
+    
+    // Сохраняем только последние 50 записей
+    const trimmedHistory = history.slice(0, 50);
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(trimmedHistory));
+    
+    console.log(`[HISTORY] Добавлена запись: ${action}`, changes);
+  } catch (error) {
+    console.error('[HISTORY] Ошибка сохранения истории:', error);
+  }
+};
+
+// Получить историю изменений для админки
+export const getHistory = async (): Promise<APIResponse<AdminStatsHistory[]>> => {
+  console.log('[API MOCKS] Загрузка истории изменений...');
+  await simulateNetworkDelay();
+  
+  try {
+    const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
+    
+    const history: AdminStatsHistory[] = savedHistory 
+      ? JSON.parse(savedHistory)
+      : [
+          {
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
+            action: 'Корректировка фиктивных "всего"',
+            changes: { totalFake: '207 → 208' },
+            admin: 'admin'
+          },
+          {
+            timestamp: new Date(Date.now() - 7200000).toISOString(),
+            action: 'Включение имитации онлайн',
+            changes: { onlineFake: '0 → 150' },
+            admin: 'admin'
+          },
+          {
+            timestamp: new Date(Date.now() - 10800000).toISOString(),
+            action: 'Регистрация нового пользователя',
+            changes: { totalReal: '45 → 46' },
+            admin: 'system'
+          }
+        ];
+    
+    console.log('[API MOCKS] История загружена:', history.length, 'записей');
+    
+    return {
+      success: true,
+      data: history,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('[API MOCKS] Ошибка загрузки истории:', error);
+    
+    return {
+      success: false,
+      error: 'Ошибка загрузки истории',
+      timestamp: new Date().toISOString()
+    };
   }
 };
 
@@ -300,6 +383,7 @@ export const incrementOnRegistration = async (): Promise<APIResponse<StatsData>>
   };
   
   saveStatsToStorage(updatedStats);
+  addHistoryRecord('Регистрация нового пользователя', { totalReal: `${currentStats.totalReal} → ${newTotalReal}` }, 'system');
   
   console.log('[API MOCKS] Регистрация: totalReal:', newTotalReal, 'totalShown:', newTotalShown);
   return {
@@ -331,6 +415,8 @@ export const toggleOnlineSimulation = async (): Promise<APIResponse<StatsData>> 
   };
   
   saveStatsToStorage(updatedStats);
+  addHistoryRecord(newState ? 'Включение имитации онлайн' : 'Выключение имитации онлайн', 
+    { onlineFake: `${currentStats.onlineFake} → ${updatedStats.onlineFake}` });
   
   console.log(`[STATS] Имитация онлайн ${newState ? 'включена' : 'выключена'}. 
                onlineFake=${updatedStats.onlineFake}, onlineShown=${updatedStats.onlineShown}`);
@@ -369,6 +455,8 @@ export const toggleTotalSimulation = async (): Promise<APIResponse<StatsData>> =
   };
   
   saveStatsToStorage(updatedStats);
+  addHistoryRecord(newState ? 'Включение фиктивных "всего"' : 'Выключение фиктивных "всего"', 
+    { totalFake: `${currentStats.totalFake} → ${newTotalFake}` });
   
   console.log(`[STATS] Показ фиктивных ${newState ? 'вкл' : 'выкл'}: totalFake=${newTotalFake}, totalShown=${newTotalShown}`);
   
@@ -404,6 +492,7 @@ export const incrementTotalFake = async (): Promise<APIResponse<StatsData>> => {
   };
   
   saveStatsToStorage(updatedStats);
+  addHistoryRecord('Увеличение фиктивных "всего"', { totalFake: `${currentStats.totalFake} → ${newTotalFake}` });
   
   console.log(`[STATS] Админ +1: totalFake ${currentStats.totalFake}→${newTotalFake}, totalShown=${newTotalShown}`);
   
@@ -439,6 +528,7 @@ export const decrementTotalFake = async (): Promise<APIResponse<StatsData>> => {
   };
   
   saveStatsToStorage(updatedStats);
+  addHistoryRecord('Уменьшение фиктивных "всего"', { totalFake: `${currentStats.totalFake} → ${newTotalFake}` });
   
   console.log(`[STATS] Админ -1: totalFake ${currentStats.totalFake}→${newTotalFake}, totalShown=${newTotalShown}`);
   
@@ -497,6 +587,7 @@ export const resetStats = async (): Promise<APIResponse<{ reset: boolean }>> => 
   await simulateNetworkDelay();
   
   localStorage.removeItem(STATS_STORAGE_KEY);
+  localStorage.removeItem(HISTORY_STORAGE_KEY);
   
   const mockResponse: APIResponse<{ reset: boolean }> = {
     success: true,
@@ -518,6 +609,7 @@ export const statsAPI = {
   simulateOnlineChange,
   incrementOnRegistration,
   resetStats,
+  getHistory, // <-- ДОБАВЛЕНА НОВАЯ ФУНКЦИЯ
   
   // Функции управления для админки
   toggleOnlineSimulation,

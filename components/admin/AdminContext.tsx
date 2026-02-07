@@ -18,6 +18,9 @@ interface AdminContextType {
   selectAllUsers: (userIds: string[]) => void;
   hasSelections: boolean;
   selectedCount: number;
+  
+  // НОВОЕ: Функция для обновления данных админки
+  refreshAdminData?: () => Promise<void>;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
@@ -93,6 +96,21 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const hasSelections = selectedUsers.size > 0;
   const selectedCount = selectedUsers.size;
 
+  // НОВАЯ ФУНКЦИЯ: Обновление данных админки
+  const refreshAdminData = useCallback(async () => {
+    console.log('[AdminContext] Запрос на обновление данных админки');
+    
+    // Эта функция может быть использована для принудительного обновления
+    // В текущей реализации просто логируем вызов
+    // В будущем здесь можно добавить вызов API или эмит события
+    // для обновления данных через AdminDataContext
+    
+    // Пример: можно отправить событие для обновления
+    // window.dispatchEvent(new CustomEvent('admin-data-refresh'));
+    
+    return Promise.resolve();
+  }, []);
+
   const contextValue: AdminContextType = {
     // Состояния сайдбара
     sidebarCollapsed,
@@ -109,6 +127,9 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     selectAllUsers,
     hasSelections,
     selectedCount,
+    
+    // НОВОЕ: Функция для обновления данных
+    refreshAdminData,
   };
 
   return (

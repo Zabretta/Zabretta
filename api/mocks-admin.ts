@@ -352,6 +352,37 @@ const mockSystemSettings: AdminSystemSettings = {
   }
 };
 
+// История корректировок рейтинга
+const mockRatingAdjustments: RatingAdjustment[] = [
+  {
+    userId: 'user1',
+    reason: 'Награда за активность в сообществе',
+    ratingChange: 50,
+    activityChange: 0,
+    timestamp: '2024-03-10T14:30:00Z',
+    adminId: 'admin1',
+    adminNote: 'За помощь новичкам в чате'
+  },
+  {
+    userId: 'user2',
+    reason: 'Корректировка после ошибки системы',
+    ratingChange: -20,
+    activityChange: 10,
+    timestamp: '2024-03-09T11:15:00Z',
+    adminId: 'mod1',
+    adminNote: 'Исправлен баг с начислением очков'
+  },
+  {
+    userId: 'user3',
+    reason: 'Поощрение за помощь новичкам',
+    ratingChange: 30,
+    activityChange: 20,
+    timestamp: '2024-03-08T16:45:00Z',
+    adminId: 'admin1',
+    adminNote: 'Подробный ответ на вопрос в разделе помощи'
+  }
+];
+
 // === ОБЩИЕ УТИЛИТЫ ===
 
 const simulateNetworkDelay = () => new Promise(resolve => 
@@ -364,16 +395,12 @@ const simulateNetworkDelay = () => new Promise(resolve =>
 export const getAdminStats = async (): Promise<APIResponse<AdminStats>> => {
   await simulateNetworkDelay();
   
-  // Функция loadStatsFromStorage будет в mocks-stats.ts
-  // Временно используем заглушку
-  const onlineShown = 156; // Временное значение
-  
   const adminStats: AdminStats = {
     users: {
       total: 1542,
       active: 1234,
       newToday: 12,
-      online: onlineShown,
+      online: 156,
       byRole: {
         admin: 3,
         moderator: 8,
@@ -395,7 +422,7 @@ export const getAdminStats = async (): Promise<APIResponse<AdminStats>> => {
       topUsers: [
         { id: 'user1', name: 'Иван Кулибин', rating: 2450, activity: 1200 },
         { id: 'user2', name: 'Мастер Самоделкин', rating: 2180, activity: 1050 },
-        { id: 'user5', name: 'Профессор', rating: 1950, activity: 890 }
+        { id: 'admin1', name: 'Главный Админ', rating: 2450, activity: 1200 }
       ]
     },
     system: {
@@ -480,7 +507,7 @@ export const getAdminUsers = async (params?: {
   };
 };
 
-// Обновление пользователя
+// Обновление пользователя (для UserEditModal)
 export const updateAdminUser = async (
   userId: string, 
   updates: Partial<AdminUser>
@@ -496,10 +523,28 @@ export const updateAdminUser = async (
     };
   }
   
+  // Сохраняем старые значения для аудита
+  const oldUser = { ...mockAdminUsers[userIndex] };
+  
   // Обновляем пользователя
   mockAdminUsers[userIndex] = { ...mockAdminUsers[userIndex], ...updates };
   
   // Логируем действие
+  const changes: Record<string, any> = {};
+  
+  if (updates.name !== undefined && updates.name !== oldUser.name) {
+    changes.name = { from: oldUser.name, to: updates.name };
+  }
+  if (updates.email !== undefined && updates.email !== oldUser.email) {
+    changes.email = { from: oldUser.email, to: updates.email };
+  }
+  if (updates.role !== undefined && updates.role !== oldUser.role) {
+    changes.role = { from: oldUser.role, to: updates.role };
+  }
+  if (updates.isActive !== undefined && updates.isActive !== oldUser.isActive) {
+    changes.status = { from: oldUser.isActive ? 'active' : 'blocked', to: updates.isActive ? 'active' : 'blocked' };
+  }
+  
   mockAuditLogs.unshift({
     id: `log_${Date.now()}`,
     userId: 'admin1', // Текущий админ
@@ -507,7 +552,7 @@ export const updateAdminUser = async (
     action: 'USER_UPDATED',
     targetType: 'user',
     targetId: userId,
-    details: updates,
+    details: { changes, ...updates },
     timestamp: new Date().toISOString()
   });
   
@@ -644,8 +689,20 @@ export const updateAdminSystemSettings = async (
 ): Promise<APIResponse<AdminSystemSettings>> => {
   await simulateNetworkDelay();
   
+  // Сохраняем старые значения для аудита
+  const oldSettings = { ...mockSystemSettings };
+  
   // Обновляем настройки
   Object.assign(mockSystemSettings, settings);
+  
+  // Определяем изменения
+  const changes: Record<string, any> = {};
+  Object.keys(settings).forEach(key => {
+    const typedKey = key as keyof AdminSystemSettings;
+    if (JSON.stringify(oldSettings[typedKey]) !== JSON.stringify(settings[typedKey])) {
+      changes[key] = { from: oldSettings[typedKey], to: settings[typedKey] };
+    }
+  });
   
   // Логируем действие
   mockAuditLogs.unshift({
@@ -654,7 +711,7 @@ export const updateAdminSystemSettings = async (
     userName: 'Главный Админ',
     action: 'SYSTEM_SETTINGS_UPDATED',
     targetType: 'system',
-    details: settings,
+    details: { changes, ...settings },
     timestamp: new Date().toISOString()
   });
   
@@ -695,11 +752,11 @@ export const getAdminRatingStats = async (): Promise<APIResponse<{
       '★★★★★': 27
     },
     topRatedUsers: [
+      { id: 'admin1', name: 'Главный Админ', rating: 2450, level: 'Эксперт сообщества' },
       { id: 'user1', name: 'Иван Кулибин', rating: 2450, level: 'Эксперт сообщества' },
       { id: 'user2', name: 'Мастер Самоделкин', rating: 2180, level: 'Профессор Сомоделкин' },
-      { id: 'user5', name: 'Профессор', rating: 1950, level: 'Профессор Сомоделкин' },
-      { id: 'user7', name: 'Инженер', rating: 1750, level: 'Инженер-конструктор' },
-      { id: 'user10', name: 'Студент', rating: 1450, level: 'Инженер-конструктор' }
+      { id: 'mod1', name: 'Модератор Иван', rating: 1800, level: 'Профессор Сомоделкин' },
+      { id: 'user3', name: 'Новичок Петров', rating: 150, level: 'Студент' }
     ],
     dailyRatingActivity: [
       { date: '2024-03-10', points: 2450, actions: 120 },
@@ -718,7 +775,308 @@ export const getAdminRatingStats = async (): Promise<APIResponse<{
   };
 };
 
-// === НОВЫЕ ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ РЕЙТИНГОМ В АДМИНКЕ ===
+// === ФУНКЦИИ ДЛЯ РАБОТЫ С МОДАЛЬНЫМИ ОКНАМИ ===
+
+// Корректировка рейтинга пользователя (для RatingAdjustmentModal)
+export const adjustUserRating = async (
+  userId: string,
+  adjustment: {
+    ratingChange: number;
+    activityChange: number;
+    reason: string;
+    adminNote?: string;
+  }
+): Promise<APIResponse<{
+  success: boolean;
+  newRating: number;
+  newActivity: number;
+  adjustmentId: string;
+  user: AdminUser;
+}>> => {
+  await simulateNetworkDelay();
+
+  // Ищем пользователя
+  const userIndex = mockAdminUsers.findIndex(u => u.id === userId);
+  if (userIndex === -1) {
+    return {
+      success: false,
+      error: 'Пользователь не найден',
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  // Сохраняем старые значения
+  const oldRating = mockAdminUsers[userIndex].rating || 0;
+  const oldActivity = mockAdminUsers[userIndex].activityPoints || 0;
+  
+  // Обновляем рейтинг пользователя
+  mockAdminUsers[userIndex].rating = oldRating + adjustment.ratingChange;
+  mockAdminUsers[userIndex].activityPoints = oldActivity + adjustment.activityChange;
+
+  // Создаем запись в истории корректировок
+  const adjustmentRecord: RatingAdjustment = {
+    userId,
+    reason: adjustment.reason,
+    ratingChange: adjustment.ratingChange,
+    activityChange: adjustment.activityChange,
+    timestamp: new Date().toISOString(),
+    adminId: 'admin1',
+    adminNote: adjustment.adminNote || `Ручная корректировка: ${adjustment.reason}`
+  };
+  
+  mockRatingAdjustments.unshift(adjustmentRecord);
+
+  // Логируем действие в аудит-логи
+  mockAuditLogs.unshift({
+    id: `rating_adj_${Date.now()}`,
+    userId: 'admin1',
+    userName: 'Главный Админ',
+    action: 'RATING_ADJUSTED',
+    targetType: 'rating',
+    targetId: userId,
+    details: {
+      ...adjustment,
+      oldRating,
+      oldActivity,
+      newRating: mockAdminUsers[userIndex].rating!,
+      newActivity: mockAdminUsers[userIndex].activityPoints!
+    },
+    timestamp: new Date().toISOString()
+  });
+
+  return {
+    success: true,
+    data: {
+      success: true,
+      newRating: mockAdminUsers[userIndex].rating!,
+      newActivity: mockAdminUsers[userIndex].activityPoints!,
+      adjustmentId: `adj_${Date.now()}`,
+      user: mockAdminUsers[userIndex]
+    },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Получение истории корректировок рейтинга
+export const getRatingAdjustments = async (params?: {
+  userId?: string;
+  page?: number;
+  limit?: number;
+  startDate?: string;
+  endDate?: string;
+}): Promise<APIResponse<{
+  adjustments: RatingAdjustment[];
+  total: number;
+  summary: {
+    totalRatingChanges: number;
+    totalActivityChanges: number;
+    positiveAdjustments: number;
+    negativeAdjustments: number;
+  };
+}>> => {
+  await simulateNetworkDelay();
+
+  // Фильтрация по пользователю
+  let filtered = [...mockRatingAdjustments];
+  if (params?.userId) {
+    filtered = filtered.filter(adj => adj.userId === params.userId);
+  }
+
+  // Фильтрация по дате
+  if (params?.startDate) {
+    const startDate = new Date(params.startDate);
+    filtered = filtered.filter(adj => new Date(adj.timestamp) >= startDate);
+  }
+  if (params?.endDate) {
+    const endDate = new Date(params.endDate);
+    filtered = filtered.filter(adj => new Date(adj.timestamp) <= endDate);
+  }
+
+  // Сортировка по дате (новые сначала)
+  filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  // Пагинация
+  const page = params?.page || 1;
+  const limit = params?.limit || 20;
+  const startIndex = (page - 1) * limit;
+  const paginated = filtered.slice(startIndex, startIndex + limit);
+
+  // Статистика
+  const summary = {
+    totalRatingChanges: filtered.reduce((sum, adj) => sum + adj.ratingChange, 0),
+    totalActivityChanges: filtered.reduce((sum, adj) => sum + adj.activityChange, 0),
+    positiveAdjustments: filtered.filter(adj => adj.ratingChange > 0).length,
+    negativeAdjustments: filtered.filter(adj => adj.ratingChange < 0).length
+  };
+
+  return {
+    success: true,
+    data: {
+      adjustments: paginated,
+      total: filtered.length,
+      summary
+    },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Сброс пароля пользователя (для UserProfileModal)
+export const resetUserPassword = async (
+  userId: string,
+  options?: {
+    sendEmail?: boolean;
+    generateTemporaryPassword?: boolean;
+  }
+): Promise<APIResponse<{ 
+  success: boolean; 
+  emailSent: boolean;
+  temporaryPassword?: string;
+  resetLink?: string;
+}>> => {
+  await simulateNetworkDelay();
+  
+  const user = mockAdminUsers.find(u => u.id === userId);
+  if (!user) {
+    return {
+      success: false,
+      error: 'Пользователь не найден',
+      timestamp: new Date().toISOString()
+    };
+  }
+  
+  // Генерируем временный пароль (для демонстрации)
+  const temporaryPassword = options?.generateTemporaryPassword 
+    ? `temp_${Math.random().toString(36).slice(2, 10)}`
+    : undefined;
+  
+  const emailSent = options?.sendEmail !== false;
+  
+  // В реальной системе здесь была бы отправка email
+  console.log(`[ADMIN] Сброс пароля для ${user.email}`, {
+    temporaryPassword,
+    emailSent,
+    resetLink: emailSent ? `/auth/reset-password?token=demo_token_${Date.now()}` : undefined
+  });
+  
+  // Логируем действие
+  mockAuditLogs.unshift({
+    id: `pwd_reset_${Date.now()}`,
+    userId: 'admin1',
+    userName: 'Главный Админ',
+    action: 'PASSWORD_RESET',
+    targetType: 'user',
+    targetId: userId,
+    details: { 
+      email: user.email, 
+      method: 'admin_request',
+      sendEmail: emailSent,
+      hasTemporaryPassword: !!temporaryPassword
+    },
+    timestamp: new Date().toISOString()
+  });
+  
+  return {
+    success: true,
+    data: { 
+      success: true, 
+      emailSent,
+      temporaryPassword,
+      resetLink: emailSent ? `/auth/reset-password?token=demo_token_${Date.now()}` : undefined
+    },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Переключение статуса блокировки пользователя
+export const toggleUserBlock = async (
+  userId: string,
+  reason?: string
+): Promise<APIResponse<{ 
+  success: boolean; 
+  newStatus: boolean;
+  user: AdminUser;
+}>> => {
+  await simulateNetworkDelay();
+  
+  const userIndex = mockAdminUsers.findIndex(u => u.id === userId);
+  if (userIndex === -1) {
+    return {
+      success: false,
+      error: 'Пользователь не найден',
+      timestamp: new Date().toISOString()
+    };
+  }
+  
+  // Сохраняем старое состояние
+  const oldStatus = mockAdminUsers[userIndex].isActive;
+  
+  // Меняем статус
+  mockAdminUsers[userIndex].isActive = !oldStatus;
+  
+  // Логируем действие
+  mockAuditLogs.unshift({
+    id: `block_toggle_${Date.now()}`,
+    userId: 'admin1',
+    userName: 'Главный Админ',
+    action: oldStatus ? 'USER_BLOCKED' : 'USER_UNBLOCKED',
+    targetType: 'user',
+    targetId: userId,
+    details: { 
+      oldStatus: oldStatus ? 'active' : 'blocked',
+      newStatus: mockAdminUsers[userIndex].isActive ? 'active' : 'blocked',
+      reason: reason || (oldStatus ? 'Блокировка администратором' : 'Разблокировка администратором')
+    },
+    timestamp: new Date().toISOString()
+  });
+  
+  return {
+    success: true,
+    data: { 
+      success: true, 
+      newStatus: mockAdminUsers[userIndex].isActive,
+      user: mockAdminUsers[userIndex]
+    },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Получение данных одного пользователя по ID
+export const getAdminUserById = async (
+  userId: string
+): Promise<APIResponse<AdminUser>> => {
+  await simulateNetworkDelay();
+  
+  const user = mockAdminUsers.find(u => u.id === userId);
+  if (!user) {
+    return {
+      success: false,
+      error: 'Пользователь не найден',
+      timestamp: new Date().toISOString()
+    };
+  }
+  
+  // Получаем историю корректировок для этого пользователя
+  const userAdjustments = mockRatingAdjustments.filter(adj => adj.userId === userId);
+  
+  // Добавляем дополнительную статистику (в реальной системе было бы в отдельном запросе)
+  const userWithStats = {
+    ...user,
+    _stats: {
+      totalRatingAdjustments: userAdjustments.reduce((sum, adj) => sum + adj.ratingChange, 0),
+      totalActivityAdjustments: userAdjustments.reduce((sum, adj) => sum + adj.activityChange, 0),
+      adjustmentCount: userAdjustments.length,
+      lastAdjustment: userAdjustments[0] || null
+    }
+  };
+  
+  return {
+    success: true,
+    data: userWithStats,
+    timestamp: new Date().toISOString()
+  };
+};
+
+// === ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ АДМИНКИ ===
 
 // Получение всех данных об уровнях рейтинга
 export const getAdminRatingLevels = async (): Promise<APIResponse<{
@@ -731,10 +1089,11 @@ export const getAdminRatingLevels = async (): Promise<APIResponse<{
     activityPoints: number;
     description: string;
   }>;
+  currentAdjustments: typeof mockRatingAdjustments;
 }>> => {
   await simulateNetworkDelay();
   
-  // Формулы начисления (можно брать из useRatingSystem)
+  // Формулы начисления
   const formulas = [
     { section: 'projects', action: 'create', ratingPoints: 5, activityPoints: 10, description: 'Создание проекта' },
     { section: 'projects', action: 'like_given', ratingPoints: 0, activityPoints: 2, description: 'Лайк проекту' },
@@ -755,7 +1114,8 @@ export const getAdminRatingLevels = async (): Promise<APIResponse<{
     data: {
       userLevels: USER_LEVELS,
       activityLevels: ACTIVITY_LEVELS,
-      formulas
+      formulas,
+      currentAdjustments: mockRatingAdjustments.slice(0, 10) // Последние 10 корректировок
     },
     timestamp: new Date().toISOString()
   };
@@ -793,7 +1153,7 @@ export const getAllUserRatings = async (params?: {
       ratingIcon: userLevel.icon,
       lastDailyLogin: user.lastLogin ? new Date(user.lastLogin) : undefined,
       stats: {
-        projectsCreated: Math.floor(Math.random() * 20),
+        projectsCreated: user.totalPosts || 0,
         mastersAdsCreated: Math.floor(Math.random() * 10),
         helpRequestsCreated: Math.floor(Math.random() * 15),
         libraryPostsCreated: Math.floor(Math.random() * 8),
@@ -849,184 +1209,22 @@ export const getAllUserRatings = async (params?: {
   };
 };
 
-// Ручная корректировка рейтинга пользователя
-export const adjustUserRating = async (
-  userId: string,
-  adjustment: {
-    ratingChange: number;
-    activityChange: number;
-    reason: string;
-    adminNote?: string;
-  }
-): Promise<APIResponse<{
-  success: boolean;
-  newRating: number;
-  newActivity: number;
-  adjustmentId: string;
-}>> => {
-  await simulateNetworkDelay();
-
-  // Ищем пользователя
-  const userIndex = mockAdminUsers.findIndex(u => u.id === userId);
-  if (userIndex === -1) {
-    return {
-      success: false,
-      error: 'Пользователь не найден',
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  // Обновляем рейтинг пользователя
-  const currentRating = mockAdminUsers[userIndex].rating || 0;
-  const currentActivity = mockAdminUsers[userIndex].activityPoints || 0;
-  
-  mockAdminUsers[userIndex].rating = currentRating + adjustment.ratingChange;
-  mockAdminUsers[userIndex].activityPoints = currentActivity + adjustment.activityChange;
-
-  // Создаем запись в истории корректировок
-  const adjustmentRecord: RatingAdjustment = {
-    userId,
-    reason: adjustment.reason,
-    ratingChange: adjustment.ratingChange,
-    activityChange: adjustment.activityChange,
-    timestamp: new Date().toISOString()
-  };
-
-  // В реальной системе здесь была бы запись в БД
-  console.log('[ADMIN] Корректировка рейтинга:', adjustmentRecord);
-
-  // Логируем действие в аудит-логи
-  mockAuditLogs.unshift({
-    id: `rating_adj_${Date.now()}`,
-    userId: 'admin1', // Текущий админ
-    userName: 'Главный Админ',
-    action: 'RATING_ADJUSTED',
-    targetType: 'rating',
-    targetId: userId,
-    details: adjustment,
-    timestamp: new Date().toISOString()
-  });
-
-  return {
-    success: true,
-    data: {
-      success: true,
-      newRating: mockAdminUsers[userIndex].rating!,
-      newActivity: mockAdminUsers[userIndex].activityPoints!,
-      adjustmentId: `adj_${Date.now()}`
-    },
-    timestamp: new Date().toISOString()
-  };
-};
-
-// Получение истории корректировок рейтинга
-export const getRatingAdjustments = async (params?: {
-  userId?: string;
-  page?: number;
-  limit?: number;
-}): Promise<APIResponse<{
-  adjustments: RatingAdjustment[];
-  total: number;
-}>> => {
-  await simulateNetworkDelay();
-
-  // В реальной системе здесь был бы запрос к БД
-  // Создаем моковые данные для демонстрации
-  const mockAdjustments: RatingAdjustment[] = [
-    {
-      userId: 'user1',
-      reason: 'Награда за активность в сообществе',
-      ratingChange: 50,
-      activityChange: 0,
-      timestamp: '2024-03-10T14:30:00Z'
-    },
-    {
-      userId: 'user2',
-      reason: 'Корректировка после ошибки системы',
-      ratingChange: -20,
-      activityChange: 10,
-      timestamp: '2024-03-09T11:15:00Z'
-    },
-    {
-      userId: 'user3',
-      reason: 'Поощрение за помощь новичкам',
-      ratingChange: 30,
-      activityChange: 20,
-      timestamp: '2024-03-08T16:45:00Z'
-    }
-  ];
-
-  // Фильтрация по пользователю
-  let filtered = [...mockAdjustments];
-  if (params?.userId) {
-    filtered = filtered.filter(adj => adj.userId === params.userId);
-  }
-
-  // Пагинация
-  const page = params?.page || 1;
-  const limit = params?.limit || 20;
-  const startIndex = (page - 1) * limit;
-  const paginated = filtered.slice(startIndex, startIndex + limit);
-
-  return {
-    success: true,
-    data: {
-      adjustments: paginated,
-      total: filtered.length
-    },
-    timestamp: new Date().toISOString()
-  };
-};
-
-// Сброс пароля пользователя
-export const resetUserPassword = async (userId: string): Promise<APIResponse<{ emailSent: boolean }>> => {
-  await simulateNetworkDelay();
-  
-  const user = mockAdminUsers.find(u => u.id === userId);
-  if (!user) {
-    return {
-      success: false,
-      error: 'Пользователь не найден',
-      timestamp: new Date().toISOString()
-    };
-  }
-  
-  // В реальной системе здесь была бы отправка email
-  console.log(`[ADMIN] Сброс пароля для ${user.email}`);
-  
-  // Логируем действие
-  mockAuditLogs.unshift({
-    id: `pwd_${Date.now()}`,
-    userId: 'admin1',
-    userName: 'Главный Админ',
-    action: 'PASSWORD_RESET',
-    targetType: 'user',
-    targetId: userId,
-    details: { email: user.email, method: 'email' },
-    timestamp: new Date().toISOString()
-  });
-  
-  return {
-    success: true,
-    data: { emailSent: true },
-    timestamp: new Date().toISOString()
-  };
-};
-
 // Массовое обновление пользователей
 export const bulkUpdateUsers = async (
   userIds: string[],
   updates: Partial<AdminUser>
-): Promise<APIResponse<{ updated: number; failed: number }>> => {
+): Promise<APIResponse<{ updated: number; failed: number; users: AdminUser[] }>> => {
   await simulateNetworkDelay();
   
   let updated = 0;
   let failed = 0;
+  const updatedUsers: AdminUser[] = [];
   
   userIds.forEach(userId => {
     const userIndex = mockAdminUsers.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
       mockAdminUsers[userIndex] = { ...mockAdminUsers[userIndex], ...updates };
+      updatedUsers.push(mockAdminUsers[userIndex]);
       updated++;
     } else {
       failed++;
@@ -1052,7 +1250,30 @@ export const bulkUpdateUsers = async (
   
   return {
     success: true,
-    data: { updated, failed },
+    data: { updated, failed, users: updatedUsers },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Поиск пользователей по различным критериям
+export const searchAdminUsers = async (
+  query: string,
+  fields: Array<'login' | 'email' | 'name' | 'id'> = ['login', 'email', 'name']
+): Promise<APIResponse<AdminUser[]>> => {
+  await simulateNetworkDelay();
+  
+  const queryLower = query.toLowerCase();
+  
+  const results = mockAdminUsers.filter(user => {
+    return fields.some(field => {
+      const value = user[field];
+      return value && typeof value === 'string' && value.toLowerCase().includes(queryLower);
+    });
+  });
+  
+  return {
+    success: true,
+    data: results,
     timestamp: new Date().toISOString()
   };
 };
@@ -1063,6 +1284,7 @@ export const adminAPI = {
   // Основные функции
   getAdminStats,
   getAdminUsers,
+  getAdminUserById,
   updateAdminUser,
   getAdminAuditLogs,
   getAdminViolations,
@@ -1071,13 +1293,17 @@ export const adminAPI = {
   updateAdminSystemSettings,
   getAdminRatingStats,
   
+  // Функции для модальных окон
+  adjustUserRating,
+  getRatingAdjustments,
+  resetUserPassword,
+  toggleUserBlock,
+  
   // Рейтинг
   getRatingLevels: getAdminRatingLevels,
   getAllUserRatings,
-  adjustUserRating,
-  getRatingAdjustments,
   
-  // Новые функции для панели пользователей
-  resetUserPassword,
-  bulkUpdateUsers
+  // Дополнительные функции
+  bulkUpdateUsers,
+  searchAdminUsers
 };

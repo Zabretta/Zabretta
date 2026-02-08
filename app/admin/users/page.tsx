@@ -2,10 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import './AdminUsersPage.css';
+import './UserModals.css'; // Добавили стили модальных окон
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-// Импортируем и функцию API, и правильный тип AdminUser из одного источника
-import { mockAPI, type AdminUser } from '@/api/mocks';
+// Импортируем функцию API из mocks, а тип AdminUser из mocks-admin
+import { mockAPI } from '@/api/mocks';
+import { type AdminUser } from '@/api/mocks-admin'; // Исправленный импорт
 import { formatDate, getRoleLabel } from '@/utils/admin';
+import { USER_LEVELS } from '@/api/mocks-admin';
+
+// Импортируем модальные окна
+import UserProfileModal from './UserProfileModal';
+import UserEditModal from './UserEditModal';
+import RatingAdjustmentModal from './RatingAdjustmentModal';
 
 export default function AdminUsersPage() {
   // Аутентификация и авторизация
@@ -32,6 +40,12 @@ export default function AdminUsersPage() {
     { name: "Мастер", count: 18, percentage: 15, color: "#A0522D" },
     { name: "Легенда", count: 10, percentage: 9, color: "#FFD700" }
   ]);
+
+  // Состояния для модальных окон
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
 
   // Загрузка пользователей при монтировании компонента
   useEffect(() => {
@@ -79,31 +93,43 @@ export default function AdminUsersPage() {
     }
   };
 
-  // Функция обновления данных распределения по уровням
+  // Функция обновления данных распределения по уровням (ИСПРАВЛЕНА)
   const updateDistributionData = (userList: AdminUser[]) => {
-    // В реальном приложении здесь будет логика расчета распределения
-    // по уровням на основе рейтинга пользователей
     const total = userList.length;
     
-    if (total > 0) {
-      // Временная логика для демонстрации - в реальном приложении 
-      // нужно использовать реальные данные о рейтинге пользователей
-      const newDistribution = [
-        { name: "Студент", count: Math.floor(total * 0.35), percentage: 35, color: "#8B4513" },
-        { name: "Инженер", count: Math.floor(total * 0.23), percentage: 23, color: "#D2691E" },
-        { name: "Архитектор", count: Math.floor(total * 0.18), percentage: 18, color: "#CD853F" },
-        { name: "Мастер", count: Math.floor(total * 0.15), percentage: 15, color: "#A0522D" },
-        { name: "Легенда", count: Math.max(total - Math.floor(total * 0.91), 0), percentage: 9, color: "#FFD700" }
-      ];
-      
-      // Корректировка для точного совпадения с общим количеством
-      const totalCount = newDistribution.reduce((sum, level) => sum + level.count, 0);
-      if (totalCount !== total) {
-        newDistribution[0].count += total - totalCount;
-      }
-      
-      setDistributionData(newDistribution);
+    if (total === 0) {
+      // Если нет пользователей, показываем пустые данные
+      const emptyDistribution = USER_LEVELS.map((level, index) => ({
+        name: level.name,
+        count: 0,
+        percentage: 0,
+        color: ['#8B4513', '#D2691E', '#CD853F', '#A0522D', '#FFD700'][index] || '#8B4513'
+      }));
+      setDistributionData(emptyDistribution);
+      return;
     }
+    
+    // Считаем пользователей по уровням на основе рейтинга
+    const levelCounts: Record<string, number> = {};
+    
+    userList.forEach(user => {
+      const rating = user.rating || 0;
+      const level = USER_LEVELS.find(l => rating >= l.min && rating <= l.max)?.name || USER_LEVELS[0].name;
+      levelCounts[level] = (levelCounts[level] || 0) + 1;
+    });
+    
+    // Преобразуем в массив для графика
+    const newDistribution = USER_LEVELS.map((level, index) => {
+      const count = levelCounts[level.name] || 0;
+      return {
+        name: level.name,
+        count,
+        percentage: Math.round((count / total) * 100),
+        color: ['#8B4513', '#D2691E', '#CD853F', '#A0522D', '#FFD700'][index] || '#8B4513'
+      };
+    });
+    
+    setDistributionData(newDistribution);
   };
 
   // Применение локальных фильтров (поиск по логину/email)
@@ -135,16 +161,21 @@ export default function AdminUsersPage() {
     loadUsers(); // Перезагрузка данных с сервера с учетом поиска
   };
 
-  // Обработчики действий
+  // Обработчики действий для открытия модальных окон
   const handleViewUser = (userId: string) => {
-    console.log('Просмотр пользователя:', userId);
-    // Здесь можно открыть модальное окно с детальной информацией
-    alert(`Просмотр пользователя ${userId}. Детальный просмотр будет реализован позже.`);
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      setSelectedUser(user);
+      setIsProfileModalOpen(true);
+    }
   };
 
   const handleEditUser = (userId: string) => {
-    console.log('Редактирование пользователя:', userId);
-    alert(`Редактирование пользователя ${userId}. Редактирование будет реализовано позже.`);
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      setSelectedUser(user);
+      setIsEditModalOpen(true);
+    }
   };
 
   const handleToggleBlock = async (user: AdminUser) => {
@@ -170,11 +201,85 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleResetPassword = (userId: string, userLogin: string) => {
+  const handleResetPassword = async (userId: string, userLogin: string) => {
     if (confirm(`Сбросить пароль для пользователя ${userLogin}? На email будет отправлена инструкция.`)) {
-      console.log('Сброс пароля для:', userId);
-      alert(`Запрос на сброс пароля для ${userLogin} отправлен. В реальной системе здесь будет вызов API.`);
+      try {
+        const response = await mockAPI.admin.resetUserPassword(userId);
+        
+        if (response.success) {
+          alert(`Инструкция по сбросу пароля отправлена на email пользователя.`);
+        } else {
+          alert(`Ошибка: ${response.error}`);
+        }
+      } catch (err) {
+        alert('Ошибка при сбросе пароля. Попробуйте снова.');
+        console.error('Ошибка сброса пароля:', err);
+      }
     }
+  };
+
+  // Обработчик ручной корректировки рейтинга
+  const handleAdjustRating = (userId: string, userLogin: string) => {
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      setSelectedUser(user);
+      setIsRatingModalOpen(true);
+    }
+  };
+
+  // Обработчик сохранения изменений пользователя
+  const handleSaveUser = async (updates: Partial<AdminUser>) => {
+    if (!selectedUser) return;
+    
+    try {
+      const response = await mockAPI.admin.updateAdminUser(selectedUser.id, updates);
+      
+      if (response.success) {
+        alert(`Данные пользователя ${selectedUser.login} успешно обновлены!`);
+        loadUsers(); // Обновляем список
+        setIsEditModalOpen(false);
+        setSelectedUser(null);
+      } else {
+        alert(`Ошибка при обновлении: ${response.error}`);
+      }
+    } catch (err) {
+      alert('Ошибка при обновлении пользователя');
+      console.error('Ошибка сохранения:', err);
+    }
+  };
+
+  // Обработчик корректировки рейтинга
+  const handleRatingAdjust = async (adjustment: {
+    ratingChange: number;
+    activityChange: number;
+    reason: string;
+    adminNote?: string;
+  }) => {
+    if (!selectedUser) return;
+    
+    try {
+      const response = await mockAPI.admin.adjustUserRating(selectedUser.id, adjustment);
+      
+      if (response.success && response.data) {
+        alert(`Рейтинг пользователя ${selectedUser.login} скорректирован!\nНовый рейтинг: ${response.data.newRating}\nНовая активность: ${response.data.newActivity}`);
+        loadUsers(); // Обновляем список
+        setIsRatingModalOpen(false);
+        setSelectedUser(null);
+      } else {
+        alert(`Ошибка: ${response.error}`);
+      }
+    } catch (err) {
+      alert('Ошибка при корректировке рейтинга');
+      console.error('Ошибка корректировки:', err);
+    }
+  };
+
+  // Закрытие всех модальных окон
+  const closeAllModals = () => {
+    setIsProfileModalOpen(false);
+    setIsEditModalOpen(false);
+    setIsRatingModalOpen(false);
+    setSelectedUser(null);
   };
 
   // Пагинация
@@ -226,7 +331,7 @@ export default function AdminUsersPage() {
                   <div 
                     className="bar-column" 
                     style={{
-                      height: `${level.percentage}%`,
+                      height: `${Math.max(level.percentage, 5)}%`, // Минимум 5% для видимости
                       background: `linear-gradient(0deg, ${level.color}, ${index === distributionData.length - 1 ? '#FFA500' : '#F5DEB3'})`
                     }}
                     title={`${level.name}: ${level.count} пользователей (${level.percentage}%)`}
@@ -268,8 +373,12 @@ export default function AdminUsersPage() {
             </div>
             <div className="distribution-stat">
               <div className="stat-title">Самый частый уровень</div>
-              <div className="stat-value">{distributionData[0]?.name || '—'}</div>
-              <div className="stat-subtitle">{distributionData[0]?.percentage || 0}% пользователей</div>
+              <div className="stat-value">
+                {distributionData.reduce((max, level) => level.count > max.count ? level : max, distributionData[0]).name}
+              </div>
+              <div className="stat-subtitle">
+                {distributionData.reduce((max, level) => level.count > max.count ? level : max, distributionData[0]).percentage}% пользователей
+              </div>
             </div>
             <div className="distribution-stat">
               <div className="stat-title">Высший уровень</div>
@@ -372,7 +481,7 @@ export default function AdminUsersPage() {
                     <tr key={user.id}>
                       <td>
                         <strong>{user.login}</strong>
-                        {user.id.includes('admin') && ' 👑'}
+                        {user.role === 'admin' && ' 👑'}
                       </td>
                       <td>{user.name || '—'}</td>
                       <td>{user.email}</td>
@@ -383,9 +492,16 @@ export default function AdminUsersPage() {
                       </td>
                       <td>{formatDate(user.createdAt)}</td>
                       <td>
-                        <span style={{ color: user.rating && user.rating > 1000 ? '#FFD700' : '#F5DEB3' }}>
-                          {user.rating || 0}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <span>{user.rating || 0}</span>
+                          <button 
+                            className="action-btn edit"
+                            onClick={() => handleAdjustRating(user.id, user.login)}
+                            title="Корректировать рейтинг"
+                          >
+                            📊
+                          </button>
+                        </div>
                       </td>
                       <td>{user.activityPoints || 0}</td>
                       <td>
@@ -395,30 +511,30 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="actions-cell">
                         <button 
-                          className="action-btn view" 
-                          title="Просмотр профиля"
+                          className="action-btn view"
                           onClick={() => handleViewUser(user.id)}
+                          title="Просмотр профиля"
                         >
                           👁️
                         </button>
                         <button 
-                          className="action-btn edit" 
-                          title="Редактировать"
+                          className="action-btn edit"
                           onClick={() => handleEditUser(user.id)}
+                          title="Редактировать"
                         >
                           ✏️
                         </button>
                         <button 
-                          className="action-btn block" 
-                          title={user.isActive ? 'Заблокировать' : 'Разблокировать'}
+                          className="action-btn block"
                           onClick={() => handleToggleBlock(user)}
+                          title={user.isActive ? 'Заблокировать' : 'Разблокировать'}
                         >
-                          {user.isActive ? '🚫' : '✅'}
+                          {user.isActive ? '⛔' : '✅'}
                         </button>
                         <button 
-                          className="action-btn reset" 
-                          title="Сбросить пароль"
+                          className="action-btn reset"
                           onClick={() => handleResetPassword(user.id, user.login)}
+                          title="Сбросить пароль"
                         >
                           🔄
                         </button>
@@ -442,8 +558,7 @@ export default function AdminUsersPage() {
                 
                 <div className="pagination-info">
                   Страница {currentPage} из {totalPages}
-                  <br />
-                  <small>Показано {filteredUsers.length} из {totalUsers} пользователей</small>
+                  <small>Показано {filteredUsers.length} пользователей из {totalUsers}</small>
                 </div>
                 
                 <button 
@@ -461,29 +576,51 @@ export default function AdminUsersPage() {
         {/* Состояние "нет данных" */}
         {!loading && !error && filteredUsers.length === 0 && (
           <div className="empty-state">
-            <div className="empty-icon">👥</div>
+            <div className="empty-icon">👤</div>
             <p className="empty-text">Пользователи не найдены</p>
             <p className="empty-subtext">
-              {search || filterRole !== 'all' 
-                ? 'Попробуйте изменить условия поиска или фильтры' 
-                : 'В системе пока нет пользователей'}
+              Попробуйте изменить параметры поиска или фильтрации
             </p>
-            {(search || filterRole !== 'all') && (
-              <button 
-                onClick={() => {
-                  setSearch('');
-                  setFilterRole('all');
-                  setCurrentPage(1);
-                }}
-                className="add-user-btn"
-                style={{ marginTop: '20px' }}
-              >
-                Сбросить фильтры
-              </button>
-            )}
           </div>
         )}
       </div>
+
+      {/* Модальные окна */}
+      <UserProfileModal
+        user={selectedUser}
+        isOpen={isProfileModalOpen}
+        onClose={closeAllModals}
+        onEdit={() => {
+          setIsProfileModalOpen(false);
+          setIsEditModalOpen(true);
+        }}
+        onToggleBlock={() => {
+          if (selectedUser) {
+            handleToggleBlock(selectedUser);
+            closeAllModals();
+          }
+        }}
+        onResetPassword={() => {
+          if (selectedUser) {
+            handleResetPassword(selectedUser.id, selectedUser.login);
+            closeAllModals();
+          }
+        }}
+      />
+
+      <UserEditModal
+        user={selectedUser}
+        isOpen={isEditModalOpen}
+        onClose={closeAllModals}
+        onSave={handleSaveUser}
+      />
+
+      <RatingAdjustmentModal
+        user={selectedUser}
+        isOpen={isRatingModalOpen}
+        onClose={closeAllModals}
+        onAdjust={handleRatingAdjust}
+      />
     </div>
   );
 }

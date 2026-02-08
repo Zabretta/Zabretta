@@ -452,10 +452,10 @@ export const getAdminUsers = async (params?: {
   if (params?.sortBy) {
     filteredUsers.sort((a, b) => {
       switch (params.sortBy) {
-        case 'rating_desc': return b.rating! - a.rating!;
-        case 'rating_asc': return a.rating! - b.rating!;
-        case 'activity_desc': return b.activityPoints! - a.activityPoints!;
-        case 'activity_asc': return a.activityPoints! - b.activityPoints!;
+        case 'rating_desc': return (b.rating || 0) - (a.rating || 0);
+        case 'rating_asc': return (a.rating || 0) - (b.rating || 0);
+        case 'activity_desc': return (b.activityPoints || 0) - (a.activityPoints || 0);
+        case 'activity_asc': return (a.activityPoints || 0) - (b.activityPoints || 0);
         case 'date_desc': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         case 'date_asc': return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         default: return 0;
@@ -978,6 +978,85 @@ export const getRatingAdjustments = async (params?: {
   };
 };
 
+// Сброс пароля пользователя
+export const resetUserPassword = async (userId: string): Promise<APIResponse<{ emailSent: boolean }>> => {
+  await simulateNetworkDelay();
+  
+  const user = mockAdminUsers.find(u => u.id === userId);
+  if (!user) {
+    return {
+      success: false,
+      error: 'Пользователь не найден',
+      timestamp: new Date().toISOString()
+    };
+  }
+  
+  // В реальной системе здесь была бы отправка email
+  console.log(`[ADMIN] Сброс пароля для ${user.email}`);
+  
+  // Логируем действие
+  mockAuditLogs.unshift({
+    id: `pwd_${Date.now()}`,
+    userId: 'admin1',
+    userName: 'Главный Админ',
+    action: 'PASSWORD_RESET',
+    targetType: 'user',
+    targetId: userId,
+    details: { email: user.email, method: 'email' },
+    timestamp: new Date().toISOString()
+  });
+  
+  return {
+    success: true,
+    data: { emailSent: true },
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Массовое обновление пользователей
+export const bulkUpdateUsers = async (
+  userIds: string[],
+  updates: Partial<AdminUser>
+): Promise<APIResponse<{ updated: number; failed: number }>> => {
+  await simulateNetworkDelay();
+  
+  let updated = 0;
+  let failed = 0;
+  
+  userIds.forEach(userId => {
+    const userIndex = mockAdminUsers.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      mockAdminUsers[userIndex] = { ...mockAdminUsers[userIndex], ...updates };
+      updated++;
+    } else {
+      failed++;
+    }
+  });
+  
+  // Логируем массовое действие
+  if (updated > 0) {
+    mockAuditLogs.unshift({
+      id: `bulk_${Date.now()}`,
+      userId: 'admin1',
+      userName: 'Главный Админ',
+      action: 'BULK_UPDATE',
+      targetType: 'user',
+      details: { 
+        count: updated, 
+        updates,
+        userIds: userIds.slice(0, 5) // Логируем только первые 5 ID
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  return {
+    success: true,
+    data: { updated, failed },
+    timestamp: new Date().toISOString()
+  };
+};
+
 // === ЭКСПОРТ АДМИН API ===
 
 export const adminAPI = {
@@ -996,5 +1075,9 @@ export const adminAPI = {
   getRatingLevels: getAdminRatingLevels,
   getAllUserRatings,
   adjustUserRating,
-  getRatingAdjustments
+  getRatingAdjustments,
+  
+  // Новые функции для панели пользователей
+  resetUserPassword,
+  bulkUpdateUsers
 };

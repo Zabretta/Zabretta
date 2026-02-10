@@ -8,6 +8,7 @@ import { authAPI } from './mocks-auth';
 import { rulesAPI } from './mocks-rules';
 import { marketAPI } from './mocks-market';
 import { sessionsAPI } from './mocks-sessions'; // <-- ДОБАВЛЕН ИМПОРТ СЕССИЙ
+import { notificationsAPI } from './mocks-notifications'; // <-- НОВЫЙ ИМПОРТ УВЕДОМЛЕНИЙ
 
 // === БАЗОВЫЕ ТИПЫ (ВЫНЕСТИ В api/types.ts - УЖЕ ВЫНЕСЛИ) ===
 
@@ -133,8 +134,11 @@ export const mockAPI = {
   admin: adminAPI,
 
   // Система сессий (НОВЫЙ МОДУЛЬ)
-  sessions: sessionsAPI
+  sessions: sessionsAPI,
+
+  // ========= НОВЫЙ МОДУЛЬ: УВЕДОМЛЕНИЯ =========
+  notifications: notificationsAPI
 };
 
 // Экспорт всех API для гибкости
-export { adminAPI, statsAPI, authAPI, rulesAPI, marketAPI, sessionsAPI };
+export { adminAPI, statsAPI, authAPI, rulesAPI, marketAPI, sessionsAPI, notificationsAPI };

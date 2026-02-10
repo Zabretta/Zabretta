@@ -1,8 +1,11 @@
+// components/admin/AdminLayout.tsx
 "use client";
 
 import { ReactNode } from 'react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useAdmin } from '@/components/admin/AdminContext';
+import { NotificationsProvider } from './NotificationsContext';
+import NotificationsModal from './NotificationsModal';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 import './AdminLayout.css';
@@ -31,30 +34,34 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="admin-layout">
-      {/* Оверлей для закрытия мобильного меню */}
-      {isMobileView && isMobileSidebarOpen && (
-        <div 
-          className="mobile-sidebar-overlay"
-          onClick={closeMobileSidebar}
+    <NotificationsProvider>
+      <div className="admin-layout">
+        {/* Оверлей для закрытия мобильного меню */}
+        {isMobileView && isMobileSidebarOpen && (
+          <div 
+            className="mobile-sidebar-overlay"
+            onClick={closeMobileSidebar}
+          />
+        )}
+        
+        <AdminSidebar 
+          collapsed={sidebarCollapsed} 
+          isMobileOpen={isMobileSidebarOpen}
+          onToggle={toggleSidebar}
         />
-      )}
-      
-      <AdminSidebar 
-        collapsed={sidebarCollapsed} 
-        isMobileOpen={isMobileSidebarOpen}
-        onToggle={toggleSidebar}
-      />
-      <div className={`admin-main ${sidebarCollapsed ? 'collapsed' : ''}`}>
-        <AdminHeader onToggleSidebar={toggleSidebar} />
-        <div className="admin-content" onClick={closeMobileSidebar}>
-          {children}
+        <div className={`admin-main ${sidebarCollapsed ? 'collapsed' : ''}`}>
+          <AdminHeader onToggleSidebar={toggleSidebar} />
+          <div className="admin-content" onClick={closeMobileSidebar}>
+            {children}
+          </div>
+          <footer className="admin-footer">
+            <p>Админ-панель "Самоделкин" • {new Date().getFullYear()}</p>
+            <p className="admin-version">Версия 1.0.0 (Демо)</p>
+          </footer>
         </div>
-        <footer className="admin-footer">
-          <p>Админ-панель "Самоделкин" • {new Date().getFullYear()}</p>
-          <p className="admin-version">Версия 1.0.0 (Демо)</p>
-        </footer>
+        
+        <NotificationsModal />
       </div>
-    </div>
+    </NotificationsProvider>
   );
 }

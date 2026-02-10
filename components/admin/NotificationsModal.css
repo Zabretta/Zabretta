@@ -1,0 +1,567 @@
+/* components/admin/NotificationsModal.css */
+/* Базовые стили для модального окна уведомлений */
+
+.notifications-modal {
+  max-width: 500px;
+}
+
+/* Шапка с уведомлениями */
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.notifications-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.unread-counter {
+  color: #FFD700;
+  font-size: 18px;
+  font-weight: 600;
+  background: rgba(139, 69, 19, 0.3);
+  padding: 2px 10px;
+  border-radius: 12px;
+  margin-left: 8px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Кнопка закрытия модального окна (крестик) */
+.modal-close {
+  width: 36px;
+  height: 36px;
+  background: rgba(139, 69, 19, 0.3);
+  border: 2px solid #8B4513;
+  border-radius: 50%;
+  color: #D2B48C;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.modal-close:hover {
+  background: rgba(210, 105, 30, 0.4);
+  border-color: #D2691E;
+  color: #FFD700;
+  transform: scale(1.1);
+}
+
+.modal-close:active {
+  transform: scale(0.95);
+}
+
+.mark-all-btn {
+  padding: 8px 16px !important;
+  font-size: 14px !important;
+  white-space: nowrap;
+}
+
+/* Форма добавления уведомления */
+.add-notification-form {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: rgba(139, 69, 19, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(139, 69, 19, 0.3);
+}
+
+.add-notification-form .form-group {
+  margin-bottom: 0;
+}
+
+.add-notification-form label {
+  display: block;
+  color: #D2B48C;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.notification-textarea {
+  width: 100%;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid #8B4513;
+  border-radius: 8px;
+  color: #F5DEB3;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+  transition: all 0.3s ease;
+}
+
+.notification-textarea:focus {
+  outline: none;
+  border-color: #D2691E;
+  box-shadow: 0 0 0 3px rgba(210, 105, 30, 0.2);
+}
+
+.notification-textarea::placeholder {
+  color: #A0522D;
+  opacity: 0.7;
+}
+
+.notification-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Обновим стили кнопки "Добавить уведомление" */
+.action-btn.text-notification:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Состояние загрузки */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(139, 69, 19, 0.3);
+  border-top-color: #8B4513;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  color: #D2B48C;
+  font-size: 16px;
+  margin: 0;
+}
+
+/* Состояние "пусто" */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  opacity: 0.7;
+}
+
+.empty-state h3 {
+  color: #F5DEB3;
+  font-size: 22px;
+  margin: 0 0 12px 0;
+}
+
+.empty-state p {
+  color: #A0522D;
+  font-size: 15px;
+  margin: 0;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+/* Список уведомлений */
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Полоса прокрутки */
+.notifications-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.notifications-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.notifications-list::-webkit-scrollbar-thumb {
+  background: rgba(139, 69, 19, 0.6);
+  border-radius: 4px;
+}
+
+.notifications-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(210, 105, 30, 0.8);
+}
+
+/* Элемент уведомления - текстовое уведомление */
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(139, 69, 19, 0.3);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.notification-item:hover {
+  background: rgba(139, 69, 19, 0.1);
+  border-color: #8B4513;
+  transform: translateY(-2px);
+}
+
+.notification-item.unread {
+  background: rgba(139, 69, 19, 0.15);
+  border-left: 4px solid #8B4513;
+}
+
+.notification-item.read {
+  opacity: 0.9;
+}
+
+/* Иконка уведомления */
+.notification-icon {
+  font-size: 24px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Цвета для разных типов уведомлений */
+.notification-item.type-system .notification-icon {
+  background: rgba(128, 128, 128, 0.3);
+  color: #C0C0C0;
+}
+
+.notification-item.type-user .notification-icon {
+  background: rgba(46, 139, 87, 0.3);
+  color: #98FB98;
+}
+
+.notification-item.type-warning .notification-icon {
+  background: rgba(218, 165, 32, 0.3);
+  color: #FFD700;
+}
+
+.notification-item.type-success .notification-icon {
+  background: rgba(34, 139, 34, 0.3);
+  color: #32CD32;
+}
+
+/* Контент уведомления - текстовое содержимое */
+.notification-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-text {
+  color: #F5DEB3;
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.notification-link-hint {
+  color: #D2691E;
+  margin-left: 4px;
+  font-weight: bold;
+}
+
+/* Мета-информация под текстом уведомления */
+.notification-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notification-time {
+  color: #A0522D;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.unread-dot {
+  width: 10px;
+  height: 10px;
+  background: #FFD700;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Кнопка отметки как прочитанного */
+.notification-mark-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(139, 69, 19, 0.2);
+  border: 2px solid #8B4513;
+  border-radius: 50%;
+  color: #D2B48C;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.notification-mark-btn:hover {
+  background: rgba(210, 105, 30, 0.4);
+  transform: scale(1.1);
+}
+
+.notification-item.read .notification-mark-btn {
+  background: rgba(46, 139, 87, 0.2);
+  border-color: #2E8B57;
+  color: #98FB98;
+}
+
+/* Футер уведомлений */
+.notifications-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-stats {
+  display: flex;
+  gap: 20px;
+}
+
+.stat-total,
+.stat-unread {
+  color: #D2B48C;
+  font-size: 14px;
+}
+
+.stat-total strong,
+.stat-unread strong {
+  color: #F5DEB3;
+  font-size: 16px;
+  margin-left: 4px;
+}
+
+/* Кнопки в футере */
+.footer-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Кнопка "текстовое уведомление" рядом с "закрыть" */
+.action-btn.text-notification {
+  background: linear-gradient(135deg, rgba(218, 165, 32, 0.2), rgba(184, 134, 11, 0.3));
+  border: 2px solid #DAA520;
+  color: #FFD700;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 120px;
+}
+
+.action-btn.text-notification:hover {
+  background: linear-gradient(135deg, rgba(218, 165, 32, 0.3), rgba(184, 134, 11, 0.4));
+  border-color: #FFD700;
+  color: #FFF8DC;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(218, 165, 32, 0.3);
+}
+
+.action-btn.text-notification:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(218, 165, 32, 0.2);
+}
+
+/* Иконка внутри кнопки */
+.action-btn.text-notification::before {
+  content: "📝";
+  font-size: 16px;
+}
+
+/* Кнопка "Закрыть" в футере */
+.action-btn.tertiary {
+  background: rgba(139, 69, 19, 0.1);
+  border: 2px solid #8B4513;
+  color: #D2B48C;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+}
+
+.action-btn.tertiary:hover {
+  background: rgba(210, 105, 30, 0.2);
+  border-color: #D2691E;
+  color: #F5DEB3;
+  transform: translateY(-2px);
+}
+
+.action-btn.tertiary:active {
+  transform: translateY(0);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .notifications-modal {
+    width: 95%;
+    max-width: 95%;
+  }
+  
+  .notifications-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .header-actions {
+    justify-content: space-between;
+  }
+  
+  .notifications-list {
+    max-height: 400px;
+  }
+  
+  .notification-item {
+    padding: 14px;
+    gap: 12px;
+  }
+  
+  .notification-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+  
+  .notification-text {
+    font-size: 14px;
+  }
+  
+  .notifications-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .footer-stats {
+    justify-content: center;
+  }
+  
+  .footer-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .footer-actions .action-btn {
+    width: 100%;
+  }
+  
+  .modal-close {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+  
+  /* Для мобильных устройств - кнопка текстового уведомления */
+  .action-btn.text-notification {
+    min-width: auto;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .notifications-header h2 {
+    font-size: 20px;
+  }
+  
+  .unread-counter {
+    font-size: 16px;
+    padding: 2px 8px;
+  }
+  
+  .notification-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .notification-icon {
+    align-self: flex-start;
+  }
+  
+  .modal-close {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+  
+  .action-btn.tertiary {
+    min-width: auto;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  
+  /* Для очень маленьких экранов */
+  .action-btn.text-notification {
+    width: 100%;
+    margin-top: 8px;
+  }
+}

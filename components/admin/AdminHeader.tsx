@@ -1,7 +1,9 @@
+// components/admin/AdminHeader.tsx
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/useAuth';
+import { useNotifications } from './NotificationsContext'; // <-- ИМПОРТ КОНТЕКСТА
 import './AdminHeader.css';
 
 interface AdminHeaderProps {
@@ -10,17 +12,15 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
   const { user, logout } = useAuth();
+  const { 
+    unreadCount, 
+    openNotificationsModal // <-- ИСПОЛЬЗУЕМ ФУНКЦИЮ ИЗ КОНТЕКСТА
+  } = useNotifications();
+  
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: 'Новый пользователь зарегистрировался', time: '5 мин назад', read: false },
-    { id: 2, text: 'Статистика обновлена', time: '10 мин назад', read: true },
-  ]);
   const [isMobile, setIsMobile] = useState(false);
 
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const notificationsRef = useRef<HTMLDivElement>(null);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   // Определение мобильного вида
   useEffect(() => {
@@ -46,8 +46,9 @@ export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  // ОБНОВЛЕННЫЙ ОБРАБОТЧИК: открытие модального окна уведомлений
+  const handleNotificationsClick = () => {
+    openNotificationsModal(); // <-- ВЫЗЫВАЕМ ФУНКЦИЮ ИЗ КОНТЕКСТА
   };
 
   const handleLogout = () => {
@@ -72,10 +73,10 @@ export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
       </div>
       
       <div className="header-right">
-        <div className="notifications" ref={notificationsRef}>
+        <div className="notifications">
           <button 
             className="notifications-btn"
-            onClick={handleMarkAllAsRead}
+            onClick={handleNotificationsClick} // <-- ОБНОВЛЕННЫЙ ОБРАБОТЧИК
             title="Уведомления"
             aria-label={`Уведомления: ${unreadCount} непрочитанных`}
           >

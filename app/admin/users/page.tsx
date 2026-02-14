@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './AdminUsersPage.css';
 import './UserModals.css';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -62,6 +62,9 @@ export default function AdminUsersPage() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+
+  // Refs для debounce
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Проверка доступности бэкенда
   useEffect(() => {
@@ -198,7 +201,9 @@ export default function AdminUsersPage() {
     }
     
     if (filterRole !== 'all') {
-      result = result.filter(user => user.role === filterRole);
+      result = result.filter(user => 
+        user.role.toLowerCase() === filterRole.toLowerCase()
+      );
     }
     
     setFilteredUsers(result);
@@ -240,16 +245,38 @@ export default function AdminUsersPage() {
     setDistributionData(newDistribution);
   };
 
-  // Загрузка при монтировании
+  // Загрузка при монтировании (УБРАЛИ search из зависимостей!)
   useEffect(() => {
     if (isAuthorized) {
       loadUsers();
     }
-  }, [isAuthorized, currentPage]);
+  }, [isAuthorized, currentPage, filterRole]); // search удалён!
 
-  // Обработчики
-  const handleSearch = (e: React.FormEvent) => {
+  // ОБРАБОТЧИК ПОИСКА С DEBOUNCE
+  const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearch(value);
+    
+    // Очищаем предыдущий таймер
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Устанавливаем новый таймер на 500мс
+    searchTimeoutRef.current = setTimeout(() => {
+      loadUsers();
+    }, 500);
+  };
+
+  // Обработчик отправки формы (для кнопки поиска)
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Очищаем таймер, если есть
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
     setCurrentPage(1);
     loadUsers();
   };
@@ -456,13 +483,13 @@ export default function AdminUsersPage() {
 
         {/* Поиск и фильтры */}
         <div className="controls-panel">
-          <form onSubmit={handleSearch} className="search-form">
+          <form onSubmit={handleSearchSubmit} className="search-form">
             <div className="search-input">
               <input
                 type="text"
                 placeholder="Поиск по логину, email или имени..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={handleSearchInput}
                 disabled={loading}
               />
               <button type="submit" className="search-btn" disabled={loading}>

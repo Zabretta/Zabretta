@@ -18,10 +18,13 @@ export class AdminService {
     
     const where: any = {};
     
+    // Фильтр по роли с преобразованием в верхний регистр
     if (role && role !== 'all') {
-      where.role = role as UserRole;
+      // admin -> ADMIN, moderator -> MODERATOR, user -> USER
+      where.role = role.toUpperCase() as UserRole;
     }
     
+    // Поиск по логину, email или имени
     if (search) {
       where.OR = [
         { login: { contains: search, mode: 'insensitive' } },
@@ -30,6 +33,7 @@ export class AdminService {
       ];
     }
     
+    // Сортировка
     const orderBy: any = {};
     if (sortBy) {
       switch (sortBy) {
@@ -39,6 +43,7 @@ export class AdminService {
         case 'activity_asc': orderBy.activityPoints = 'asc'; break;
         case 'date_desc': orderBy.createdAt = 'desc'; break;
         case 'date_asc': orderBy.createdAt = 'asc'; break;
+        default: orderBy.createdAt = 'desc';
       }
     }
     
@@ -180,8 +185,6 @@ export class AdminService {
   static async getAdminStats(): Promise<AdminStats> {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
     
     const [
       totalUsers,

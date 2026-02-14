@@ -15,9 +15,18 @@ export interface GetUsersParams {
 // Получение JWT токена из localStorage
 const getAuthToken = (): string | null => {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('samodelkin_auth_token') || 
-           localStorage.getItem('auth_token') || 
-           localStorage.getItem('token');
+    // Проверяем все возможные названия токена
+    const token = localStorage.getItem('samodelkin_auth_token') || 
+                  localStorage.getItem('auth_token') || 
+                  localStorage.getItem('token');
+    
+    // Логируем для отладки
+    console.log('🔑 Токен авторизации:', token ? 'найден' : 'не найден');
+    if (token) {
+      console.log('📌 Первые 20 символов токена:', token.substring(0, 20) + '...');
+    }
+    
+    return token;
   }
   return null;
 };
@@ -32,19 +41,33 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
+  // Логируем запрос для отладки
+  console.log(`📡 Запрос: ${API_BASE}${endpoint}`, { 
+    method: options.method || 'GET',
+    hasToken: !!token 
+  });
+
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers,
     });
 
+    // Логируем ответ
+    console.log(`📨 Ответ ${endpoint}:`, { 
+      status: response.status,
+      statusText: response.statusText 
+    });
+
     // Обработка ошибок аутентификации - БЕЗ РЕДИРЕКТА
     if (response.status === 401) {
+      console.error('🚫 Ошибка 401: Требуется авторизация');
       throw new Error('Требуется авторизация');
     }
 
     // Обработка ошибок доступа
     if (response.status === 403) {
+      console.error('🚫 Ошибка 403: Доступ запрещен');
       throw new Error('Доступ запрещен. Требуются права администратора');
     }
 
@@ -56,7 +79,7 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
 
     return data;
   } catch (error) {
-    console.error(`API Error (${endpoint}):`, error);
+    console.error(`❌ API Error (${endpoint}):`, error);
     throw error;
   }
 };
@@ -64,6 +87,8 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
 // Функции для публичных эндпоинтов (без авторизации)
 const fetchPublic = async (endpoint: string) => {
   try {
+    console.log(`📡 Публичный запрос: ${API_BASE}${endpoint}`);
+    
     const response = await fetch(`${API_BASE}${endpoint}`);
     const data = await response.json();
     
@@ -73,7 +98,7 @@ const fetchPublic = async (endpoint: string) => {
     
     return data;
   } catch (error) {
-    console.error(`Public API Error (${endpoint}):`, error);
+    console.error(`❌ Public API Error (${endpoint}):`, error);
     throw error;
   }
 };
@@ -87,16 +112,29 @@ export const adminApi = {
     return response.data;
   },
 
-  // ИСПРАВЛЕНО: изменен путь с /admin/logs на /admin/audit-logs (как в бэкенде)
   getAuditLogs: async (params?: { limit?: number; page?: number }) => {
     const query = params ? '?' + new URLSearchParams(params as any).toString() : '';
     const response = await fetchWithAuth(`/admin/audit-logs${query}`);
     return response.data;
   },
 
-  // === ПОЛЬЗОВАТЕЛИ ===
+  // === ПОЛЬЗОВАТЕЛИ (ИСПРАВЛЕНО) ===
   getUsers: async (params?: GetUsersParams) => {
-    const query = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    // Фильтруем параметры, удаляя undefined и 'undefined'
+    const cleanParams: Record<string, string> = {};
+    
+    if (params) {
+      if (params.page !== undefined) cleanParams.page = params.page.toString();
+      if (params.limit !== undefined) cleanParams.limit = params.limit.toString();
+      if (params.search && params.search !== 'undefined') cleanParams.search = params.search;
+      if (params.role && params.role !== 'all' && params.role !== 'undefined') cleanParams.role = params.role;
+      if (params.sortBy && params.sortBy !== 'undefined') cleanParams.sortBy = params.sortBy;
+    }
+    
+    const query = Object.keys(cleanParams).length > 0 
+      ? '?' + new URLSearchParams(cleanParams).toString() 
+      : '';
+      
     const response = await fetchWithAuth(`/admin/users${query}`);
     return response.data;
   },
@@ -145,51 +183,51 @@ export const adminApi = {
     return response.data;
   },
 
-  // === РЕЙТИНГ (публичные эндпоинты) ===
+  // === РЕЙТИНГ (публичные эндпоинты - ИСПРАВЛЕНО с префиксом /api) ===
   getRatingLevels: async () => {
-    const response = await fetchPublic('/rating/levels');
+    const response = await fetchPublic('/api/rating/levels');
     return response.data;
   },
 
   getRatingDistribution: async () => {
-    const response = await fetchPublic('/rating/distribution');
+    const response = await fetchPublic('/api/rating/distribution');
     return response.data;
   },
 
   getUserRating: async (userId: string) => {
-    const response = await fetchPublic(`/rating/users/${userId}/rating`);
+    const response = await fetchPublic(`/api/rating/users/${userId}/rating`);
     return response.data;
   },
 
   getUserRatingStats: async (userId: string) => {
-    const response = await fetchPublic(`/rating/users/${userId}/stats`);
+    const response = await fetchPublic(`/api/rating/users/${userId}/stats`);
     return response.data;
   },
 
   getRatingAdjustments: async (params?: { userId?: string; limit?: number }) => {
     const query = params ? '?' + new URLSearchParams(params as any).toString() : '';
-    const response = await fetchPublic(`/rating/adjustments${query}`);
+    const response = await fetchPublic(`/api/rating/adjustments${query}`);
     return response.data;
   },
 
-  // === СИСТЕМНАЯ СТАТИСТИКА ===
+  // === СИСТЕМНАЯ СТАТИСТИКА (тоже требуют префикс /api) ===
   getSystemStats: async () => {
-    const response = await fetchPublic('/stats/system');
+    const response = await fetchPublic('/api/stats/system');
     return response.data;
   },
 
   getDailyStats: async (days: number = 7) => {
-    const response = await fetchPublic(`/stats/daily?days=${days}`);
+    const response = await fetchPublic(`/api/stats/daily?days=${days}`);
     return response.data;
   },
 
   getContentStats: async () => {
-    const response = await fetchPublic('/stats/content');
+    const response = await fetchPublic('/api/stats/content');
     return response.data;
   },
 
   getUserActivityStats: async (userId: string) => {
-    const response = await fetchPublic(`/stats/users/${userId}`);
+    const response = await fetchPublic(`/api/stats/users/${userId}`);
     return response.data;
   },
 };

@@ -284,15 +284,16 @@ export default function AdminRatingPage() {
     }
 
     try {
-      const levelsResponse = await adminApi.getRatingLevels();
-      setLevelsData(levelsResponse);
+      const response = await adminApi.getRatingLevels();
+      // Бэкенд возвращает { success: true, data: ... }
+      setLevelsData(response.data || response);
     } catch (error) {
       console.error('Ошибка загрузки уровней:', error);
       throw error;
     }
   };
 
-  // ЗАГРУЗКА РЕЙТИНГОВ
+  // ЗАГРУЗКА РЕЙТИНГОВ (ИСПРАВЛЕНО)
   const loadRatingsData = async () => {
     if (demoMode) {
       setRatingsData({
@@ -306,17 +307,15 @@ export default function AdminRatingPage() {
     }
 
     try {
-      const distributionData = await adminApi.getRatingDistribution() as Record<string, number>;
-      
-      // Вычисляем общее количество пользователей
-      const total = Object.values(distributionData).reduce((a: number, b: number) => a + b, 0);
+      const response = await adminApi.getRatingDistribution();
+      const data = response.data || response;
       
       setRatingsData({
-        ratings: [], // Бэкенд пока не отдает детальный список рейтингов
-        total: total,
-        averageRating: 0, // Бэкенд пока не отдает средний рейтинг
-        averageActivity: 0, // Бэкенд пока не отдает среднюю активность
-        distributionByLevel: distributionData
+        ratings: data.top10 || [],
+        total: data.totalUsers || 0,
+        averageRating: data.averageRating || 0,
+        averageActivity: data.averageActivity || 0,
+        distributionByLevel: data.byRatingLevel || {}
       });
     } catch (error) {
       console.error('Ошибка загрузки рейтингов:', error);
@@ -335,11 +334,12 @@ export default function AdminRatingPage() {
       const params: any = { limit: 100 };
       if (userId) params.userId = userId;
       
-      const adjustments = await adminApi.getRatingAdjustments(params);
+      const response = await adminApi.getRatingAdjustments(params);
+      const adjustments = response.data || response;
       
       setAdjustmentsData({
-        adjustments: adjustments || [],
-        total: (adjustments || []).length
+        adjustments: adjustments?.adjustments || [],
+        total: adjustments?.total || 0
       });
     } catch (error) {
       console.error('Ошибка загрузки корректировок:', error);
@@ -392,7 +392,7 @@ export default function AdminRatingPage() {
         });
       } else {
         // Реальный API
-        await adminApi.adjustRating({
+        const response = await adminApi.adjustRating({
           userId: adjustmentForm.userId,
           ratingChange: adjustmentForm.ratingChange,
           activityChange: adjustmentForm.activityChange,
@@ -453,15 +453,15 @@ export default function AdminRatingPage() {
 
   // ПОЛУЧЕНИЕ ПОЛЬЗОВАТЕЛЕЙ НА УРОВНЕ
   const getUsersInLevel = (levelName: string): number => {
-    if (!ratingsData) return 0;
+    if (!ratingsData?.distributionByLevel) return 0;
     return ratingsData.distributionByLevel[levelName] || 0;
   };
 
   // ПОЛУЧЕНИЕ ПРОЦЕНТА ПОЛЬЗОВАТЕЛЕЙ НА УРОВНЕ
   const getLevelPercentage = (levelName: string): string => {
-    if (!ratingsData || ratingsData.total === 0) return '0%';
+    if (!ratingsData || ratingsData.total === 0) return '0';
     const count = getUsersInLevel(levelName);
-    return ((count / ratingsData.total) * 100).toFixed(1) + '%';
+    return ((count / ratingsData.total) * 100).toFixed(1);
   };
 
   // ПЕРЕЗАГРУЗКА ДАННЫХ
@@ -567,30 +567,35 @@ export default function AdminRatingPage() {
                     </div>
                     
                     <div className="levels-grid">
-                      {levelsData.userLevels.map((level, index) => (
-                        <div key={index} className="level-card">
-                          <div className="level-header">
-                            <span className="level-icon">{level.icon}</span>
-                            <div>
-                              <h4 className="level-title">{level.name}</h4>
-                              <span className="level-range">
-                                {level.min} — {level.max === Infinity ? '∞' : level.max} очков
-                              </span>
+                      {levelsData.userLevels.map((level, index) => {
+                        const userCount = getUsersInLevel(level.name);
+                        const percentage = getLevelPercentage(level.name);
+                        
+                        return (
+                          <div key={index} className="level-card">
+                            <div className="level-header">
+                              <span className="level-icon">{level.icon}</span>
+                              <div>
+                                <h4 className="level-title">{level.name}</h4>
+                                <span className="level-range">
+                                  {level.min} — {level.max === null ? '∞' : level.max} очков
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="level-stats">
+                              <div className="stat-item">
+                                <span className="stat-value">{userCount}</span>
+                                <span className="stat-label">Пользователей</span>
+                              </div>
+                              <div className="stat-item">
+                                <span className="stat-value">{percentage}%</span>
+                                <span className="stat-label">От общего числа</span>
+                              </div>
                             </div>
                           </div>
-                          
-                          <div className="level-stats">
-                            <div className="stat-item">
-                              <span className="stat-value">{getUsersInLevel(level.name)}</span>
-                              <span className="stat-label">Пользователей</span>
-                            </div>
-                            <div className="stat-item">
-                              <span className="stat-value">{getLevelPercentage(level.name)}</span>
-                              <span className="stat-label">От общего числа</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     
                     <div className="section-header" style={{ marginTop: '40px' }}>
@@ -602,7 +607,7 @@ export default function AdminRatingPage() {
                         <div key={index} className="info-item">
                           <span className="info-label">{level.name}</span>
                           <span className="info-value">
-                            {level.min} — {level.max === Infinity ? '∞' : level.max} очков активности
+                            {level.min} — {level.max === null ? '∞' : level.max} очков активности
                           </span>
                         </div>
                       ))}
@@ -965,8 +970,8 @@ export default function AdminRatingPage() {
                         <h4>📊 Распределение пользователей по уровням</h4>
                         <div className="distribution-bars">
                           {levelsData?.userLevels.map((level, index) => {
-                            const userCount = ratingsData.distributionByLevel[level.name] || 0;
-                            const percentage = ratingsData.total > 0 ? (userCount / ratingsData.total) * 100 : 0;
+                            const userCount = ratingsData?.distributionByLevel?.[level.name] || 0;
+                            const percentage = ratingsData?.total ? (userCount / ratingsData.total) * 100 : 0;
                             
                             return (
                               <div key={index} className="distribution-item">

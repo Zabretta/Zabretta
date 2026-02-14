@@ -63,14 +63,14 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     try {
       const [statsData, logsData] = await Promise.all([
         adminApi.getStats(),
-        adminApi.getAuditLogs({ limit: 50 })
+        adminApi.getAuditLogs({ limit: 50 }).catch(() => ({ data: { logs: [] } }))
       ]);
 
       setRealStats(statsData);
-      setAuditLogs(logsData || []);
+      setAuditLogs(logsData?.data?.logs || []);
       
       // Преобразуем логи аудита в формат истории
-      const formattedHistory: AdminStatsHistory[] = (logsData || []).map((log: any) => ({
+      const formattedHistory: AdminStatsHistory[] = (logsData?.data?.logs || []).map((log: any) => ({
         timestamp: log.timestamp,
         action: log.action,
         changes: typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {}),
@@ -79,7 +79,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
       
       setHistory(formattedHistory);
       
-      return { stats: statsData, logs: logsData };
+      return { stats: statsData, logs: logsData?.data?.logs || [] };
     } catch (error) {
       console.error('Ошибка загрузки реальных данных:', error);
       setError('Не удалось загрузить данные с сервера');

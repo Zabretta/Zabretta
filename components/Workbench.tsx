@@ -9,11 +9,9 @@ import SettingsModal from "./SettingsModal";
 import { useAuth } from "./useAuth";
 import { useSettings } from "./SettingsContext";
 import { useRating, RatingProvider } from "./RatingContext";
-// ВРЕМЕННО ОТКЛЮЧАЕМ МОКИ ДЛЯ ПЕРЕХОДА НА БЭКЕНД
-// import { mockAPI } from "../api/mocks";
+import { adminSimulationService } from "@/services/adminSimulationService";
 import AdminIcon from "./AdminIcon";
 
-// Внутренний компонент WorkbenchContent
 function WorkbenchContent() {
   const [activeDrawer, setActiveDrawer] = useState<string | null>(null);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
@@ -22,11 +20,20 @@ function WorkbenchContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  const [communityStats, setCommunityStats] = useState({
-    online: 124, // Статические значения по умолчанию
-    total: 1250,
-    projectsCreated: 7543,
-    adviceGiven: 15287
+  // Реальные данные с бэкенда
+  const [realStats, setRealStats] = useState({
+    online: 0,
+    total: 0,
+    projectsCreated: 0,
+    adviceGiven: 0
+  });
+  
+  // Данные для отображения (реальные + симуляция)
+  const [displayStats, setDisplayStats] = useState({
+    online: 150,
+    total: 207,
+    projectsCreated: 0,
+    adviceGiven: 0
   });
   
   const [isInitialized, setIsInitialized] = useState(false);
@@ -36,7 +43,7 @@ function WorkbenchContent() {
   const { settings } = useSettings();
   const { userRating } = useRating();
 
-  // Определяем мобильное устройство и ориентацию
+  // Определяем мобильное устройство
   useEffect(() => {
     const checkMobileAndOrientation = () => {
       const mobile = window.innerWidth <= 768;
@@ -59,28 +66,129 @@ function WorkbenchContent() {
     };
   }, []);
 
-  // Загрузка статистики - временно отключена
-  const loadStats = useCallback(async () => {
-    // ВРЕМЕННО ОТКЛЮЧАЕМ МОКИ
-    console.log('[СТАТИСТИКА] Используются демо-данные (бэкенд в разработке)');
-    setIsInitialized(true);
-  }, []);
-
-  // Инициализация статистики
-  useEffect(() => {
-    if (!isInitialized) {
-      loadStats();
+  // Загрузка реальных данных с бэкенда
+  const loadRealStats = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log('[Workbench] Загрузка реальных данных с бэкенда...');
+      
+      const response = await fetch('http://localhost:3001/api/stats/system');
+      
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки статистики');
+      }
+      
+      const result = await response.json();
+      const data = result.data;
+      
+      console.log('[Workbench] Данные с бэкенда:', data);
+      
+      // Получаем реальные значения
+      const newRealStats = {
+        online: data.users?.online || 0,
+        total: data.users?.total || 0,
+        projectsCreated: data.content?.projects || data.content?.totalPosts || 0,
+        adviceGiven: data.content?.totalComments || 0
+      };
+      
+      setRealStats(newRealStats);
+      
+      // Обновляем отображаемые данные с учётом симуляции
+      updateDisplayStats(newRealStats);
+      
+      console.log('[Workbench] Реальные данные установлены:', newRealStats);
+    } catch (error) {
+      console.error('[Workbench] Ошибка загрузки:', error);
+    } finally {
+      setIsLoading(false);
       setIsInitialized(true);
     }
-  }, [loadStats, isInitialized]);
-
-  // Автоматическое изменение количества онлайн-пользователей - ВРЕМЕННО ОТКЛЮЧАЕМ
-  useEffect(() => {
-    // Моки отключены, интервал не запускаем
-    return () => {};
   }, []);
 
-  // Обработчики действий
+  // Обновление отображаемых данных (реальные + симуляция)
+  const updateDisplayStats = useCallback((real: typeof realStats) => {
+    const simState = adminSimulationService.getState();
+    
+    const newDisplayStats = {
+      online: simState.isOnlineSimulationActive 
+        ? real.online + simState.onlineFake 
+        : real.online,
+      total: simState.isTotalSimulationActive 
+        ? real.total + simState.totalFake 
+        : real.total,
+      projectsCreated: real.projectsCreated,
+      adviceGiven: real.adviceGiven
+    };
+    
+    setDisplayStats(newDisplayStats);
+    console.log('[Workbench] Отображаемые данные обновлены:', newDisplayStats);
+  }, []);
+
+  // Подписка на изменения симуляции
+  useEffect(() => {
+    console.log('[Workbench] Подписка на обновления симуляции');
+    
+    const unsubscribe = adminSimulationService.subscribe(() => {
+      console.log('[Workbench] Получено обновление симуляции');
+      updateDisplayStats(realStats);
+    });
+    
+    return unsubscribe;
+  }, [realStats, updateDisplayStats]);
+
+  // Загрузка данных при старте
+  useEffect(() => {
+    loadRealStats();
+  }, [loadRealStats]);
+
+  // Периодическое обновление (раз в 30 секунд) - БЕЗ ВИЗУАЛЬНОЙ ЗАГРУЗКИ!
+  useEffect(() => {
+    if (!isInitialized) return;
+    
+    const interval = setInterval(async () => {
+      console.log('[Workbench] Фоновое обновление данных...');
+      
+      try {
+        const response = await fetch('http://localhost:3001/api/stats/system');
+        
+        if (!response.ok) {
+          throw new Error('Ошибка загрузки статистики');
+        }
+        
+        const result = await response.json();
+        const data = result.data;
+        
+        const newRealStats = {
+          online: data.users?.online || 0,
+          total: data.users?.total || 0,
+          projectsCreated: data.content?.projects || data.content?.totalPosts || 0,
+          adviceGiven: data.content?.totalComments || 0
+        };
+        
+        setRealStats(newRealStats);
+        
+        const simState = adminSimulationService.getState();
+        
+        setDisplayStats({
+          online: simState.isOnlineSimulationActive 
+            ? newRealStats.online + simState.onlineFake 
+            : newRealStats.online,
+          total: simState.isTotalSimulationActive 
+            ? newRealStats.total + simState.totalFake 
+            : newRealStats.total,
+          projectsCreated: newRealStats.projectsCreated,
+          adviceGiven: newRealStats.adviceGiven
+        });
+        
+        console.log('[Workbench] Фоновое обновление завершено');
+      } catch (error) {
+        console.error('[Workbench] Ошибка фонового обновления:', error);
+      }
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [isInitialized]);
+
   const handleRulesClick = () => setIsRulesModalOpen(true);
   const handleCloseRulesModal = () => setIsRulesModalOpen(false);
   
@@ -92,40 +200,6 @@ function WorkbenchContent() {
     }
   };
 
-  // Обработчики для верхней панели
-  const handleToolAction = async (toolId: string, label: string) => {
-    setIsLoading(true);
-    console.log(`Действие: ${label}`);
-    
-    try {
-      switch (toolId) {
-        case "hammer":
-          alert(`Вы похвалили проект!`);
-          break;
-        case "share":
-          alert("Проект успешно опубликован!");
-          break;
-        case "heart":
-          alert("Проект добавлен в избранное!");
-          break;
-        case "pencil":
-          const commentText = prompt("Введите ваш комментарий:");
-          if (commentText) {
-            alert("Комментарий успешно добавлен!");
-          }
-          break;
-        case "settings":
-          break;
-      }
-    } catch (error) {
-      console.error("Ошибка выполнения действия:", error);
-      alert("Не удалось выполнить действие. Попробуйте ещё раз.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Переход в админку
   const handleAdminClick = () => {
     if (isAdmin) {
       window.location.href = '/admin';
@@ -134,7 +208,6 @@ function WorkbenchContent() {
     }
   };
 
-  // Обработчики для боковых панелей
   const handleDrawerClick = (drawerId: string) => {
     setActiveDrawer(drawerId);
     
@@ -168,7 +241,6 @@ function WorkbenchContent() {
     }, 300);
   };
 
-  // Массивы данных для боковых панелей
   const leftDrawers = [
     { id: "projects", label: "Лента проектов", icon: "📁", color: "#8B4513" },
     { id: "masters", label: "Мастера рядом", icon: "👥", color: "#A0522D" },
@@ -187,12 +259,11 @@ function WorkbenchContent() {
     { id: "logout", label: "Выйти", icon: "🚪", color: "#CD853F", action: () => logout() },
   ];
 
-  // Массив для верхней панели
   const tools = [
-    { id: "hammer", label: "Похвалить", icon: "🔨", action: () => handleToolAction("hammer", "Похвалить") },
-    { id: "share", label: "Поделиться", icon: "📤", action: () => handleToolAction("share", "Поделиться") },
-    { id: "heart", label: "Избранное", icon: "❤️", action: () => handleToolAction("heart", "Избранное") },
-    { id: "pencil", label: "Комментировать", icon: "✏️", action: () => handleToolAction("pencil", "Комментировать") },
+    { id: "hammer", label: "Похвалить", icon: "🔨" },
+    { id: "share", label: "Поделиться", icon: "📤" },
+    { id: "heart", label: "Избранное", icon: "❤️" },
+    { id: "pencil", label: "Комментировать", icon: "✏️" },
     { id: "settings", label: "Настройки", icon: "⚙️", action: () => setIsSettingsOpen(true) },
   ];
 
@@ -214,23 +285,14 @@ function WorkbenchContent() {
         </div>
       )}
 
-      {/* ДОБАВЛЕНО: Подсказка поворота экрана */}
       {showOrientationHint && (
         <div className="orientation-hint">
           <div className="phone-container">
-            {/* Контур телефона */}
             <div className="phone-outline">
-              {/* Контур круглой кнопки "Home" */}
               <div className="home-button"></div>
             </div>
-            
-            {/* Стрелка вверху-справа */}
             <div className="arrow arrow-top-right"></div>
-            
-            {/* Стрелка внизу-слева */}
             <div className="arrow arrow-bottom-left"></div>
-            
-            {/* Текстовая подсказка */}
             <div className="hint-text">
               Поверните телефон<br />для лучшего просмотра
             </div>
@@ -344,19 +406,19 @@ function WorkbenchContent() {
 
               <div className="community-stats">
                 <div className="stat-item" title="Реальные онлайн + фиктивные онлайн (диапазон 100-200)">
-                  <span className="stat-number">{communityStats.online.toLocaleString()}</span>
+                  <span className="stat-number">{displayStats.online.toLocaleString()}</span>
                   <span className="stat-label">Кулибиных на сайте</span>
                 </div>
                 <div className="stat-item" title="Реальные зарегистрированные + фиктивные">
-                  <span className="stat-number">{communityStats.total.toLocaleString()}</span>
+                  <span className="stat-number">{displayStats.total.toLocaleString()}</span>
                   <span className="stat-label">Кулибиных всего</span>
                 </div>
                 <div className="stat-item">
-                  <span className="stat-number">{communityStats.projectsCreated.toLocaleString()}</span>
+                  <span className="stat-number">{displayStats.projectsCreated.toLocaleString()}</span>
                   <span className="stat-label">Самоделок создано</span>
                 </div>
                 <div className="stat-item">
-                  <span className="stat-number">{communityStats.adviceGiven.toLocaleString()}</span>
+                  <span className="stat-number">{displayStats.adviceGiven.toLocaleString()}</span>
                   <span className="stat-label">Ценных советов</span>
                 </div>
               </div>
@@ -388,7 +450,6 @@ function WorkbenchContent() {
             </button>
           ))}
           
-          {/* Иконка администратора в правой панели */}
           {isAdmin && (
             <div className="admin-drawer">
               <div className="admin-drawer-content" onClick={handleAdminClick}>
@@ -400,7 +461,6 @@ function WorkbenchContent() {
         </div>
       </div>
 
-      {/* Плавающая иконка администратора для быстрого доступа */}
       {isAdmin && (
         <div className="floating-admin-icon" onClick={handleAdminClick}>
           <AdminIcon isAdmin={isAdmin} />
@@ -413,7 +473,6 @@ function WorkbenchContent() {
         ))}
       </div>
 
-      {/* ⚡ ИСПРАВЛЕНО: Добавлена передача currentUser в Marketplace */}
       {isMarketplaceOpen && (
         <Marketplace 
           onClose={() => setIsMarketplaceOpen(false)}
@@ -435,7 +494,6 @@ function WorkbenchContent() {
   );
 }
 
-// Основной компонент Workbench с RatingProvider
 export default function Workbench() {
   return (
     <RatingProvider>

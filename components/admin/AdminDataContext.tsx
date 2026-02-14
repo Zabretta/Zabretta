@@ -93,19 +93,23 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
       onlineUsers: 85,
       projectsCreated: 450,
       adviceGiven: 320,
+      users: {
+        total: 1 // Добавляем хотя бы одного пользователя для демо
+      }
     };
     setRealStats(demoStats);
     return { stats: demoStats, logs: [] };
   }, []);
 
-  // Комбинирование реальных данных с симуляцией
+  // Комбинирование реальных данных с симуляцией (ИСПРАВЛЕНО)
   const combineStats = useCallback((realData: any) => {
     if (!realData) return null;
 
     // Получаем данные симуляции
     const simulationData = adminSimulationService.getCombinedStats({
       onlineReal: realData.onlineUsers || 0,
-      totalReal: 0, // Бэкенд не возвращает totalUsers в этом формате
+      // ИСПРАВЛЕНО: теперь totalReal берется из реальных данных
+      totalReal: realData.users?.total || 0,
     });
 
     // Формируем полный объект статистики
@@ -123,8 +127,8 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
       isTotalSimulationActive: simulationData.isTotalSimulationActive,
       
       // Статические данные
-      projectsCreated: realData.projectsCreated || 0,
-      adviceGiven: realData.adviceGiven || 0,
+      projectsCreated: realData.content?.projects || realData.projectsCreated || 0,
+      adviceGiven: realData.content?.totalComments || realData.adviceGiven || 0,
       lastUpdate: new Date().toISOString(),
     };
 

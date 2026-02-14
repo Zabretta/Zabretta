@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/useAuth';
-import { useNotifications } from './NotificationsContext'; // <-- ИМПОРТ КОНТЕКСТА
+import { useNotifications } from './NotificationsContext';
 import './AdminHeader.css';
 
 interface AdminHeaderProps {
@@ -11,16 +11,13 @@ interface AdminHeaderProps {
 }
 
 export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth(); // Убрали logout - не используется
   const { 
     unreadCount, 
-    openNotificationsModal // <-- ИСПОЛЬЗУЕМ ФУНКЦИЮ ИЗ КОНТЕКСТА
+    openNotificationsModal
   } = useNotifications();
   
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-
-  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Определение мобильного вида
   useEffect(() => {
@@ -34,26 +31,8 @@ export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Закрытие выпадающих меню при клике снаружи
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // ОБНОВЛЕННЫЙ ОБРАБОТЧИК: открытие модального окна уведомлений
   const handleNotificationsClick = () => {
-    openNotificationsModal(); // <-- ВЫЗЫВАЕМ ФУНКЦИЮ ИЗ КОНТЕКСТА
-  };
-
-  const handleLogout = () => {
-    setShowUserMenu(false);
-    logout();
+    openNotificationsModal();
   };
 
   return (
@@ -76,7 +55,7 @@ export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
         <div className="notifications">
           <button 
             className="notifications-btn"
-            onClick={handleNotificationsClick} // <-- ОБНОВЛЕННЫЙ ОБРАБОТЧИК
+            onClick={handleNotificationsClick}
             title="Уведомления"
             aria-label={`Уведомления: ${unreadCount} непрочитанных`}
           >
@@ -87,46 +66,17 @@ export default function AdminHeader({ onToggleSidebar }: AdminHeaderProps) {
           </button>
         </div>
         
-        <div className="user-menu" ref={userMenuRef}>
-          <button 
-            className="user-btn"
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            title={user?.login || 'Администратор'}
-            aria-label="Меню пользователя"
-            aria-expanded={showUserMenu}
-          >
-            <span className="user-avatar">👑</span>
-            {!isMobile && <span className="user-name">{user?.login || 'Админ'}</span>}
-          </button>
-          
-          {showUserMenu && (
-            <div className="user-dropdown">
-              <div className="user-info">
-                <div className="user-avatar-large">👑</div>
-                <p className="user-display-name">{user?.login || 'Администратор'}</p>
-                <p className="user-email">{user?.email || 'admin@samodelkin.ru'}</p>
-                <p className="user-role">Администратор</p>
-              </div>
-              <div className="dropdown-divider"></div>
-              <button 
-                className="dropdown-item" 
-                onClick={handleLogout}
-                aria-label="Выйти из системы"
-              >
-                🚪 Выйти
-              </button>
+        {/* Упрощенная кнопка админа - только для красоты */}
+        <div className="user-info-static">
+          <div className="user-avatar">👑</div>
+          {!isMobile && (
+            <div className="user-text">
+              <div className="user-name">{user?.login || 'Администратор'}</div>
+              <div className="user-role">Админ</div>
             </div>
           )}
         </div>
       </div>
-      
-      {showUserMenu && (
-        <div 
-          className="dropdown-overlay" 
-          onClick={() => setShowUserMenu(false)} 
-          aria-hidden="true"
-        />
-      )}
     </header>
   );
 }

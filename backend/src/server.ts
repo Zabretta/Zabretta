@@ -40,7 +40,8 @@ app.get('/api/health', (req, res) => {
 });
 
 // Регистрация маршрутов
-app.use('/api/admin', adminRoutes);
+app.use('/admin', adminRoutes);           // ИЗМЕНЕНО: для фронтенда
+app.use('/api/admin', adminRoutes);      // ДОБАВЛЕНО: для обратной совместимости
 app.use('/api/auth', authRoutes);
 app.use('/api/rating', ratingRoutes);
 app.use('/api/stats', statsRoutes);

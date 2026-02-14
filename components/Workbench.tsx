@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import "./Workbench.css";
 import RulesModal from "./RulesModal";
 import AuthModal from "./AuthModal";
@@ -9,7 +9,8 @@ import SettingsModal from "./SettingsModal";
 import { useAuth } from "./useAuth";
 import { useSettings } from "./SettingsContext";
 import { useRating, RatingProvider } from "./RatingContext";
-import { mockAPI } from "../api/mocks";
+// ВРЕМЕННО ОТКЛЮЧАЕМ МОКИ ДЛЯ ПЕРЕХОДА НА БЭКЕНД
+// import { mockAPI } from "../api/mocks";
 import AdminIcon from "./AdminIcon";
 
 // Внутренний компонент WorkbenchContent
@@ -22,10 +23,10 @@ function WorkbenchContent() {
   const [isLoading, setIsLoading] = useState(false);
   
   const [communityStats, setCommunityStats] = useState({
-    online: 0,
-    total: 0,
-    projectsCreated: 0,
-    adviceGiven: 0
+    online: 124, // Статические значения по умолчанию
+    total: 1250,
+    projectsCreated: 7543,
+    adviceGiven: 15287
   });
   
   const [isInitialized, setIsInitialized] = useState(false);
@@ -58,45 +59,11 @@ function WorkbenchContent() {
     };
   }, []);
 
-  // Загрузка статистики
+  // Загрузка статистики - временно отключена
   const loadStats = useCallback(async () => {
-    try {
-      // Сброс статистики, если это первый запуск с новыми настройками
-      const shouldReset = localStorage.getItem('samodelkin_stats_reset') !== 'true';
-      
-      if (shouldReset) {
-        console.log('[СТАТИСТИКА] Сброс статистики для применения новых значений...');
-        await mockAPI.stats.resetStats();
-        localStorage.setItem('samodelkin_stats_reset', 'true');
-      }
-      
-      // Используем getStatsForUsers() для получения данных для пользователей
-      const response = await mockAPI.stats.getStatsForUsers();
-      if (response.success && response.data) {
-        const newStats = {
-          online: response.data.online ?? 0,
-          total: response.data.total ?? 0,
-          projectsCreated: response.data.projectsCreated ?? 7543,
-          adviceGiven: response.data.adviceGiven ?? 15287
-        };
-        
-        setCommunityStats(newStats);
-        console.log('[СТАТИСТИКА] Статистика для пользователей загружена:', {
-          online: newStats.online,
-          total: newStats.total,
-          onlineShown: response.data.onlineShown,
-          totalShown: response.data.totalShown,
-          isOnlineSimulationActive: response.data.isOnlineSimulationActive,
-          isTotalSimulationActive: response.data.isTotalSimulationActive
-        });
-        
-        if (response.data.totalShown !== undefined) {
-          console.log('[СТАТИСТИКА] API вернул totalShown:', response.data.totalShown);
-        }
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки статистики: ', error);
-    }
+    // ВРЕМЕННО ОТКЛЮЧАЕМ МОКИ
+    console.log('[СТАТИСТИКА] Используются демо-данные (бэкенд в разработке)');
+    setIsInitialized(true);
   }, []);
 
   // Инициализация статистики
@@ -107,34 +74,10 @@ function WorkbenchContent() {
     }
   }, [loadStats, isInitialized]);
 
-  // Автоматическое изменение количества онлайн-пользователей
+  // Автоматическое изменение количества онлайн-пользователей - ВРЕМЕННО ОТКЛЮЧАЕМ
   useEffect(() => {
-    const intervalId = setInterval(async () => {
-      try {
-        const response = await mockAPI.stats.simulateOnlineChange();
-        if (response.success && response.data) {
-          setCommunityStats(prevState => ({
-            ...prevState,
-            online: response.data!.online ?? prevState.online
-          }));
-          
-          console.log('[ИНТЕРВАЛ] Обновление онлайн:', {
-            новое: response.data!.online,
-            onlineShown: response.data!.onlineShown,
-            onlineFake: response.data!.onlineFake,
-            isOnlineSimulationActive: response.data!.isOnlineSimulationActive
-          });
-        }
-        
-        // ДОБАВЛЕНО: Очистка старых сессий каждые 60 секунд
-        mockAPI.sessions.cleanupOldSessions();
-        
-      } catch (error) {
-        console.error('Ошибка при имитации изменения статуса онлайн:', error);
-      }
-    }, 5000);
-
-    return () => clearInterval(intervalId);
+    // Моки отключены, интервал не запускаем
+    return () => {};
   }, []);
 
   // Обработчики действий
@@ -325,7 +268,7 @@ function WorkbenchContent() {
               className={`drawer ${isMobile ? 'mobile' : ''} ${activeDrawer === drawer.id ? "open" : ""}`}
               onClick={() => handleDrawerClick(drawer.id)}
               disabled={isLoading}
-              style={!isMobile ? { borderLeftColor: drawer.color } : undefined}
+              style={!isMobile ? { borderLeftColor: drawer.color } as React.CSSProperties : undefined}
               title={drawer.label}
             >
               <span className="drawer-handle"></span>
@@ -435,7 +378,7 @@ function WorkbenchContent() {
               className={`drawer ${isMobile ? 'mobile' : ''} ${activeDrawer === drawer.id ? "open" : ""}`}
               onClick={() => handleDrawerClick(drawer.id)}
               disabled={isLoading}
-              style={!isMobile ? { borderRightColor: drawer.color } : undefined}
+              style={!isMobile ? { borderRightColor: drawer.color } as React.CSSProperties : undefined}
               title={drawer.label}
             >
               <span className="drawer-handle"></span>
@@ -474,7 +417,7 @@ function WorkbenchContent() {
       {isMarketplaceOpen && (
         <Marketplace 
           onClose={() => setIsMarketplaceOpen(false)}
-          currentUser={user}  // <-- ДОБАВЛЕНО: передача данных пользователя
+          currentUser={user}
         />
       )}
       <RulesModal 

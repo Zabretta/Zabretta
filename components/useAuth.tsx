@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { mockAPI } from '../api/mocks';
+import { authAPI } from '@/lib/api/auth';
+import type { User as ApiUser } from '@/lib/api/auth';
 
 interface User {
   id: string;
@@ -10,12 +11,21 @@ interface User {
   role?: string;
 }
 
+interface RegisterData {
+  login: string;
+  email: string;
+  password: string;
+  agreement: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (token: string, userData: User) => void;
-  logout: () => void;
+  isLoading: boolean;
+  login: (login: string, password: string) => Promise<boolean>;
+  register: (data: RegisterData) => Promise<boolean>;
+  logout: () => Promise<void>;
   authModalOpen: boolean;
   setAuthModalOpen: (open: boolean) => void;
 }
@@ -29,72 +39,130 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Проверка сессии при загрузке - ТОЛЬКО ИЗ LOCALSTORAGE!
   useEffect(() => {
     console.log('🔍 useAuth: проверка сохраненной сессии');
     
     const token = localStorage.getItem('samodelkin_auth_token');
-    const userData = localStorage.getItem('samodelkin_user');
+    const savedUser = localStorage.getItem('samodelkin_user');
     
-    if (token && userData) {
+    if (token && savedUser) {
       try {
-        const parsedUser = JSON.parse(userData);
-        console.log('✅ useAuth: пользователь восстановлен:', parsedUser.id);
+        const parsedUser = JSON.parse(savedUser);
+        console.log('✅ useAuth: пользователь восстановлен из localStorage:', parsedUser.id, 'роль:', parsedUser.role);
         setUser(parsedUser);
-        
-        // Добавляем пользователя в онлайн-сессии
-        mockAPI.sessions.addUserSession(parsedUser.id);
       } catch (error) {
-        console.error('❌ useAuth: ошибка загрузки данных пользователя:', error);
-        
+        console.error('❌ useAuth: ошибка загрузки пользователя:', error);
         localStorage.removeItem('samodelkin_auth_token');
         localStorage.removeItem('samodelkin_user');
-        setUser(null);
       }
     } else {
       console.log('👤 useAuth: нет сохраненной сессии');
     }
+    
+    setIsLoading(false);
   }, []);
 
-  const login = (token: string, userData: User) => {
-    console.log('🔐 useAuth: вход пользователя', userData.id, userData.login);
+  const login = async (login: string, password: string): Promise<boolean> => {
+    console.log('🔐 useAuth: вход пользователя', login);
     
-    localStorage.setItem('samodelkin_auth_token', token);
-    localStorage.setItem('samodelkin_user', JSON.stringify(userData));
-    setUser(userData);
-    setAuthModalOpen(false);
-    
-    // Добавляем в активные сессии
-    mockAPI.sessions.addUserSession(userData.id);
-    
-    console.log('✅ useAuth: пользователь установлен в контекст и добавлен в сессии');
+    try {
+      const response = await authAPI.login({ login, password });
+      
+      if (response.success && response.data) {
+        const apiUser = response.data.user;
+        const userData: User = {
+          id: apiUser.id,
+          login: apiUser.login,
+          email: apiUser.email,
+          role: apiUser.role
+        };
+        
+        localStorage.setItem('samodelkin_auth_token', response.data.token);
+        localStorage.setItem('samodelkin_user', JSON.stringify(userData));
+        setUser(userData);
+        setAuthModalOpen(false);
+        
+        console.log('✅ useAuth: успешный вход, роль:', apiUser.role);
+        return true;
+      } else {
+        console.error('❌ useAuth: ошибка входа', response.error);
+        alert(response.error || 'Ошибка входа');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ useAuth: ошибка сети', error);
+      alert('Не удалось подключиться к серверу');
+      return false;
+    }
   };
 
-  const logout = () => {
+  const register = async (data: RegisterData): Promise<boolean> => {
+    console.log('📝 useAuth: регистрация пользователя', data.login);
+    
+    try {
+      const response = await authAPI.register(data);
+      
+      if (response.success && response.data) {
+        const apiUser = response.data.user;
+        const userData: User = {
+          id: apiUser.id,
+          login: apiUser.login,
+          email: apiUser.email,
+          role: apiUser.role
+        };
+        
+        localStorage.setItem('samodelkin_auth_token', response.data.token);
+        localStorage.setItem('samodelkin_user', JSON.stringify(userData));
+        setUser(userData);
+        setAuthModalOpen(false);
+        
+        console.log('✅ useAuth: успешная регистрация, роль:', apiUser.role);
+        return true;
+      } else {
+        console.error('❌ useAuth: ошибка регистрации', response.error);
+        alert(response.error || 'Ошибка регистрации');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ useAuth: ошибка сети', error);
+      alert('Не удалось подключиться к серверу');
+      return false;
+    }
+  };
+
+  const logout = async (): Promise<void> => {
     console.log('🚪 useAuth: выход пользователя');
     
-    // Удаляем из активных сессий перед выходом
-    if (user) {
-      mockAPI.sessions.removeUserSession(user.id);
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      console.error('Ошибка при выходе:', error);
+    } finally {
+      localStorage.removeItem('samodelkin_auth_token');
+      localStorage.removeItem('samodelkin_user');
+      setUser(null);
+      setAuthModalOpen(false);
+      alert('Вы успешно вышли из системы');
     }
-    
-    localStorage.removeItem('samodelkin_auth_token');
-    localStorage.removeItem('samodelkin_user');
-    setUser(null);
-    alert('Вы успешно вышли из системы');
   };
 
   const isAuthenticated = !!user;
-  const isAdmin = user?.role === 'admin';
+  // ИСПРАВЛЕНО: сравниваем в нижнем регистре
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
 
-  console.log('🔄 useAuth: рендер, isAuthenticated:', isAuthenticated, 'isAdmin:', isAdmin);
+  console.log('🔄 useAuth: рендер, isAuthenticated:', isAuthenticated, 'isAdmin:', isAdmin, 'роль:', user?.role);
 
   return (
     <AuthContext.Provider value={{
       user,
       isAuthenticated,
       isAdmin,
+      isLoading,
       login,
+      register,
       logout,
       authModalOpen,
       setAuthModalOpen

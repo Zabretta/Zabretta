@@ -1,10 +1,16 @@
 // backend/src/controllers/userController.ts
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
+import { UserService } from '../services/userService';
 import { prisma } from '../config/database';
 import { createSuccessResponse, createErrorResponse } from '../utils/response';
+import bcrypt from 'bcryptjs';
 
 export class UserController {
+  /**
+   * Получение данных текущего пользователя
+   * GET /api/user/me
+   */
   static async getCurrentUser(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -12,40 +18,23 @@ export class UserController {
         return;
       }
 
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        select: {
-          id: true,
-          login: true,
-          email: true,
-          name: true,
-          avatar: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          lastLogin: true,
-          rating: true,
-          activityPoints: true,
-          totalPosts: true,
-          violations: true
-        }
-      });
-
-      if (!user) {
+      const userProfile = await UserService.getUserProfile(req.user.id);
+      res.json(createSuccessResponse(userProfile));
+      
+    } catch (error: any) {
+      if (error.message === 'Пользователь не найден') {
         res.status(404).json(createErrorResponse('Пользователь не найден'));
         return;
       }
-
-      res.json(createSuccessResponse({
-        ...user,
-        createdAt: user.createdAt.toISOString(),
-        lastLogin: user.lastLogin?.toISOString()
-      }));
-    } catch (error) {
+      console.error('Get current user error:', error);
       res.status(500).json(createErrorResponse('Ошибка при получении данных пользователя'));
     }
   }
 
+  /**
+   * Обновление профиля пользователя
+   * PUT /api/user/me
+   */
   static async updateProfile(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -53,38 +42,25 @@ export class UserController {
         return;
       }
 
-      const { name, email, avatar } = req.body;
+      const { name, avatar } = req.body;
 
-      const user = await prisma.user.update({
-        where: { id: req.user.id },
-        data: { name, email, avatar },
-        select: {
-          id: true,
-          login: true,
-          email: true,
-          name: true,
-          avatar: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          lastLogin: true,
-          rating: true,
-          activityPoints: true,
-          totalPosts: true,
-          violations: true
-        }
+      const updatedUser = await UserService.updateOwnProfile(req.user.id, {
+        name,
+        avatar
       });
 
-      res.json(createSuccessResponse({
-        ...user,
-        createdAt: user.createdAt.toISOString(),
-        lastLogin: user.lastLogin?.toISOString()
-      }));
-    } catch (error) {
+      res.json(createSuccessResponse(updatedUser));
+      
+    } catch (error: any) {
+      console.error('Update profile error:', error);
       res.status(500).json(createErrorResponse('Ошибка при обновлении профиля'));
     }
   }
 
+  /**
+   * Изменение пароля
+   * POST /api/user/change-password
+   */
   static async changePassword(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -94,7 +70,6 @@ export class UserController {
 
       const { currentPassword, newPassword } = req.body;
 
-      // Получаем текущего пользователя с паролем
       const user = await prisma.user.findUnique({
         where: { id: req.user.id },
         select: { passwordHash: true }
@@ -105,8 +80,6 @@ export class UserController {
         return;
       }
 
-      // Проверяем текущий пароль
-      const bcrypt = require('bcryptjs');
       const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
 
       if (!isValid) {
@@ -114,21 +87,66 @@ export class UserController {
         return;
       }
 
-      // Хешируем новый пароль
       const passwordHash = await bcrypt.hash(newPassword, 10);
 
-      // Обновляем пароль
       await prisma.user.update({
         where: { id: req.user.id },
         data: { passwordHash }
       });
 
-      res.json(createSuccessResponse({ success: true }));
+      res.json(createSuccessResponse({ success: true, message: 'Пароль успешно изменен' }));
+      
     } catch (error) {
+      console.error('Change password error:', error);
       res.status(500).json(createErrorResponse('Ошибка при изменении пароля'));
     }
   }
 
+  /**
+   * Удаление аккаунта пользователя
+   * POST /api/user/delete-account
+   */
+  static async deleteAccount(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json(createErrorResponse('Требуется авторизация'));
+        return;
+      }
+
+      const { confirmation } = req.body;
+
+      // Проверка подтверждения (нужно ввести логин)
+      if (!confirmation || confirmation !== req.user.login) {
+        res.status(400).json(createErrorResponse('Подтверждение не совпадает с логином'));
+        return;
+      }
+
+      // Вместо полного удаления - деактивируем аккаунт
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { 
+          isActive: false,
+          // Опционально: можно заменить email и логин на анонимные
+          // email: `deleted_${req.user.id}@deleted.com`,
+          // login: `deleted_user_${req.user.id}`
+        }
+      });
+
+      res.json(createSuccessResponse({ 
+        success: true, 
+        message: 'Аккаунт успешно деактивирован' 
+      }));
+      
+    } catch (error) {
+      console.error('Delete account error:', error);
+      res.status(500).json(createErrorResponse('Ошибка при удалении аккаунта'));
+    }
+  }
+
+  /**
+   * Получение контента пользователя с фильтрацией
+   * GET /api/user/content?type=PROJECT&status=ACTIVE&page=1&limit=10
+   */
   static async getUserContent(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -169,20 +187,26 @@ export class UserController {
       ]);
 
       res.json(createSuccessResponse({
-        content: content.map(item => ({
+        content: content.map((item: any) => ({
           ...item,
           createdAt: item.createdAt.toISOString(),
-          updatedAt: item.updatedAt.toISOString()
+          updatedAt: item.updatedAt?.toISOString()
         })),
         total,
         page: Number(page),
         totalPages: Math.ceil(total / Number(limit))
       }));
+      
     } catch (error) {
+      console.error('Get user content error:', error);
       res.status(500).json(createErrorResponse('Ошибка при получении контента пользователя'));
     }
   }
 
+  /**
+   * Получение активности пользователя за период
+   * GET /api/user/activity?days=30
+   */
   static async getUserActivity(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -226,16 +250,22 @@ export class UserController {
         period: `${days} дней`,
         activity,
         summary: {
-          totalContent: activity.reduce((sum, day) => sum + day.contentCreated, 0),
-          totalRatingChanges: activity.reduce((sum, day) => sum + day.ratingChanges, 0),
-          averageDailyActivity: activity.reduce((sum, day) => sum + day.totalActivity, 0) / activity.length
+          totalContent: activity.reduce((sum: number, day: any) => sum + day.contentCreated, 0),
+          totalRatingChanges: activity.reduce((sum: number, day: any) => sum + day.ratingChanges, 0),
+          averageDailyActivity: activity.reduce((sum: number, day: any) => sum + day.totalActivity, 0) / activity.length
         }
       }));
+      
     } catch (error) {
+      console.error('Get user activity error:', error);
       res.status(500).json(createErrorResponse('Ошибка при получении активности пользователя'));
     }
   }
 
+  /**
+   * Получение статистики пользователя
+   * GET /api/user/stats
+   */
   static async getUserStats(req: AuthRequest, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -243,106 +273,94 @@ export class UserController {
         return;
       }
 
-      const [
-        contentStats,
-        ratingAdjustments,
-        recentActivity,
-        user
-      ] = await Promise.all([
-        prisma.content.groupBy({
-          by: ['type', 'status'],
-          _count: true,
-          where: { userId: req.user.id }
-        }),
-        prisma.ratingAdjustment.findMany({
-          where: { userId: req.user.id },
-          orderBy: { timestamp: 'desc' },
-          take: 5
-        }),
-        prisma.content.findMany({
-          where: { userId: req.user.id },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          select: {
-            id: true,
-            type: true,
-            title: true,
-            createdAt: true,
-            views: true,
-            likes: true,
-            comments: true
-          }
-        }),
-        prisma.user.findUnique({
-          where: { id: req.user.id },
-          select: {
-            id: true,
-            login: true,
-            name: true,
-            rating: true,
-            activityPoints: true,
-            totalPosts: true,
-            violations: true,
-            createdAt: true
-          }
-        })
-      ]);
-
-      const stats = {
-        contentByType: {} as Record<string, number>,
-        contentByStatus: {} as Record<string, number>,
-        totalContent: 0
-      };
-
-      contentStats.forEach(stat => {
-        stats.totalContent += stat._count;
-        stats.contentByType[stat.type] = (stats.contentByType[stat.type] || 0) + stat._count;
-        stats.contentByStatus[stat.status] = (stats.contentByStatus[stat.status] || 0) + stat._count;
-      });
-
-      res.json(createSuccessResponse({
-        user: {
-          ...user,
-          createdAt: user?.createdAt.toISOString()
-        },
-        stats,
-        recentRatingAdjustments: ratingAdjustments.map(adj => ({
-          ...adj,
-          timestamp: adj.timestamp.toISOString()
-        })),
-        recentActivity: recentActivity.map(act => ({
-          ...act,
-          createdAt: act.createdAt.toISOString()
-        }))
-      }));
-    } catch (error) {
+      const stats = await UserService.getUserStats(req.user.id);
+      res.json(createSuccessResponse(stats));
+      
+    } catch (error: any) {
+      if (error.message === 'Пользователь не найден') {
+        res.status(404).json(createErrorResponse('Пользователь не найден'));
+        return;
+      }
+      console.error('Get user stats error:', error);
       res.status(500).json(createErrorResponse('Ошибка при получении статистики пользователя'));
     }
   }
 
-  static async deleteAccount(req: AuthRequest, res: Response): Promise<void> {
+  /**
+   * Поиск пользователей
+   * GET /api/user/search?q=query&limit=10
+   */
+  static async searchUsers(req: Request, res: Response): Promise<void> {
     try {
-      if (!req.user) {
-        res.status(401).json(createErrorResponse('Требуется авторизация'));
+      const { q, limit = 10 } = req.query;
+      
+      if (!q || typeof q !== 'string') {
+        res.json(createSuccessResponse([]));
         return;
       }
 
-      const { confirmation } = req.body;
-
-      if (confirmation !== req.user.login) {
-        res.status(400).json(createErrorResponse('Подтверждение не совпадает с логином'));
-        return;
-      }
-
-      // В реальном приложении здесь была бы мягкое удаление или деактивация
-      await prisma.user.update({
-        where: { id: req.user.id },
-        data: { isActive: false }
-      });
-
-      res.json(createSuccessResponse({ success: true }));
+      const users = await UserService.searchUsers(q, Number(limit));
+      res.json(createSuccessResponse(users));
+      
     } catch (error) {
-      res.status(500).json(createErrorResponse('Ошибка при удалении аккаунта'));
+      console.error('Search users error:', error);
+      res.status(500).json(createErrorResponse('Ошибка при поиске пользователей'));
+    }
+  }
+
+  /**
+   * Проверка существования пользователя (при регистрации)
+   * POST /api/user/check-exists
+   */
+  static async checkExists(req: Request, res: Response): Promise<void> {
+    try {
+      const { email, login } = req.body;
+      
+      if (!email && !login) {
+        res.status(400).json(createErrorResponse('Не указан email или логин'));
+        return;
+      }
+
+      const result = await UserService.checkUserExists(email, login);
+      res.json(createSuccessResponse(result));
+      
+    } catch (error) {
+      console.error('Check user exists error:', error);
+      res.status(500).json(createErrorResponse('Ошибка при проверке пользователя'));
+    }
+  }
+
+  /**
+   * Публичный профиль пользователя
+   * GET /api/user/:userId
+   */
+  static async getUserProfile(req: Request, res: Response): Promise<void> {
+    try {
+      const { userId } = req.params;
+      
+      const userProfile = await UserService.getUserProfile(userId);
+      
+      const publicProfile = {
+        id: userProfile.id,
+        login: userProfile.login,
+        name: userProfile.name,
+        avatar: userProfile.avatar,
+        rating: userProfile.rating,
+        activityPoints: userProfile.activityPoints,
+        createdAt: userProfile.createdAt,
+        lastLogin: userProfile.lastLogin,
+        content: userProfile.content
+      };
+
+      res.json(createSuccessResponse(publicProfile));
+      
+    } catch (error: any) {
+      if (error.message === 'Пользователь не найден') {
+        res.status(404).json(createErrorResponse('Пользователь не найден'));
+        return;
+      }
+      console.error('Get user profile error:', error);
+      res.status(500).json(createErrorResponse('Ошибка при получении профиля пользователя'));
     }
   }
 }

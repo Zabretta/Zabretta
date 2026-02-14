@@ -48,19 +48,108 @@ export interface RatingAdjustment {
   ratingChange: number;
   activityChange: number;
   timestamp: string;
+  adminId?: string;
+  adminNote?: string;
 }
 
 // ========= НОВЫЙ ТИП ДЛЯ УВЕДОМЛЕНИЙ =========
 export interface AdminNotification {
   id: number;
   text: string;
-  time: string; // Можно использовать Date, если нужны операции
+  time: string;
   read: boolean;
-  type?: 'system' | 'user' | 'warning' | 'success'; // Тип для иконки или стиля
-  link?: string; // Ссылка для перехода (например, "/admin/users/user_123")
+  type?: 'system' | 'user' | 'warning' | 'success';
+  link?: string;
 }
 
-// Мокап данные для разработки
+// ========= ТИПЫ ДЛЯ СТРАНИЦЫ РЕЙТИНГОВ =========
+export interface RatingLevel {
+  min: number;
+  max: number;
+  name: string;
+  icon: string;
+}
+
+export interface ActivityLevel {
+  min: number;
+  max: number;
+  name: string;
+}
+
+export interface RatingFormula {
+  section: string;
+  action: string;
+  ratingPoints: number;
+  activityPoints: number;
+  description: string;
+}
+
+export interface RatingLevelsData {
+  userLevels: RatingLevel[];
+  activityLevels: ActivityLevel[];
+  formulas: RatingFormula[];
+}
+
+export interface UserRatingStats {
+  projectsCreated: number;
+  mastersAdsCreated: number;
+  helpRequestsCreated: number;
+  libraryPostsCreated: number;
+  likesGiven: number;
+  likesReceived: number;
+  commentsMade: number;
+}
+
+export interface UserRating {
+  userId: string;
+  totalRating: number;
+  totalActivity: number;
+  ratingLevel: string;
+  ratingIcon: string;
+  activityLevel: string;
+  stats: UserRatingStats;
+  lastDailyLogin?: string;  // ← ДОБАВЛЕНО ПОЛЕ ДЛЯ ОТСЛЕЖИВАНИЯ ПОСЛЕДНЕГО ДЕЙЛИ ЛОГИНА
+}
+
+export interface RatingsDistribution {
+  ratings: UserRating[];
+  total: number;
+  averageRating: number;
+  averageActivity: number;
+  distributionByLevel: Record<string, number>;
+}
+
+// ========= КОНСТАНТЫ ДЛЯ РЕЙТИНГОВОЙ СИСТЕМЫ =========
+export const USER_LEVELS: RatingLevel[] = [
+  { min: 0, max: 200, name: "Студент", icon: "★" },
+  { min: 201, max: 500, name: "Инженер", icon: "★★" },
+  { min: 501, max: 1000, name: "Инженер-конструктор", icon: "★★★" },
+  { min: 1001, max: 2000, name: "Профессор Сомоделкин", icon: "★★★★" },
+  { min: 2001, max: Infinity, name: "Эксперт сообщества", icon: "★★★★★" }
+];
+
+export const ACTIVITY_LEVELS: ActivityLevel[] = [
+  { min: 0, max: 100, name: "Новичок" },
+  { min: 101, max: 300, name: "Активный" },
+  { min: 301, max: 600, name: "Очень активный" },
+  { min: 601, max: 1000, name: "Лидер активности" },
+  { min: 1001, max: Infinity, name: "Легенда сообщества" }
+];
+
+export interface RatingRecord {
+  id: string;
+  userId: string;
+  type: 'PROJECT' | 'MASTER' | 'HELP' | 'LIBRARY' | 'DAILY' | 'REGISTRATION';
+  section: 'PROJECTS' | 'MASTERS' | 'HELP' | 'LIBRARY' | 'GENERAL';
+  action: 'CREATE' | 'LIKE_GIVEN' | 'LIKE_RECEIVED' | 'COMMENT' | 'DAILY_LOGIN';
+  points: number;
+  ratingPoints: number;
+  activityPoints: number;
+  timestamp: Date;
+  targetId?: string;
+}
+
+// ========= МОКАП ДАННЫЕ ДЛЯ РАЗРАБОТКИ =========
 export const mockAdminUsers: AdminUser[] = Array.from({ length: 50 }, (_, i) => ({
   id: `user_${i + 1}`,
   login: `user${i + 1}`,
@@ -73,7 +162,6 @@ export const mockAdminUsers: AdminUser[] = Array.from({ length: 50 }, (_, i) => 
   status: Math.random() > 0.1 ? 'active' : 'blocked'
 }));
 
-// ========= НОВЫЕ МОК-ДАННЫЕ ДЛЯ УВЕДОМЛЕНИЙ =========
 export const mockAdminNotifications: AdminNotification[] = [
   { id: 1, text: 'Новый пользователь "ivanov" зарегистрировался', time: '5 мин назад', read: false, type: 'user', link: '/admin/users/user_15' },
   { id: 2, text: 'Статистика сайта успешно обновлена', time: '10 мин назад', read: true, type: 'system' },

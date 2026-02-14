@@ -3,11 +3,10 @@
 import { useState, useEffect } from 'react';
 import './AdminRatingPage.css';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { mockAPI } from '@/api/mocks';
-import type { UserRating, RatingAdjustment } from '@/api/mocks';
+import { adminApi } from '@/lib/api/admin';
 import { formatDate } from '@/utils/admin';
 
-// Типы для данных (совместимы с api/mocks.ts)
+// Типы для данных
 interface LevelData {
   userLevels: Array<{ min: number; max: number; name: string; icon: string }>;
   activityLevels: Array<{ min: number; max: number; name: string }>;
@@ -20,15 +19,40 @@ interface LevelData {
   }>;
 }
 
-// Используем импортированный тип UserRating из api/mocks.ts
-type ApiUserRating = UserRating;
+interface UserRating {
+  userId: string;
+  totalRating: number;
+  totalActivity: number;
+  ratingLevel: string;
+  ratingIcon: string;
+  activityLevel: string;
+  stats: {
+    projectsCreated: number;
+    mastersAdsCreated: number;
+    helpRequestsCreated: number;
+    libraryPostsCreated: number;
+    likesGiven: number;
+    likesReceived: number;
+    commentsMade: number;
+  };
+}
 
 interface RatingsData {
-  ratings: ApiUserRating[];
+  ratings: UserRating[];
   total: number;
   averageRating: number;
   averageActivity: number;
   distributionByLevel: Record<string, number>;
+}
+
+interface RatingAdjustment {
+  userId: string;
+  ratingChange: number;
+  activityChange: number;
+  reason: string;
+  adminNote?: string;
+  timestamp: string;
+  adminId?: string;
 }
 
 interface AdjustmentsData {
@@ -36,7 +60,7 @@ interface AdjustmentsData {
   total: number;
 }
 
-// 🔥 РЕЗЕРВНЫЕ ДАННЫЕ для работы без API
+// РЕЗЕРВНЫЕ ДАННЫЕ для работы без API
 const EMPTY_LEVELS_DATA: LevelData = {
   userLevels: [
     { min: 0, max: 50, name: 'Студент', icon: '📘' },
@@ -80,8 +104,8 @@ const EMPTY_ADJUSTMENTS_DATA: AdjustmentsData = {
   total: 0
 };
 
-// 🔥 ТЕСТОВЫЙ ПОЛЬЗОВАТЕЛЬ для демонстрации (соответствует реальному типу из api/mocks.ts)
-const TEST_USER_RATING: ApiUserRating = {
+// ТЕСТОВЫЙ ПОЛЬЗОВАТЕЛЬ для демонстрации
+const TEST_USER_RATING: UserRating = {
   userId: 'demo_user_1',
   totalRating: 250,
   totalActivity: 480,
@@ -139,8 +163,9 @@ export default function AdminRatingPage() {
   // Состояния для поиска в корректировках
   const [searchUserId, setSearchUserId] = useState('');
   
-  // Флаг для демо-режима (без реальных пользователей)
-  const [demoMode, setDemoMode] = useState(true);
+  // Флаг для демо-режима
+  const [demoMode, setDemoMode] = useState(false);
+  const [isBackendAvailable, setIsBackendAvailable] = useState(true);
   
   // Табы
   const tabs = [
@@ -150,108 +175,85 @@ export default function AdminRatingPage() {
     { id: 'stats', label: 'Статистика', icon: '📈' },
   ];
 
-  // 🔥 ИНИЦИАЛИЗАЦИЯ ДАННЫХ при авторизации
+  // Проверка доступности бэкенда
   useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/health');
+        const available = response.ok;
+        setIsBackendAvailable(available);
+        
+        if (!available) {
+          setDemoMode(true);
+          setLevelsData(EMPTY_LEVELS_DATA);
+          setRatingsData({
+            ratings: [TEST_USER_RATING],
+            total: 1,
+            averageRating: TEST_USER_RATING.totalRating,
+            averageActivity: TEST_USER_RATING.totalActivity,
+            distributionByLevel: { 'Архитектор': 1 }
+          });
+          setAdjustmentsData(EMPTY_ADJUSTMENTS_DATA);
+        }
+      } catch {
+        setIsBackendAvailable(false);
+        setDemoMode(true);
+        setLevelsData(EMPTY_LEVELS_DATA);
+        setRatingsData({
+          ratings: [TEST_USER_RATING],
+          total: 1,
+          averageRating: TEST_USER_RATING.totalRating,
+          averageActivity: TEST_USER_RATING.totalActivity,
+          distributionByLevel: { 'Архитектор': 1 }
+        });
+        setAdjustmentsData(EMPTY_ADJUSTMENTS_DATA);
+      }
+    };
+
     if (isAuthorized) {
-      initializeData();
+      checkBackend();
     }
   }, [isAuthorized]);
 
-  // 🔥 ИНИЦИАЛИЗАЦИЯ ВСЕХ ДАННЫХ
+  // ИНИЦИАЛИЗАЦИЯ ДАННЫХ при авторизации
+  useEffect(() => {
+    if (isAuthorized && isBackendAvailable) {
+      initializeData();
+    }
+  }, [isAuthorized, isBackendAvailable]);
+
+  // ИНИЦИАЛИЗАЦИЯ ВСЕХ ДАННЫХ
   const initializeData = async () => {
     try {
-      // Пытаемся загрузить реальные данные
-      await loadAllData();
+      await Promise.all([
+        loadLevelsData(),
+        loadRatingsData(),
+        loadAdjustmentsData()
+      ]);
       setDemoMode(false);
     } catch (error) {
-      // Если реальные данные недоступны, используем резервные
-      console.log('Используем демо-данные');
+      console.error('Ошибка загрузки данных, переключаемся в демо-режим:', error);
       setDemoMode(true);
       setLevelsData(EMPTY_LEVELS_DATA);
-      
-      // Добавляем тестового пользователя для демонстрации
-      const demoRatingsData: RatingsData = {
+      setRatingsData({
         ratings: [TEST_USER_RATING],
         total: 1,
         averageRating: TEST_USER_RATING.totalRating,
         averageActivity: TEST_USER_RATING.totalActivity,
-        distributionByLevel: {
-          'Архитектор': 1
-        }
-      };
-      setRatingsData(demoRatingsData);
-      
+        distributionByLevel: { 'Архитектор': 1 }
+      });
       setAdjustmentsData(EMPTY_ADJUSTMENTS_DATA);
-      
-      // Сбрасываем состояния загрузки
-      Object.keys(loading).forEach(key => {
-        setLoading(prev => ({ ...prev, [key]: false }));
-      });
     }
   };
 
-  // 🔥 ЗАГРУЗКА ВСЕХ РЕАЛЬНЫХ ДАННЫХ
-  const loadAllData = async () => {
-    try {
-      // Загружаем уровни и формулы
-      const levelsResponse = await mockAPI.admin.getRatingLevels();
-      if (levelsResponse.success && levelsResponse.data) {
-        setLevelsData(levelsResponse.data);
-      } else {
-        throw new Error('Не удалось загрузить уровни');
-      }
-      
-      // Загружаем рейтинги
-      const ratingsResponse = await mockAPI.admin.getAllUserRatings({
-        sortBy: 'rating_desc',
-        limit: 100
-      });
-      if (ratingsResponse.success && ratingsResponse.data) {
-        const apiData = ratingsResponse.data;
-        // Преобразуем данные из API к нашему типу
-        const ratingsData: RatingsData = {
-          ratings: apiData.ratings,
-          total: apiData.total,
-          averageRating: apiData.averageRating,
-          averageActivity: apiData.averageActivity,
-          distributionByLevel: apiData.distributionByLevel
-        };
-        setRatingsData(ratingsData);
-      } else {
-        throw new Error('Не удалось загрузить рейтинги');
-      }
-      
-      // Загружаем корректировки
-      const adjustmentsResponse = await mockAPI.admin.getRatingAdjustments({});
-      if (adjustmentsResponse.success && adjustmentsResponse.data) {
-        setAdjustmentsData(adjustmentsResponse.data);
-      } else {
-        throw new Error('Не удалось загрузить корректировки');
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Ошибка загрузки данных:', error);
-      throw error;
-    }
-  };
-
-  // 🔥 ОБНОВЛЕННАЯ ФУНКЦИЯ ЗАГРУЗКИ ДАННЫХ ВКЛАДКИ
+  // ЗАГРУЗКА ДАННЫХ ВКЛАДКИ
   const loadTabData = async (tab: string) => {
-    if (loading[tab]) return;
+    if (loading[tab] || demoMode) return;
     
     setLoading(prev => ({ ...prev, [tab]: true }));
     setErrors(prev => ({ ...prev, [tab]: null }));
     
     try {
-      // Если в демо-режиме, просто показываем данные
-      if (demoMode) {
-        await new Promise(resolve => setTimeout(resolve, 300)); // Имитация загрузки
-        setLoading(prev => ({ ...prev, [tab]: false }));
-        return;
-      }
-      
-      // Загружаем реальные данные
       switch (tab) {
         case 'levels':
           await loadLevelsData();
@@ -267,66 +269,85 @@ export default function AdminRatingPage() {
           break;
       }
     } catch (error) {
-      console.warn(`Ошибка загрузки вкладки ${tab}:`, error);
-      // Не показываем ошибку пользователю в демо-режиме
-      if (!demoMode) {
-        setErrors(prev => ({ ...prev, [tab]: 'Ошибка загрузки данных' }));
-      }
+      console.error(`Ошибка загрузки вкладки ${tab}:`, error);
+      setErrors(prev => ({ ...prev, [tab]: 'Ошибка загрузки данных' }));
     } finally {
       setLoading(prev => ({ ...prev, [tab]: false }));
     }
   };
 
-  // 🔥 ОБНОВЛЕННЫЕ ФУНКЦИИ ЗАГРУЗКИ
+  // ЗАГРУЗКА УРОВНЕЙ И ФОРМУЛ
   const loadLevelsData = async () => {
-    const response = await mockAPI.admin.getRatingLevels();
-    if (response.success && response.data) {
-      setLevelsData(response.data);
-    } else {
-      // Если API вернуло ошибку, но мы не в демо-режиме
-      if (!demoMode) {
-        throw new Error(response.error || 'Не удалось загрузить данные об уровнях');
-      }
+    if (demoMode) {
+      setLevelsData(EMPTY_LEVELS_DATA);
+      return;
+    }
+
+    try {
+      const levelsResponse = await adminApi.getRatingLevels();
+      setLevelsData(levelsResponse);
+    } catch (error) {
+      console.error('Ошибка загрузки уровней:', error);
+      throw error;
     }
   };
 
+  // ЗАГРУЗКА РЕЙТИНГОВ
   const loadRatingsData = async () => {
-    const response = await mockAPI.admin.getAllUserRatings({
-      sortBy: 'rating_desc',
-      limit: 100
-    });
-    if (response.success && response.data) {
-      const apiData = response.data;
-      // Преобразуем данные из API к нашему типу
-      const ratingsData: RatingsData = {
-        ratings: apiData.ratings,
-        total: apiData.total,
-        averageRating: apiData.averageRating,
-        averageActivity: apiData.averageActivity,
-        distributionByLevel: apiData.distributionByLevel
-      };
-      setRatingsData(ratingsData);
-    } else {
-      if (!demoMode) {
-        throw new Error(response.error || 'Не удалось загрузить рейтинги');
-      }
+    if (demoMode) {
+      setRatingsData({
+        ratings: [TEST_USER_RATING],
+        total: 1,
+        averageRating: TEST_USER_RATING.totalRating,
+        averageActivity: TEST_USER_RATING.totalActivity,
+        distributionByLevel: { 'Архитектор': 1 }
+      });
+      return;
+    }
+
+    try {
+      const distributionData = await adminApi.getRatingDistribution() as Record<string, number>;
+      
+      // Вычисляем общее количество пользователей
+      const total = Object.values(distributionData).reduce((a: number, b: number) => a + b, 0);
+      
+      setRatingsData({
+        ratings: [], // Бэкенд пока не отдает детальный список рейтингов
+        total: total,
+        averageRating: 0, // Бэкенд пока не отдает средний рейтинг
+        averageActivity: 0, // Бэкенд пока не отдает среднюю активность
+        distributionByLevel: distributionData
+      });
+    } catch (error) {
+      console.error('Ошибка загрузки рейтингов:', error);
+      throw error;
     }
   };
 
+  // ЗАГРУЗКА ИСТОРИИ КОРРЕКТИРОВОК
   const loadAdjustmentsData = async (userId?: string) => {
-    const response = await mockAPI.admin.getRatingAdjustments({
-      userId: userId || undefined
-    });
-    if (response.success && response.data) {
-      setAdjustmentsData(response.data);
-    } else {
-      if (!demoMode) {
-        throw new Error(response.error || 'Не удалось загрузить историю корректировок');
-      }
+    if (demoMode) {
+      setAdjustmentsData(EMPTY_ADJUSTMENTS_DATA);
+      return;
+    }
+
+    try {
+      const params: any = { limit: 100 };
+      if (userId) params.userId = userId;
+      
+      const adjustments = await adminApi.getRatingAdjustments(params);
+      
+      setAdjustmentsData({
+        adjustments: adjustments || [],
+        total: (adjustments || []).length
+      });
+    } catch (error) {
+      console.error('Ошибка загрузки корректировок:', error);
+      throw error;
     }
   };
 
-  // 🔥 ОБРАБОТКА КОРРЕКТИРОВКИ (РАБОТАЕТ В ДЕМО-РЕЖИМЕ)
+  // ОБРАБОТКА КОРРЕКТИРОВКИ
   const handleAdjustmentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -342,21 +363,20 @@ export default function AdminRatingPage() {
     setAdjustmentResult(null);
     
     try {
-      // В демо-режиме имитируем успешную корректировку
       if (demoMode) {
+        // Демо-режим
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Создаем демо-корректировку
         const demoAdjustment: RatingAdjustment = {
           userId: adjustmentForm.userId,
           ratingChange: adjustmentForm.ratingChange,
           activityChange: adjustmentForm.activityChange,
           reason: adjustmentForm.reason,
           timestamp: new Date().toISOString(),
-          adminId: 'demo_admin'
+          adminId: 'demo_admin',
+          adminNote: adjustmentForm.adminNote
         };
         
-        // Обновляем историю корректировок
         const updatedAdjustments = adjustmentsData 
           ? [...adjustmentsData.adjustments, demoAdjustment]
           : [demoAdjustment];
@@ -368,35 +388,28 @@ export default function AdminRatingPage() {
         
         setAdjustmentResult({
           success: true,
-          message: `Рейтинг успешно изменен в демо-режиме! (${adjustmentForm.ratingChange > 0 ? '+' : ''}${adjustmentForm.ratingChange} рейтинг, ${adjustmentForm.activityChange > 0 ? '+' : ''}${adjustmentForm.activityChange} активность)`
+          message: `✅ Рейтинг успешно изменен в демо-режиме! (${adjustmentForm.ratingChange > 0 ? '+' : ''}${adjustmentForm.ratingChange} рейтинг, ${adjustmentForm.activityChange > 0 ? '+' : ''}${adjustmentForm.activityChange} активность)`
         });
       } else {
-        // Реальный вызов API
-        const response = await mockAPI.admin.adjustUserRating(
-          adjustmentForm.userId,
-          {
-            ratingChange: adjustmentForm.ratingChange,
-            activityChange: adjustmentForm.activityChange,
-            reason: adjustmentForm.reason,
-            adminNote: adjustmentForm.adminNote
-          }
-        );
+        // Реальный API
+        await adminApi.adjustRating({
+          userId: adjustmentForm.userId,
+          ratingChange: adjustmentForm.ratingChange,
+          activityChange: adjustmentForm.activityChange,
+          reason: adjustmentForm.reason,
+          adminNote: adjustmentForm.adminNote
+        });
         
-        if (response.success && response.data) {
-          setAdjustmentResult({
-            success: true,
-            message: `Рейтинг успешно изменен! Новые значения: рейтинг ${response.data.newRating}, активность ${response.data.newActivity}`
-          });
-          
-          // Обновляем данные
-          await loadAdjustmentsData();
-          await loadRatingsData();
-        } else {
-          setAdjustmentResult({
-            success: false,
-            message: response.error || 'Ошибка при изменении рейтинга'
-          });
-        }
+        setAdjustmentResult({
+          success: true,
+          message: `✅ Рейтинг успешно скорректирован!`
+        });
+        
+        // Обновляем данные
+        await Promise.all([
+          loadAdjustmentsData(),
+          loadRatingsData()
+        ]);
       }
       
       // Сброс формы
@@ -409,21 +422,20 @@ export default function AdminRatingPage() {
       });
       
     } catch (error) {
+      console.error('Ошибка корректировки рейтинга:', error);
       setAdjustmentResult({
         success: false,
-        message: 'Ошибка сети. Попробуйте снова.'
+        message: '❌ Ошибка сети. Попробуйте снова.'
       });
-      console.error('Ошибка корректировки рейтинга:', error);
     } finally {
       setIsAdjusting(false);
     }
   };
 
-  // 🔥 ПОИСК КОРРЕКТИРОВОК
+  // ПОИСК КОРРЕКТИРОВОК
   const handleSearchAdjustments = () => {
-    if (searchUserId.trim()) {
-      if (demoMode) {
-        // В демо-режиме фильтруем локально
+    if (demoMode) {
+      if (searchUserId.trim()) {
         const filtered = adjustmentsData?.adjustments.filter(adj => 
           adj.userId.includes(searchUserId)
         ) || [];
@@ -432,38 +444,38 @@ export default function AdminRatingPage() {
           total: filtered.length
         });
       } else {
-        loadAdjustmentsData(searchUserId);
+        setAdjustmentsData(EMPTY_ADJUSTMENTS_DATA);
       }
     } else {
-      if (demoMode) {
-        // Возвращаем все демо-данные
-        setAdjustmentsData(EMPTY_ADJUSTMENTS_DATA);
-      } else {
-        loadAdjustmentsData();
-      }
+      loadAdjustmentsData(searchUserId.trim() || undefined);
     }
   };
 
-  // 🔥 ПОЛУЧЕНИЕ ПОЛЬЗОВАТЕЛЕЙ НА УРОВНЕ
+  // ПОЛУЧЕНИЕ ПОЛЬЗОВАТЕЛЕЙ НА УРОВНЕ
   const getUsersInLevel = (levelName: string): number => {
     if (!ratingsData) return 0;
     return ratingsData.distributionByLevel[levelName] || 0;
   };
 
-  // 🔥 ПОЛУЧЕНИЕ ПРОЦЕНТА ПОЛЬЗОВАТЕЛЕЙ НА УРОВНЕ
+  // ПОЛУЧЕНИЕ ПРОЦЕНТА ПОЛЬЗОВАТЕЛЕЙ НА УРОВНЕ
   const getLevelPercentage = (levelName: string): string => {
     if (!ratingsData || ratingsData.total === 0) return '0%';
     const count = getUsersInLevel(levelName);
     return ((count / ratingsData.total) * 100).toFixed(1) + '%';
   };
 
-  // 🔥 ПЕРЕЗАГРУЗКА ДАННЫХ
+  // ПЕРЕЗАГРУЗКА ДАННЫХ
   const handleRefreshData = async () => {
+    if (!isBackendAvailable) {
+      alert('Бэкенд недоступен. Запустите сервер разработки для работы с реальными данными.');
+      return;
+    }
+    
     try {
-      await loadAllData();
+      await initializeData();
       setDemoMode(false);
     } catch (error) {
-      console.log('Остаемся в демо-режиме');
+      console.error('Ошибка обновления данных:', error);
     }
   };
 
@@ -483,20 +495,24 @@ export default function AdminRatingPage() {
     <div className="admin-page">
       <div className="page-header">
         <h2>Управление рейтинговой системой</h2>
-        <p className="page-subtitle">Настройка уровней, формул и корректировка рейтинга</p>
-        
-        {demoMode && (
-          <div className="demo-banner">
-            <span className="demo-icon">🎮</span>
-            <span className="demo-text">Демо-режим. Используются тестовые данные.</span>
+        <div className="page-header-info">
+          <p className="page-subtitle">
+            {demoMode 
+              ? '🎮 Демо-режим. Используются тестовые данные.'
+              : isBackendAvailable 
+                ? '📊 Реальные данные из базы'
+                : '⚠️ Бэкенд недоступен, работа в демо-режиме'}
+          </p>
+          {demoMode && (
             <button 
               onClick={handleRefreshData}
-              className="demo-refresh-btn"
+              className="refresh-btn"
+              disabled={!isBackendAvailable}
             >
               🔄 Проверить реальные данные
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="page-content">
@@ -507,7 +523,10 @@ export default function AdminRatingPage() {
               <button
                 key={tab.id}
                 className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  loadTabData(tab.id);
+                }}
                 disabled={loading[tab.id]}
               >
                 <span className="tab-icon">{tab.icon}</span>
@@ -558,10 +577,6 @@ export default function AdminRatingPage() {
                                 {level.min} — {level.max === Infinity ? '∞' : level.max} очков
                               </span>
                             </div>
-                          </div>
-                          
-                          <div className="level-description">
-                            <p>Диапазон рейтинга для получения этого уровня</p>
                           </div>
                           
                           <div className="level-stats">
@@ -665,16 +680,6 @@ export default function AdminRatingPage() {
                           </tbody>
                         </table>
                       </div>
-                      
-                      <div className="formula-summary">
-                        <h4>📝 Примечания к системе</h4>
-                        <ul>
-                          <li>Рейтинг влияет на уровень пользователя и его положение в общем рейтинге</li>
-                          <li>Активность показывает вовлеченность пользователя в жизнь сообщества</li>
-                          <li>Лайки, полученные за контент, повышают рейтинг автора</li>
-                          <li>Ежедневный вход поощряется дополнительной активностью</li>
-                        </ul>
-                      </div>
                     </div>
                   </>
                 ) : null}
@@ -708,7 +713,7 @@ export default function AdminRatingPage() {
                         <h3>Ручная корректировка рейтинга</h3>
                         <p className="section-subtitle">
                           Изменение рейтинга и активности пользователя
-                          {demoMode && <span className="demo-hint"> (работает в демо-режиме)</span>}
+                          {demoMode && <span className="demo-hint"> (демо-режим)</span>}
                         </p>
                       </div>
                       
@@ -721,10 +726,12 @@ export default function AdminRatingPage() {
                               className="setting-input"
                               value={adjustmentForm.userId}
                               onChange={(e) => setAdjustmentForm(prev => ({ ...prev, userId: e.target.value }))}
-                              placeholder="demo_user_1 или реальный ID"
+                              placeholder={demoMode ? "demo_user_1" : "user_12345"}
                               required
                             />
-                            <span className="setting-hint">Для демо используйте "demo_user_1"</span>
+                            <span className="setting-hint">
+                              {demoMode ? 'Для демо используйте "demo_user_1"' : 'Введите ID пользователя'}
+                            </span>
                           </div>
                           
                           <div className="setting-item">
@@ -736,7 +743,6 @@ export default function AdminRatingPage() {
                               onChange={(e) => setAdjustmentForm(prev => ({ ...prev, ratingChange: parseInt(e.target.value) || 0 }))}
                               placeholder="+50 или -20"
                             />
-                            <span className="setting-hint">Положительное или отрицательное число</span>
                           </div>
                           
                           <div className="setting-item">
@@ -748,7 +754,6 @@ export default function AdminRatingPage() {
                               onChange={(e) => setAdjustmentForm(prev => ({ ...prev, activityChange: parseInt(e.target.value) || 0 }))}
                               placeholder="+10 или -5"
                             />
-                            <span className="setting-hint">Положительное или отрицательное число</span>
                           </div>
                           
                           <div className="setting-item" style={{ gridColumn: '1 / -1' }}>
@@ -761,7 +766,6 @@ export default function AdminRatingPage() {
                               placeholder="Награда за активность, коррекция ошибки и т.д."
                               required
                             />
-                            <span className="setting-hint">Обязательное поле, будет записано в историю</span>
                           </div>
                           
                           <div className="setting-item" style={{ gridColumn: '1 / -1' }}>
@@ -778,7 +782,7 @@ export default function AdminRatingPage() {
                         
                         {adjustmentResult && (
                           <div className={`result-message ${adjustmentResult.success ? 'success' : 'error'}`}>
-                            {adjustmentResult.success ? '✅' : '❌'} {adjustmentResult.message}
+                            {adjustmentResult.message}
                           </div>
                         )}
                         
@@ -788,7 +792,7 @@ export default function AdminRatingPage() {
                             className="primary-btn"
                             disabled={isAdjusting}
                           >
-                            {isAdjusting ? 'Корректировка...' : 'Применить корректировку'}
+                            {isAdjusting ? 'Корректировка...' : '📊 Применить корректировку'}
                           </button>
                           <button
                             type="button"
@@ -876,6 +880,7 @@ export default function AdminRatingPage() {
                                   </td>
                                   <td>
                                     <span className="adjustment-reason">{adj.reason}</span>
+                                    {adj.adminNote && <span className="adjustment-note"> · {adj.adminNote}</span>}
                                   </td>
                                   <td>
                                     <span className="adjustment-date">{formatDate(adj.timestamp)}</span>
@@ -994,67 +999,58 @@ export default function AdminRatingPage() {
                       <div className="section-header">
                         <h3>Топ пользователей по рейтингу</h3>
                         <p className="section-subtitle">
-                          Показано {Math.min(10, ratingsData.ratings.length)} из {ratingsData.total} пользователей
+                          {ratingsData.ratings.length > 0 
+                            ? `Показано ${Math.min(10, ratingsData.ratings.length)} из ${ratingsData.total} пользователей`
+                            : demoMode
+                              ? 'В демо-режиме показан тестовый пользователь'
+                              : 'Нет данных для отображения'}
                         </p>
                       </div>
                       
                       {ratingsData.ratings.length > 0 ? (
-                        <>
-                          <div className="rating-table-container">
-                            <table className="rating-table">
-                              <thead>
-                                <tr>
-                                  <th>#</th>
-                                  <th>ID пользователя</th>
-                                  <th>Рейтинг</th>
-                                  <th>Активность</th>
-                                  <th>Уровень рейтинга</th>
-                                  <th>Уровень активности</th>
+                        <div className="rating-table-container">
+                          <table className="rating-table">
+                            <thead>
+                              <tr>
+                                <th>#</th>
+                                <th>ID пользователя</th>
+                                <th>Рейтинг</th>
+                                <th>Активность</th>
+                                <th>Уровень рейтинга</th>
+                                <th>Уровень активности</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ratingsData.ratings.slice(0, 10).map((rating, index) => (
+                                <tr key={index}>
+                                  <td>
+                                    <span className={`rank-number ${index < 3 ? `top-${index + 1}` : ''}`}>
+                                      {index + 1}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span className="user-id">{rating.userId}</span>
+                                  </td>
+                                  <td>
+                                    <span className="rating-value">{rating.totalRating}</span>
+                                  </td>
+                                  <td>
+                                    <span className="activity-value">{rating.totalActivity}</span>
+                                  </td>
+                                  <td>
+                                    <span className="level-badge">
+                                      <span className="level-icon-small">{rating.ratingIcon}</span>
+                                      {rating.ratingLevel}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span className="activity-badge">{rating.activityLevel}</span>
+                                  </td>
                                 </tr>
-                              </thead>
-                              <tbody>
-                                {ratingsData.ratings.slice(0, 10).map((rating, index) => (
-                                  <tr key={index}>
-                                    <td>
-                                      <span className={`rank-number ${index < 3 ? `top-${index + 1}` : ''}`}>
-                                        {index + 1}
-                                      </span>
-                                    </td>
-                                    <td>
-                                      <span className="user-id">{rating.userId}</span>
-                                    </td>
-                                    <td>
-                                      <span className="rating-value">{rating.totalRating}</span>
-                                    </td>
-                                    <td>
-                                      <span className="activity-value">{rating.totalActivity}</span>
-                                    </td>
-                                    <td>
-                                      <span className="level-badge">
-                                        <span className="level-icon-small">{rating.ratingIcon}</span>
-                                        {rating.ratingLevel}
-                                      </span>
-                                    </td>
-                                    <td>
-                                      <span className="activity-badge">{rating.activityLevel}</span>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                          
-                          {ratingsData.ratings.length > 10 && (
-                            <div className="show-more-container">
-                              <button 
-                                className="secondary-btn"
-                                onClick={() => {/* В будущем можно добавить загрузку большего количества */}}
-                              >
-                                Показать еще 20 пользователей
-                              </button>
-                            </div>
-                          )}
-                        </>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       ) : (
                         <div className="empty-state">
                           <div className="empty-icon">👤</div>
@@ -1101,7 +1097,8 @@ export default function AdminRatingPage() {
               <span className="tip-icon">💡</span>
               <span className="tip-text">
                 Система работает в демо-режиме. Когда появятся реальные пользователи, 
-                данные автоматически обновятся. Форма корректировки уже полностью функциональна.
+                нажмите кнопку "Проверить реальные данные" вверху страницы.
+                Форма корректировки уже полностью функциональна в демо-режиме.
               </span>
             </div>
           )}

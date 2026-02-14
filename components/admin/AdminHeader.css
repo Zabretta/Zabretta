@@ -249,6 +249,47 @@
   background: transparent;
 }
 
+/* Стили для статичной кнопки админа (только для красоты) */
+.user-info-static {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-radius: 25px;
+  background: rgba(139, 69, 19, 0.2);
+  border: 1px solid #8B4513;
+  color: #F5DEB3;
+  cursor: default;
+  min-width: 160px;
+}
+
+.user-info-static .user-avatar {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.user-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.user-info-static .user-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #F5DEB3;
+}
+
+.user-info-static .user-role {
+  font-size: 12px;
+  color: #A0522D;
+  opacity: 0.9;
+  padding: 0;
+  background: none;
+  font-weight: 500;
+}
+
 /* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
   .admin-header {
@@ -306,6 +347,23 @@
     right: 0;
     top: calc(100% + 8px);
   }
+  
+  .user-info-static {
+    min-width: auto;
+    padding: 8px;
+    width: 44px;
+    height: 44px;
+    justify-content: center;
+  }
+  
+  .user-info-static .user-text {
+    display: none;
+  }
+  
+  .user-info-static .user-avatar {
+    font-size: 20px;
+    margin: 0;
+  }
 }
 
 /* Очень маленькие экраны */
@@ -336,6 +394,11 @@
   }
   
   .user-btn {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .user-info-static {
     width: 40px;
     height: 40px;
   }

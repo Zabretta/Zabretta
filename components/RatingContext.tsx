@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { UserRating, RatingRecord, USER_LEVELS, ACTIVITY_LEVELS } from '../api/mocks';
+import { UserRating, RatingRecord, USER_LEVELS, ACTIVITY_LEVELS } from '@/types/admin';
 import { useAuth } from './useAuth';
 
 interface RatingContextType {
@@ -95,7 +95,6 @@ export const RatingProvider: React.FC<RatingProviderProps> = ({ children }) => {
       ratingLevel: "Студент",
       activityLevel: "Новичок",
       ratingIcon: "★",
-      lastDailyLogin: new Date(),
       stats: {
         projectsCreated: 0,
         mastersAdsCreated: 0,
@@ -141,7 +140,9 @@ export const RatingProvider: React.FC<RatingProviderProps> = ({ children }) => {
       
       // Обновляем статистику
       const updatedStats = { ...current.stats };
-      if (recordData.section === 'projects' && recordData.action === 'like_given') {
+      
+      // ИСПРАВЛЕНО: Изменены строковые литералы на соответствие типам из admin.ts
+      if (recordData.section === 'PROJECTS' && recordData.action === 'LIKE_GIVEN') {
         updatedStats.likesGiven = (updatedStats.likesGiven || 0) + 1;
       }
 

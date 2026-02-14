@@ -1,8 +1,26 @@
+// Файл 2 из 3: app/admin/users/UserEditModal.tsx
+
 "use client";
 
-import { AdminUser } from '@/api/mocks-admin';
 import { useState, useEffect } from 'react';
 import './UserModals.css';
+
+// Временный тип, позже перенесем в types/admin.ts
+interface AdminUser {
+  id: string;
+  login: string;
+  email: string;
+  name?: string;
+  role: 'user' | 'moderator' | 'admin';
+  isActive: boolean;
+  rating: number;
+  activityPoints: number;
+  totalPosts: number;
+  violations: number;
+  createdAt: string;
+  lastLogin?: string;
+  avatar?: string;
+}
 
 interface UserEditModalProps {
   user: AdminUser | null;
@@ -109,7 +127,7 @@ export default function UserEditModal({
                 <select
                   id="role"
                   value={formData.role || 'user'}
-                  onChange={(e) => handleChange('role', e.target.value)}
+                  onChange={(e) => handleChange('role', e.target.value as 'user' | 'moderator' | 'admin')}
                   className="form-select"
                 >
                   <option value="user">Пользователь</option>

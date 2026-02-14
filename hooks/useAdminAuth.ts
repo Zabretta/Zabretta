@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export const useAdminAuth = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isAdmin } = useAuth(); // ← БЕРЕМ isAdmin ИЗ useAuth!
   const router = useRouter();
 
-  const isAdmin = user?.login === 'admin'; // Упрощенная проверка для демо
   const isAuthorized = isAuthenticated && isAdmin;
 
   useEffect(() => {

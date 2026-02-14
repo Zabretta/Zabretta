@@ -1,7 +1,25 @@
+// Файл 3 из 3: app/admin/users/UserProfileModal.tsx
+
 "use client";
 
-import { AdminUser } from '@/api/mocks-admin';
 import './UserModals.css';
+
+// Временный тип, позже перенесем в types/admin.ts
+interface AdminUser {
+  id: string;
+  login: string;
+  email: string;
+  name?: string;
+  role: 'user' | 'moderator' | 'admin';
+  isActive: boolean;
+  rating: number;
+  activityPoints: number;
+  totalPosts: number;
+  violations: number;
+  createdAt: string;
+  lastLogin?: string;
+  avatar?: string;
+}
 
 interface UserProfileModalProps {
   user: AdminUser | null;
@@ -65,7 +83,7 @@ export default function UserProfileModal({
                     {user.isActive ? 'Активен' : 'Заблокирован'}
                   </span>
                   <span className="registration-date">
-                    Зарегистрирован: {new Date(user.createdAt).toLocaleDateString()}
+                    Зарегистрирован: {new Date(user.createdAt).toLocaleDateString('ru-RU')}
                   </span>
                 </div>
               </div>
@@ -103,10 +121,10 @@ export default function UserProfileModal({
                   <div className="rating-info">
                     <div className="rating-label">Последний вход</div>
                     <div className="rating-value">
-                      {new Date(user.lastLogin).toLocaleDateString()}
+                      {new Date(user.lastLogin).toLocaleDateString('ru-RU')}
                     </div>
                     <div className="rating-level">
-                      {new Date(user.lastLogin).toLocaleTimeString()}
+                      {new Date(user.lastLogin).toLocaleTimeString('ru-RU')}
                     </div>
                   </div>
                 </div>
@@ -137,7 +155,7 @@ export default function UserProfileModal({
               <div className="stat-item">
                 <div className="stat-label">Средний рейтинг</div>
                 <div className="stat-value">
-                  {user.totalPosts && user.rating 
+                  {user.totalPosts && user.rating && user.totalPosts > 0
                     ? (user.rating / user.totalPosts).toFixed(1)
                     : '0.0'}
                 </div>
@@ -145,7 +163,7 @@ export default function UserProfileModal({
             </div>
           </div>
 
-          {/* История активности (заглушка) */}
+          {/* История активности (заглушка - будет заменена на реальные данные позже) */}
           <div className="profile-section">
             <h4>Последние действия</h4>
             <div className="activity-list">

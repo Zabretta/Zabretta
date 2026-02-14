@@ -2,11 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import './AdminUsersPage.css';
-import './UserModals.css'; // Добавили стили модальных окон
+import './UserModals.css';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-// Импортируем функцию API из mocks, а тип AdminUser из mocks-admin
-import { mockAPI } from '@/api/mocks';
-import { type AdminUser } from '@/api/mocks-admin'; // Исправленный импорт
+import { adminApi } from '@/lib/api/admin';
 import { formatDate, getRoleLabel } from '@/utils/admin';
 import { USER_LEVELS } from '@/api/mocks-admin';
 
@@ -15,51 +13,71 @@ import UserProfileModal from './UserProfileModal';
 import UserEditModal from './UserEditModal';
 import RatingAdjustmentModal from './RatingAdjustmentModal';
 
+// Тип пользователя (временный, позже перенесем в types/admin.ts)
+interface AdminUser {
+  id: string;
+  login: string;
+  email: string;
+  name?: string;
+  role: 'user' | 'moderator' | 'admin';
+  isActive: boolean;
+  rating: number;
+  activityPoints: number;
+  totalPosts: number;
+  violations: number;
+  createdAt: string;
+  lastLogin?: string;
+  avatar?: string;
+}
+
 export default function AdminUsersPage() {
-  // Аутентификация и авторизация
+  // Аутентификация
   const { isAuthorized } = useAdminAuth();
   
-  // Состояния для данных и UI
+  // Состояния для данных
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isBackendAvailable, setIsBackendAvailable] = useState(true);
   
-  // Состояния для фильтров и поиска
+  // Фильтры и пагинация
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const usersPerPage = 10;
 
-  // Данные для визуализации распределения по уровням
+  // Распределение по уровням
   const [distributionData, setDistributionData] = useState([
-    { name: "Студент", count: 42, percentage: 35, color: "#8B4513" },
-    { name: "Инженер", count: 28, percentage: 23, color: "#D2691E" },
-    { name: "Архитектор", count: 22, percentage: 18, color: "#CD853F" },
-    { name: "Мастер", count: 18, percentage: 15, color: "#A0522D" },
-    { name: "Легенда", count: 10, percentage: 9, color: "#FFD700" }
+    { name: "Студент", count: 0, percentage: 0, color: "#8B4513" },
+    { name: "Инженер", count: 0, percentage: 0, color: "#D2691E" },
+    { name: "Архитектор", count: 0, percentage: 0, color: "#CD853F" },
+    { name: "Мастер", count: 0, percentage: 0, color: "#A0522D" },
+    { name: "Легенда", count: 0, percentage: 0, color: "#FFD700" }
   ]);
 
-  // Состояния для модальных окон
+  // Модальные окна
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
 
-  // Загрузка пользователей при монтировании компонента
+  // Проверка доступности бэкенда
   useEffect(() => {
-    if (isAuthorized) {
-      loadUsers();
-    }
-  }, [isAuthorized, currentPage]);
+    const checkBackend = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/health');
+        setIsBackendAvailable(response.ok);
+      } catch {
+        setIsBackendAvailable(false);
+        setError('Бэкенд недоступен. Используются демо-данные.');
+      }
+    };
+    checkBackend();
+  }, []);
 
-  // Применение фильтров при изменении поиска или роли
-  useEffect(() => {
-    applyFilters();
-  }, [users, search, filterRole]);
-
-  // Основная функция загрузки пользователей
+  // Загрузка пользователей
   const loadUsers = async () => {
     if (!isAuthorized) return;
     
@@ -67,38 +85,130 @@ export default function AdminUsersPage() {
     setError(null);
     
     try {
-      // Вызов API для получения пользователей с пагинацией
-      const response = await mockAPI.admin.getAdminUsers({
+      if (!isBackendAvailable) {
+        // Демо-данные для работы без бэкенда
+        const demoUsers = getDemoUsers();
+        setUsers(demoUsers);
+        setTotalUsers(demoUsers.length);
+        updateDistributionData(demoUsers);
+        setFilteredUsers(demoUsers);
+        return;
+      }
+
+      // Реальный запрос к бэкенду
+      const response = await adminApi.getUsers({
         page: currentPage,
         limit: usersPerPage,
         role: filterRole !== 'all' ? filterRole : undefined,
         search: search || undefined,
-        sortBy: 'date_desc'
+        sortBy: 'createdAt_desc'
       });
       
-      if (response.success && response.data) {
-        setUsers(response.data.users);
-        setTotalUsers(response.data.total);
-        
-        // Обновляем данные распределения на основе загруженных пользователей
-        updateDistributionData(response.data.users);
-      } else {
-        setError(response.error || 'Не удалось загрузить пользователей');
-      }
-    } catch (err) {
-      setError('Ошибка при загрузке данных. Попробуйте обновить страницу.');
+      setUsers(response.users || []);
+      setTotalUsers(response.total || 0);
+      updateDistributionData(response.users || []);
+      
+    } catch (err: any) {
       console.error('Ошибка загрузки пользователей:', err);
+      setError(err.message || 'Ошибка при загрузке данных');
+      
+      // При ошибке показываем демо-данные
+      const demoUsers = getDemoUsers();
+      setUsers(demoUsers);
+      setTotalUsers(demoUsers.length);
+      updateDistributionData(demoUsers);
     } finally {
       setLoading(false);
     }
   };
 
-  // Функция обновления данных распределения по уровням (ИСПРАВЛЕНА)
+  // Демо-данные для разработки
+  const getDemoUsers = (): AdminUser[] => {
+    return [
+      {
+        id: '1',
+        login: 'admin',
+        email: 'admin@example.com',
+        name: 'Администратор',
+        role: 'admin',
+        isActive: true,
+        rating: 1250,
+        activityPoints: 3500,
+        totalPosts: 45,
+        violations: 0,
+        createdAt: new Date(Date.now() - 90 * 86400000).toISOString(),
+        lastLogin: new Date().toISOString(),
+      },
+      {
+        id: '2',
+        login: 'moderator1',
+        email: 'moderator@example.com',
+        name: 'Модератор',
+        role: 'moderator',
+        isActive: true,
+        rating: 850,
+        activityPoints: 2100,
+        totalPosts: 28,
+        violations: 1,
+        createdAt: new Date(Date.now() - 60 * 86400000).toISOString(),
+        lastLogin: new Date(Date.now() - 86400000).toISOString(),
+      },
+      {
+        id: '3',
+        login: 'user1',
+        email: 'user1@example.com',
+        name: 'Иван Петров',
+        role: 'user',
+        isActive: true,
+        rating: 450,
+        activityPoints: 890,
+        totalPosts: 12,
+        violations: 0,
+        createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
+        lastLogin: new Date(Date.now() - 2 * 86400000).toISOString(),
+      },
+      {
+        id: '4',
+        login: 'user2',
+        email: 'user2@example.com',
+        name: 'Мария Иванова',
+        role: 'user',
+        isActive: false,
+        rating: 120,
+        activityPoints: 340,
+        totalPosts: 5,
+        violations: 3,
+        createdAt: new Date(Date.now() - 45 * 86400000).toISOString(),
+        lastLogin: new Date(Date.now() - 15 * 86400000).toISOString(),
+      },
+    ];
+  };
+
+  // Фильтрация пользователей
+  useEffect(() => {
+    let result = [...users];
+    
+    if (search.trim()) {
+      const searchLower = search.toLowerCase();
+      result = result.filter(user => 
+        user.login.toLowerCase().includes(searchLower) ||
+        user.email.toLowerCase().includes(searchLower) ||
+        (user.name && user.name.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    if (filterRole !== 'all') {
+      result = result.filter(user => user.role === filterRole);
+    }
+    
+    setFilteredUsers(result);
+  }, [users, search, filterRole]);
+
+  // Обновление распределения по уровням
   const updateDistributionData = (userList: AdminUser[]) => {
     const total = userList.length;
     
     if (total === 0) {
-      // Если нет пользователей, показываем пустые данные
       const emptyDistribution = USER_LEVELS.map((level, index) => ({
         name: level.name,
         count: 0,
@@ -109,7 +219,6 @@ export default function AdminUsersPage() {
       return;
     }
     
-    // Считаем пользователей по уровням на основе рейтинга
     const levelCounts: Record<string, number> = {};
     
     userList.forEach(user => {
@@ -118,7 +227,6 @@ export default function AdminUsersPage() {
       levelCounts[level] = (levelCounts[level] || 0) + 1;
     });
     
-    // Преобразуем в массив для графика
     const newDistribution = USER_LEVELS.map((level, index) => {
       const count = levelCounts[level.name] || 0;
       return {
@@ -132,36 +240,20 @@ export default function AdminUsersPage() {
     setDistributionData(newDistribution);
   };
 
-  // Применение локальных фильтров (поиск по логину/email)
-  const applyFilters = () => {
-    let result = [...users];
-    
-    // Фильтрация по поисковому запросу
-    if (search.trim()) {
-      const searchLower = search.toLowerCase();
-      result = result.filter(user => 
-        user.login.toLowerCase().includes(searchLower) ||
-        user.email.toLowerCase().includes(searchLower) ||
-        (user.name && user.name.toLowerCase().includes(searchLower))
-      );
+  // Загрузка при монтировании
+  useEffect(() => {
+    if (isAuthorized) {
+      loadUsers();
     }
-    
-    // Фильтрация по роли (если не "все")
-    if (filterRole !== 'all') {
-      result = result.filter(user => user.role === filterRole);
-    }
-    
-    setFilteredUsers(result);
-  };
+  }, [isAuthorized, currentPage]);
 
-  // Обработчик поиска
+  // Обработчики
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentPage(1); // Сброс на первую страницу при новом поиске
-    loadUsers(); // Перезагрузка данных с сервера с учетом поиска
+    setCurrentPage(1);
+    loadUsers();
   };
 
-  // Обработчики действий для открытия модальных окон
   const handleViewUser = (userId: string) => {
     const user = users.find(u => u.id === userId);
     if (user) {
@@ -179,47 +271,45 @@ export default function AdminUsersPage() {
   };
 
   const handleToggleBlock = async (user: AdminUser) => {
-    const newStatus = !user.isActive;
     const action = user.isActive ? 'блокировку' : 'разблокировку';
     
     if (confirm(`Вы уверены, что хотите ${action} пользователя ${user.login}?`)) {
       try {
-        const response = await mockAPI.admin.updateAdminUser(user.id, {
-          isActive: newStatus
-        });
-        
-        if (response.success) {
-          alert(`Пользователь ${user.login} успешно ${user.isActive ? 'заблокирован' : 'разблокирован'}!`);
-          loadUsers(); // Обновляем список
-        } else {
-          alert(`Ошибка при ${action} пользователя: ${response.error}`);
+        if (!isBackendAvailable) {
+          // Демо-режим
+          alert(`Демо: пользователь ${user.login} ${user.isActive ? 'заблокирован' : 'разблокирован'}`);
+          setUsers(prev => prev.map(u => 
+            u.id === user.id ? { ...u, isActive: !u.isActive } : u
+          ));
+          return;
         }
-      } catch (err) {
-        alert(`Ошибка при ${action} пользователя. Попробуйте снова.`);
-        console.error('Ошибка обновления пользователя:', err);
+
+        await adminApi.toggleUserBlock(user.id);
+        alert(`Пользователь ${user.login} успешно ${user.isActive ? 'заблокирован' : 'разблокирован'}!`);
+        loadUsers();
+      } catch (err: any) {
+        alert(`Ошибка: ${err.message}`);
       }
     }
   };
 
   const handleResetPassword = async (userId: string, userLogin: string) => {
-    if (confirm(`Сбросить пароль для пользователя ${userLogin}? На email будет отправлена инструкция.`)) {
+    if (confirm(`Сбросить пароль для пользователя ${userLogin}?`)) {
       try {
-        const response = await mockAPI.admin.resetUserPassword(userId);
-        
-        if (response.success) {
-          alert(`Инструкция по сбросу пароля отправлена на email пользователя.`);
-        } else {
-          alert(`Ошибка: ${response.error}`);
+        if (!isBackendAvailable) {
+          alert(`Демо: запрос на сброс пароля для ${userLogin} отправлен`);
+          return;
         }
-      } catch (err) {
-        alert('Ошибка при сбросе пароля. Попробуйте снова.');
-        console.error('Ошибка сброса пароля:', err);
+
+        await adminApi.resetPassword(userId);
+        alert(`Инструкция по сбросу пароля отправлена на email пользователя.`);
+      } catch (err: any) {
+        alert(`Ошибка: ${err.message}`);
       }
     }
   };
 
-  // Обработчик ручной корректировки рейтинга
-  const handleAdjustRating = (userId: string, userLogin: string) => {
+  const handleAdjustRating = (userId: string) => {
     const user = users.find(u => u.id === userId);
     if (user) {
       setSelectedUser(user);
@@ -227,28 +317,31 @@ export default function AdminUsersPage() {
     }
   };
 
-  // Обработчик сохранения изменений пользователя
   const handleSaveUser = async (updates: Partial<AdminUser>) => {
     if (!selectedUser) return;
     
     try {
-      const response = await mockAPI.admin.updateAdminUser(selectedUser.id, updates);
-      
-      if (response.success) {
-        alert(`Данные пользователя ${selectedUser.login} успешно обновлены!`);
-        loadUsers(); // Обновляем список
+      if (!isBackendAvailable) {
+        // Демо-режим
+        alert(`Демо: данные пользователя ${selectedUser.login} обновлены`);
+        setUsers(prev => prev.map(u => 
+          u.id === selectedUser.id ? { ...u, ...updates } : u
+        ));
         setIsEditModalOpen(false);
         setSelectedUser(null);
-      } else {
-        alert(`Ошибка при обновлении: ${response.error}`);
+        return;
       }
-    } catch (err) {
-      alert('Ошибка при обновлении пользователя');
-      console.error('Ошибка сохранения:', err);
+
+      await adminApi.updateUser(selectedUser.id, updates);
+      alert(`Данные пользователя ${selectedUser.login} обновлены!`);
+      loadUsers();
+      setIsEditModalOpen(false);
+      setSelectedUser(null);
+    } catch (err: any) {
+      alert(`Ошибка: ${err.message}`);
     }
   };
 
-  // Обработчик корректировки рейтинга
   const handleRatingAdjust = async (adjustment: {
     ratingChange: number;
     activityChange: number;
@@ -258,23 +351,35 @@ export default function AdminUsersPage() {
     if (!selectedUser) return;
     
     try {
-      const response = await mockAPI.admin.adjustUserRating(selectedUser.id, adjustment);
-      
-      if (response.success && response.data) {
-        alert(`Рейтинг пользователя ${selectedUser.login} скорректирован!\nНовый рейтинг: ${response.data.newRating}\nНовая активность: ${response.data.newActivity}`);
-        loadUsers(); // Обновляем список
+      if (!isBackendAvailable) {
+        // Демо-режим
+        const newRating = (selectedUser.rating || 0) + adjustment.ratingChange;
+        const newActivity = (selectedUser.activityPoints || 0) + adjustment.activityChange;
+        alert(`Демо: рейтинг ${selectedUser.login} скорректирован!\nНовый рейтинг: ${newRating}\nНовая активность: ${newActivity}`);
+        setUsers(prev => prev.map(u => 
+          u.id === selectedUser.id 
+            ? { ...u, rating: newRating, activityPoints: newActivity } 
+            : u
+        ));
         setIsRatingModalOpen(false);
         setSelectedUser(null);
-      } else {
-        alert(`Ошибка: ${response.error}`);
+        return;
       }
-    } catch (err) {
-      alert('Ошибка при корректировке рейтинга');
-      console.error('Ошибка корректировки:', err);
+
+      await adminApi.adjustRating({
+        userId: selectedUser.id,
+        ...adjustment
+      });
+      
+      alert(`Рейтинг пользователя ${selectedUser.login} скорректирован!`);
+      loadUsers();
+      setIsRatingModalOpen(false);
+      setSelectedUser(null);
+    } catch (err: any) {
+      alert(`Ошибка: ${err.message}`);
     }
   };
 
-  // Закрытие всех модальных окон
   const closeAllModals = () => {
     setIsProfileModalOpen(false);
     setIsEditModalOpen(false);
@@ -286,18 +391,13 @@ export default function AdminUsersPage() {
   const totalPages = Math.ceil(totalUsers / usersPerPage);
   
   const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
   
   const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
 
-  // Если нет авторизации - показываем загрузку (useAdminAuth сам перенаправит)
   if (!isAuthorized) {
     return (
       <div className="admin-page">
@@ -313,11 +413,18 @@ export default function AdminUsersPage() {
     <div className="admin-page">
       <div className="page-header">
         <h2>Управление пользователями</h2>
-        <p className="page-subtitle">Поиск, фильтрация и управление пользователями системы</p>
+        <div className="page-header-info">
+          <p className="page-subtitle">
+            {isBackendAvailable 
+              ? 'Реальные данные из базы' 
+              : '⚠️ Демо-режим: бэкенд недоступен'}
+          </p>
+          <span className="users-count">Всего: {totalUsers}</span>
+        </div>
       </div>
 
       <div className="page-content">
-        {/* Блок визуализации распределения пользователей по уровням */}
+        {/* Распределение по уровням */}
         <div className="distribution-container">
           <div className="distribution-header">
             <h3>Распределение пользователей по уровням</h3>
@@ -331,63 +438,23 @@ export default function AdminUsersPage() {
                   <div 
                     className="bar-column" 
                     style={{
-                      height: `${Math.max(level.percentage, 5)}%`, // Минимум 5% для видимости
+                      height: `${Math.max(level.percentage, 5)}%`,
                       background: `linear-gradient(0deg, ${level.color}, ${index === distributionData.length - 1 ? '#FFA500' : '#F5DEB3'})`
                     }}
-                    title={`${level.name}: ${level.count} пользователей (${level.percentage}%)`}
-                  ></div>
+                    title={`${level.name}: ${level.count} (${level.percentage}%)`}
+                  />
                   <div className="bar-label">
                     <div className="level-name">{level.name}</div>
-                    <div className="level-count">{level.count} пользователей</div>
+                    <div className="level-count">{level.count}</div>
                     <div className="level-percentage">{level.percentage}%</div>
                   </div>
                 </div>
               ))}
             </div>
-            
-            {/* Легенда распределения */}
-            <div className="distribution-legend">
-              {distributionData.map((level, index) => (
-                <div className="legend-item" key={index}>
-                  <div 
-                    className="legend-color" 
-                    style={{ background: level.color }}
-                  ></div>
-                  <div className="legend-text">
-                    <span className="legend-title">{level.name}</span>
-                    <span className="legend-description">
-                      {level.count} пользователей ({level.percentage}%)
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          {/* Статистика распределения */}
-          <div className="distribution-stats">
-            <div className="distribution-stat">
-              <div className="stat-title">Всего пользователей</div>
-              <div className="stat-value">{totalUsers}</div>
-              <div className="stat-subtitle">в системе</div>
-            </div>
-            <div className="distribution-stat">
-              <div className="stat-title">Самый частый уровень</div>
-              <div className="stat-value">
-                {distributionData.reduce((max, level) => level.count > max.count ? level : max, distributionData[0]).name}
-              </div>
-              <div className="stat-subtitle">
-                {distributionData.reduce((max, level) => level.count > max.count ? level : max, distributionData[0]).percentage}% пользователей
-              </div>
-            </div>
-            <div className="distribution-stat">
-              <div className="stat-title">Высший уровень</div>
-              <div className="stat-value">{distributionData[distributionData.length - 1]?.name || '—'}</div>
-              <div className="stat-subtitle">{distributionData[distributionData.length - 1]?.count || 0} пользователей</div>
-            </div>
           </div>
         </div>
 
+        {/* Поиск и фильтры */}
         <div className="controls-panel">
           <form onSubmit={handleSearch} className="search-form">
             <div className="search-input">
@@ -396,8 +463,11 @@ export default function AdminUsersPage() {
                 placeholder="Поиск по логину, email или имени..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                disabled={loading}
               />
-              <button type="submit" className="search-btn">🔍</button>
+              <button type="submit" className="search-btn" disabled={loading}>
+                {loading ? '⏳' : '🔍'}
+              </button>
             </div>
             
             <div className="filter-controls">
@@ -418,47 +488,35 @@ export default function AdminUsersPage() {
               
               <button 
                 type="button" 
-                className="add-user-btn"
-                onClick={() => console.log('Добавление пользователя')}
+                className="refresh-btn"
+                onClick={loadUsers}
                 disabled={loading}
               >
-                + Добавить пользователя
+                {loading ? '🔄' : '🔄 Обновить'}
               </button>
             </div>
           </form>
-
-          {/* Статистика */}
-          <div className="placeholder-stats" style={{ marginTop: '20px' }}>
-            <div className="stat">Всего: {totalUsers}</div>
-            <div className="stat">Активных: {users.filter(u => u.isActive).length}</div>
-            <div className="stat">Заблокированных: {users.filter(u => !u.isActive).length}</div>
-          </div>
         </div>
 
-        {/* Состояние загрузки */}
+        {/* Состояния загрузки и ошибок */}
         {loading && (
           <div className="loading-state">
             <div className="loading-spinner">🔄</div>
-            <p className="loading-text">Загрузка пользователей...</p>
+            <p>Загрузка пользователей...</p>
           </div>
         )}
 
-        {/* Состояние ошибки */}
         {error && !loading && (
-          <div className="empty-state">
-            <div className="empty-icon">⚠️</div>
-            <p className="empty-text">{error}</p>
-            <button 
-              onClick={loadUsers}
-              className="add-user-btn"
-              style={{ marginTop: '20px' }}
-            >
-              Повторить попытку
+          <div className="error-state">
+            <div className="error-icon">⚠️</div>
+            <p>{error}</p>
+            <button onClick={loadUsers} className="retry-btn">
+              Повторить
             </button>
           </div>
         )}
 
-        {/* Таблица пользователей (если есть данные и нет ошибки) */}
+        {/* Таблица пользователей */}
         {!loading && !error && filteredUsers.length > 0 && (
           <>
             <div className="users-table-container">
@@ -492,11 +550,11 @@ export default function AdminUsersPage() {
                       </td>
                       <td>{formatDate(user.createdAt)}</td>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <div className="rating-cell">
                           <span>{user.rating || 0}</span>
                           <button 
-                            className="action-btn edit"
-                            onClick={() => handleAdjustRating(user.id, user.login)}
+                            className="action-btn small"
+                            onClick={() => handleAdjustRating(user.id)}
                             title="Корректировать рейтинг"
                           >
                             📊
@@ -506,14 +564,14 @@ export default function AdminUsersPage() {
                       <td>{user.activityPoints || 0}</td>
                       <td>
                         <span className={`status-badge ${user.isActive ? 'active' : 'blocked'}`}>
-                          {user.isActive ? 'Активен' : 'Заблокирован'}
+                          {user.isActive ? '✅ Активен' : '⛔ Заблокирован'}
                         </span>
                       </td>
                       <td className="actions-cell">
                         <button 
                           className="action-btn view"
                           onClick={() => handleViewUser(user.id)}
-                          title="Просмотр профиля"
+                          title="Просмотр"
                         >
                           👁️
                         </button>
@@ -558,7 +616,6 @@ export default function AdminUsersPage() {
                 
                 <div className="pagination-info">
                   Страница {currentPage} из {totalPages}
-                  <small>Показано {filteredUsers.length} пользователей из {totalUsers}</small>
                 </div>
                 
                 <button 
@@ -573,14 +630,11 @@ export default function AdminUsersPage() {
           </>
         )}
 
-        {/* Состояние "нет данных" */}
+        {/* Нет данных */}
         {!loading && !error && filteredUsers.length === 0 && (
           <div className="empty-state">
             <div className="empty-icon">👤</div>
-            <p className="empty-text">Пользователи не найдены</p>
-            <p className="empty-subtext">
-              Попробуйте изменить параметры поиска или фильтрации
-            </p>
+            <p>Пользователи не найдены</p>
           </div>
         )}
       </div>

@@ -1,8 +1,26 @@
+// Файл 1 из 3: app/admin/users/RatingAdjustmentModal.tsx
+
 "use client";
 
-import { AdminUser } from '@/api/mocks-admin';
 import { useState, useEffect } from 'react';
 import './UserModals.css';
+
+// Временный тип, позже перенесем в types/admin.ts
+interface AdminUser {
+  id: string;
+  login: string;
+  email: string;
+  name?: string;
+  role: 'user' | 'moderator' | 'admin';
+  isActive: boolean;
+  rating: number;
+  activityPoints: number;
+  totalPosts: number;
+  violations: number;
+  createdAt: string;
+  lastLogin?: string;
+  avatar?: string;
+}
 
 interface RatingAdjustmentModalProps {
   user: AdminUser | null;

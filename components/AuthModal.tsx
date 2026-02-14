@@ -1,13 +1,13 @@
-// components/AuthModal.tsx
 "use client";
 
 import { useState } from 'react';
-import { mockAPI } from '../api/mocks';
+import { useAuth } from './useAuth';
 import './AuthModal.css';
 
 type AuthMode = 'register' | 'login' | 'forgotPassword';
 
 export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { login, register } = useAuth();
   const [mode, setMode] = useState<AuthMode>('register');
   const [formData, setFormData] = useState({
     email: '',
@@ -43,59 +43,49 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
           throw new Error('Пароли не совпадают');
         }
 
-        // Используем API из mocks.ts
-        const result = await mockAPI.auth.register({
+        // Проверка согласия с правилами
+        if (!formData.agreement) {
+          throw new Error('Необходимо принять правила сайта');
+        }
+
+        // Регистрация через бэкенд
+        const success = await register({
           login: formData.login,
           email: formData.email,
           password: formData.password,
           agreement: formData.agreement
         });
 
-        if (result.success && result.data) {
+        if (success) {
           setMessage({ text: 'Регистрация прошла успешно!', type: 'success' });
-          
-          // ⚠️ ВНИМАНИЕ: УДАЛЕН ВЫЗОВ incrementOnRegistration()
-          // Функция mockAPI.auth.register() УЖЕ увеличивает счетчик totalReal внутри себя
-          // Дополнительный вызов привел бы к двойному увеличению
-          
-          // Сохраняем пользователя
-          localStorage.setItem('samodelkin_auth_token', 'demo_token_' + Date.now());
-          localStorage.setItem('samodelkin_user', JSON.stringify(result.data));
           
           setTimeout(() => {
             onClose();
             window.location.reload();
-          }, 2000);
-        } else {
-          throw new Error(result.error || 'Ошибка регистрации');
+          }, 1500);
         }
 
       } else if (mode === 'login') {
-        // Используем API из mocks.ts
-        const result = await mockAPI.auth.login({
-          login: formData.login,
-          password: formData.password
-        });
+        // Вход через бэкенд
+        const success = await login(formData.login, formData.password);
 
-        if (result.success && result.data) {
+        if (success) {
           setMessage({ text: 'Вход выполнен успешно!', type: 'success' });
-          
-          localStorage.setItem('samodelkin_auth_token', result.data.token);
-          localStorage.setItem('samodelkin_user', JSON.stringify(result.data.user));
           
           setTimeout(() => {
             onClose();
             window.location.reload();
           }, 1000);
-        } else {
-          throw new Error(result.error || 'Ошибка входа');
         }
       }
     } catch (error: any) {
-      setMessage({ text: error.message || 'Произошла ошибка', type: 'error' });
+      setMessage({ 
+        text: error.message || 'Произошла ошибка', 
+        type: 'error' 
+      });
     } finally {
       setIsLoading(false);
-      // Сбрасываем флаг отправки с задержкой, чтобы предотвратить мгновенный повторный вызов
+      // Сбрасываем флаг отправки с задержкой
       setTimeout(() => setIsSubmitting(false), 1000);
     }
   };
@@ -108,7 +98,6 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Защита от повторной отправки
     if (isSubmitting) {
       console.log('[AUTH] Форма уже отправляется, пропускаем...');
       return;
@@ -119,23 +108,23 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
     setMessage(null);
     
     try {
-      // Используем API из mocks.ts
-      const result = await mockAPI.auth.forgotPassword(formData.email);
+      // TODO: Добавить метод forgotPassword в authAPI
+      // Пока показываем заглушку
+      setMessage({ 
+        text: 'Функция восстановления пароля будет доступна позже', 
+        type: 'error' 
+      });
       
-      if (result.success) {
-        setMessage({ 
-          text: 'Инструкции по восстановлению пароля отправлены на вашу электронную почту', 
-          type: 'success' 
-        });
-        setTimeout(() => {
-          setMode('login');
-          setIsLoading(false);
-        }, 2000);
-      } else {
-        throw new Error(result.error || 'Ошибка отправки');
-      }
+      setTimeout(() => {
+        setMode('login');
+        setIsLoading(false);
+      }, 2000);
+      
     } catch (error: any) {
-      setMessage({ text: error.message || 'Произошла ошибка', type: 'error' });
+      setMessage({ 
+        text: error.message || 'Произошла ошибка', 
+        type: 'error' 
+      });
       setIsLoading(false);
     } finally {
       setTimeout(() => setIsSubmitting(false), 1000);
@@ -153,14 +142,16 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
           <button 
             className={mode === 'register' ? 'active' : ''} 
             onClick={() => { setMode('register'); setMessage(null); }}
+            disabled={isLoading}
           >
             Регистрация
           </button>
           <button 
             className={mode === 'login' ? 'active' : ''} 
             onClick={() => { setMode('login'); setMessage(null); }}
+            disabled={isLoading}
           >
-            Уже есть аккаунт
+            Вход
           </button>
         </div>
 
@@ -175,7 +166,7 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
             <h3>Восстановление пароля</h3>
             <p>Введите свой адрес электронной почты, и мы отправим вам инструкции</p>
             
-            <div className="password-input-container">
+            <div className="input-container">
               <input
                 type="email"
                 placeholder="Электронная почта"

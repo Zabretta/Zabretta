@@ -1,8 +1,8 @@
-
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { mockAPI } from '@/api/mocks';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { adminApi } from '@/lib/api/admin';
+import { adminSimulationService } from '@/services/adminSimulationService';
 import { AdminStats, AdminStatsHistory } from '@/types/admin';
 
 interface AdminDataContextType {
@@ -13,154 +13,293 @@ interface AdminDataContextType {
   toggleRealtime: () => void;
   refreshData: () => Promise<void>;
   handleAction: (action: string, value?: any) => Promise<void>;
+  isBackendAvailable: boolean;
+  error: string | null;
 }
 
 const AdminDataContext = createContext<AdminDataContextType | undefined>(undefined);
 
 export function AdminDataProvider({ children }: { children: ReactNode }) {
+  // Реальные данные с бэкенда
+  const [realStats, setRealStats] = useState<any>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  
+  // Комбинированные данные для UI
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [history, setHistory] = useState<AdminStatsHistory[]>([]);
+  
+  // Состояния UI
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [realtime, setRealtime] = useState(true);
+  const [isBackendAvailable, setIsBackendAvailable] = useState(true);
 
-  // Функция загрузки данных
-  const fetchData = async () => {
+  // Проверка доступности бэкенда через health endpoint
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/health');
+        setIsBackendAvailable(response.ok);
+        if (!response.ok) {
+          console.warn('⚠️ Бэкенд недоступен, используется только симуляция');
+          setError('Бэкенд недоступен. Работа в автономном режиме.');
+        }
+      } catch {
+        setIsBackendAvailable(false);
+        setError('Бэкенд недоступен. Работа в автономном режиме.');
+      }
+    };
+    
+    checkHealth();
+  }, []);
+
+  // Загрузка реальных данных с бэкенда
+  const loadRealData = useCallback(async () => {
+    if (!isBackendAvailable) {
+      // Если бэкенд недоступен, используем демо-данные
+      return getDemoData();
+    }
+
     try {
-      setLoading(true);
-      
-      // Загружаем статистику и историю параллельно
-      const [statsResponse, historyResponse] = await Promise.all([
-        mockAPI.stats.getStatsForAdmin(),
-        mockAPI.stats.getHistory?.() || Promise.resolve({ success: true, data: [] }),
+      const [statsData, logsData] = await Promise.all([
+        adminApi.getStats(),
+        adminApi.getAuditLogs({ limit: 50 })
       ]);
+
+      setRealStats(statsData);
+      setAuditLogs(logsData || []);
       
-      if (statsResponse.success && statsResponse.data) {
-        const apiData = statsResponse.data;
-        
-        // Форматируем данные в соответствии с AdminStats
-        const formattedStats: AdminStats = {
-          // Система 1: Онлайн
-          onlineShown: apiData.onlineShown,
-          onlineReal: apiData.onlineReal || apiData.realOnline,
-          onlineFake: apiData.onlineFake,
-          isOnlineSimulationActive: apiData.isOnlineSimulationActive,
-          
-          // Система 2: Всего
-          totalShown: apiData.totalShown,
-          totalReal: apiData.totalReal,
-          totalFake: apiData.totalFake,
-          isTotalSimulationActive: apiData.isTotalSimulationActive,
-          
-          // Статические данные
-          projectsCreated: apiData.projectsCreated,
-          adviceGiven: apiData.adviceGiven,
-          lastUpdate: apiData.lastUpdate,
-        };
-        
-        setStats(formattedStats);
-      }
+      // Преобразуем логи аудита в формат истории
+      const formattedHistory: AdminStatsHistory[] = (logsData || []).map((log: any) => ({
+        timestamp: log.timestamp,
+        action: log.action,
+        changes: typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {}),
+        admin: log.userName || 'Система',
+      }));
       
-      if (historyResponse.success) {
-        setHistory(historyResponse.data || []);
-      }
+      setHistory(formattedHistory);
       
+      return { stats: statsData, logs: logsData };
     } catch (error) {
-      console.error('Ошибка загрузки данных админки:', error);
+      console.error('Ошибка загрузки реальных данных:', error);
+      setError('Не удалось загрузить данные с сервера');
+      return getDemoData();
+    }
+  }, [isBackendAvailable]);
+
+  // Демо-данные для работы без бэкенда
+  const getDemoData = useCallback(() => {
+    const demoStats = {
+      onlineUsers: 85,
+      projectsCreated: 450,
+      adviceGiven: 320,
+    };
+    setRealStats(demoStats);
+    return { stats: demoStats, logs: [] };
+  }, []);
+
+  // Комбинирование реальных данных с симуляцией
+  const combineStats = useCallback((realData: any) => {
+    if (!realData) return null;
+
+    // Получаем данные симуляции
+    const simulationData = adminSimulationService.getCombinedStats({
+      onlineReal: realData.onlineUsers || 0,
+      totalReal: 0, // Бэкенд не возвращает totalUsers в этом формате
+    });
+
+    // Формируем полный объект статистики
+    const combined: AdminStats = {
+      // Система 1: Онлайн (реальные + симуляция)
+      onlineShown: simulationData.onlineShown,
+      onlineReal: simulationData.onlineReal,
+      onlineFake: simulationData.onlineFake,
+      isOnlineSimulationActive: simulationData.isOnlineSimulationActive,
+      
+      // Система 2: Всего (реальные + симуляция)
+      totalShown: simulationData.totalShown,
+      totalReal: simulationData.totalReal,
+      totalFake: simulationData.totalFake,
+      isTotalSimulationActive: simulationData.isTotalSimulationActive,
+      
+      // Статические данные
+      projectsCreated: realData.projectsCreated || 0,
+      adviceGiven: realData.adviceGiven || 0,
+      lastUpdate: new Date().toISOString(),
+    };
+
+    setStats(combined);
+    
+    // Добавляем историю симуляции в общую историю
+    const simulationHistory = adminSimulationService.getState().history;
+    if (simulationHistory.length > 0) {
+      setHistory(prev => {
+        const combinedHistory = [
+          ...simulationHistory.map(item => ({
+            timestamp: item.timestamp,
+            action: item.action,
+            changes: item.changes,
+            admin: item.admin,
+          })),
+          ...prev
+        ];
+        // Убираем дубликаты и сортируем по времени
+        return Array.from(
+          new Map(combinedHistory.map(item => [item.timestamp, item])).values()
+        ).sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        ).slice(0, 50);
+      });
+    }
+
+    return combined;
+  }, []);
+
+  // Основная функция обновления всех данных
+  const refreshData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const realData = await loadRealData();
+      combineStats(realData.stats);
+    } catch (err: any) {
+      console.error('Ошибка обновления данных:', err);
+      setError(err.message || 'Ошибка загрузки данных');
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadRealData, combineStats]);
 
-  // Первоначальная загрузка и интервал
+  // Первоначальная загрузка
   useEffect(() => {
-    fetchData();
-    
-    let interval: NodeJS.Timeout;
-    if (realtime) {
-      interval = setInterval(() => {
-        // Тайно обновляем данные без установки loading в true
-        // чтобы не вызывать визуальную перерисовку
-        mockAPI.stats.getStatsForAdmin()
-          .then(statsResponse => {
-            if (statsResponse.success && statsResponse.data) {
-              const apiData = statsResponse.data;
-              const formattedStats: AdminStats = {
-                onlineShown: apiData.onlineShown,
-                onlineReal: apiData.onlineReal || apiData.realOnline,
-                onlineFake: apiData.onlineFake,
-                isOnlineSimulationActive: apiData.isOnlineSimulationActive,
-                totalShown: apiData.totalShown,
-                totalReal: apiData.totalReal,
-                totalFake: apiData.totalFake,
-                isTotalSimulationActive: apiData.isTotalSimulationActive,
-                projectsCreated: apiData.projectsCreated,
-                adviceGiven: apiData.adviceGiven,
-                lastUpdate: apiData.lastUpdate,
-              };
-              
-              // Мягкое обновление данных без сброса loading
-              setStats(prevStats => {
-                // Сохраняем состояние loading из предыдущих данных
-                return formattedStats;
-              });
-            }
-          })
-          .catch(console.error);
-      }, 10000); // Обновление каждые 10 секунд
-    }
+    refreshData();
     
     return () => {
-      if (interval) clearInterval(interval);
+      adminSimulationService.destroy();
     };
-  }, [realtime]);
+  }, [refreshData]);
+
+  // Realtime обновления
+  useEffect(() => {
+    let statsInterval: NodeJS.Timeout;
+    let simulationInterval: NodeJS.Timeout;
+
+    if (realtime) {
+      // Обновление реальных данных каждые 30 секунд
+      statsInterval = setInterval(() => {
+        if (isBackendAvailable) {
+          adminApi.getStats()
+            .then(realData => {
+              setRealStats(realData);
+              if (stats) {
+                combineStats(realData);
+              }
+            })
+            .catch(console.error);
+        }
+      }, 30000);
+
+      // Обновление симуляции онлайн каждые 5 секунд (если активна)
+      simulationInterval = setInterval(() => {
+        if (adminSimulationService.getState().isOnlineSimulationActive) {
+          // Генерируем новое значение
+          adminSimulationService.toggleOnlineSimulation();
+          adminSimulationService.toggleOnlineSimulation();
+          if (realStats) {
+            combineStats(realStats);
+          }
+        }
+      }, 5000);
+    }
+
+    return () => {
+      if (statsInterval) clearInterval(statsInterval);
+      if (simulationInterval) clearInterval(simulationInterval);
+    };
+  }, [realtime, isBackendAvailable, realStats, stats, combineStats]);
 
   // Обработчик действий
-  const handleAction = async (action: string, value?: any) => {
+  const handleAction = useCallback(async (action: string, value?: any) => {
     try {
+      setError(null);
+      
       switch (action) {
+        // Симуляция онлайн
         case 'toggleOnlineSimulation':
-          await mockAPI.stats.toggleOnlineSimulation();
+          adminSimulationService.toggleOnlineSimulation();
           break;
+          
+        // Симуляция "всего"
         case 'toggleTotalSimulation':
-          await mockAPI.stats.toggleTotalSimulation();
+          adminSimulationService.toggleTotalSimulation();
           break;
+          
+        // Управление фиктивными пользователями
         case 'incrementTotalFake':
-          await mockAPI.stats.incrementTotalFake();
+          adminSimulationService.incrementTotalFake();
           break;
+          
         case 'decrementTotalFake':
-          await mockAPI.stats.decrementTotalFake();
+          adminSimulationService.decrementTotalFake();
           break;
+          
+        case 'setTotalFake':
+          if (typeof value === 'number') {
+            adminSimulationService.setTotalFake(value);
+          }
+          break;
+          
+        // Очистка истории
+        case 'clearHistory':
+          adminSimulationService.clearHistory();
+          setHistory([]);
+          break;
+          
+        // Сброс симуляции
+        case 'resetSimulation':
+          adminSimulationService.reset();
+          break;
+          
+        // Ручное обновление
         case 'refresh':
-          // Просто перезагрузим данные
-          break;
+          await refreshData();
+          return;
+          
         default:
           console.warn(`Неизвестное действие: ${action}`);
+          return;
       }
-      
-      // После любого действия обновляем данные
-      await fetchData();
+
+      // После изменения симуляции обновляем комбинированные данные
+      if (realStats) {
+        combineStats(realStats);
+      }
       
     } catch (error) {
       console.error('Ошибка выполнения действия:', error);
+      setError('Ошибка выполнения действия');
     }
-  };
+  }, [realStats, combineStats, refreshData]);
 
-  const toggleRealtime = () => {
+  const toggleRealtime = useCallback(() => {
     setRealtime(prev => !prev);
+  }, []);
+
+  const contextValue: AdminDataContextType = {
+    stats,
+    history,
+    loading,
+    realtime,
+    toggleRealtime,
+    refreshData,
+    handleAction,
+    isBackendAvailable,
+    error,
   };
 
   return (
-    <AdminDataContext.Provider
-      value={{
-        stats,
-        history,
-        loading,
-        realtime,
-        toggleRealtime,
-        refreshData: fetchData,
-        handleAction,
-      }}
-    >
+    <AdminDataContext.Provider value={contextValue}>
       {children}
     </AdminDataContext.Provider>
   );

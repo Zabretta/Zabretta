@@ -3,15 +3,27 @@ import { prisma } from '../config/database';
 import { USER_LEVELS, ACTIVITY_LEVELS, UserRating, RatingAdjustment } from '../types/api';
 import { RatingAdjustmentRequest } from '../types/admin';
 
+// Типы для внутреннего использования
+interface ContentStats {
+  projectsCreated: number;
+  mastersAdsCreated: number;
+  helpRequestsCreated: number;
+  libraryPostsCreated: number;
+  likesGiven: number;
+  likesReceived: number;
+  commentsMade: number;
+}
+
 export class RatingService {
   static async getUserRating(userId: string): Promise<UserRating> {
-    const user = await prisma.user.findUnique({
+    // ИСПРАВЛЕНО: user → users
+    const user = await prisma.users.findUnique({
       where: { id: userId },
       include: {
         content: {
           where: { status: 'ACTIVE' }
         },
-        ratingAdjustments: {
+        rating_adjustments: {  // ИСПРАВЛЕНО: ratingAdjustments → rating_adjustments
           orderBy: { timestamp: 'desc' }
         }
       }
@@ -27,7 +39,8 @@ export class RatingService {
     const userLevel = USER_LEVELS.find(level => rating >= level.min && rating <= level.max) || USER_LEVELS[0];
     const activityLevel = ACTIVITY_LEVELS.find(level => activity >= level.min && activity <= level.max) || ACTIVITY_LEVELS[0];
     
-    const contentStats = user.content.reduce((acc, item) => {
+    // ИСПРАВЛЕНО: добавляем типы для acc и item
+    const contentStats = (user.content || []).reduce<ContentStats>((acc: ContentStats, item: any) => {
       if (item.type === 'PROJECT') acc.projectsCreated++;
       if (item.type === 'MARKET') acc.mastersAdsCreated++;
       if (item.type === 'HELP') acc.helpRequestsCreated++;
@@ -71,8 +84,9 @@ export class RatingService {
       case 'activity_asc': orderBy.activityPoints = 'asc'; break;
     }
     
+    // ИСПРАВЛЕНО: user → users
     const [users, total] = await Promise.all([
-      prisma.user.findMany({
+      prisma.users.findMany({
         skip,
         take: limit,
         orderBy,
@@ -82,21 +96,22 @@ export class RatingService {
           }
         }
       }),
-      prisma.user.count()
+      prisma.users.count()
     ]);
     
     const ratings = await Promise.all(
-      users.map(user => this.getUserRating(user.id))
+      users.map((user: any) => this.getUserRating(user.id))
     );
     
-    const totalRating = ratings.reduce((sum, r) => sum + r.totalRating, 0);
-    const totalActivity = ratings.reduce((sum, r) => sum + r.totalActivity, 0);
+    // ИСПРАВЛЕНО: добавляем типы для sum и r
+    const totalRating = ratings.reduce((sum: number, r: UserRating) => sum + r.totalRating, 0);
+    const totalActivity = ratings.reduce((sum: number, r: UserRating) => sum + r.totalActivity, 0);
     
     return {
       ratings,
       total,
-      averageRating: Math.round(totalRating / ratings.length),
-      averageActivity: Math.round(totalActivity / ratings.length)
+      averageRating: ratings.length > 0 ? Math.round(totalRating / ratings.length) : 0,
+      averageActivity: ratings.length > 0 ? Math.round(totalActivity / ratings.length) : 0
     };
   }
   
@@ -119,14 +134,15 @@ export class RatingService {
       if (endDate) where.timestamp.lte = new Date(endDate);
     }
     
+    // ИСПРАВЛЕНО: ratingAdjustment → rating_adjustments
     const [adjustments, total] = await Promise.all([
-      prisma.ratingAdjustment.findMany({
+      prisma.rating_adjustments.findMany({
         where,
         skip,
         take: limit,
         orderBy: { timestamp: 'desc' },
         include: {
-          user: {
+          users: {  // ИСПРАВЛЕНО: user → users
             select: {
               login: true,
               name: true
@@ -134,10 +150,11 @@ export class RatingService {
           }
         }
       }),
-      prisma.ratingAdjustment.count({ where })
+      prisma.rating_adjustments.count({ where })
     ]);
     
-    const formattedAdjustments: RatingAdjustment[] = adjustments.map(adj => ({
+    // ИСПРАВЛЕНО: добавляем тип для adj
+    const formattedAdjustments: RatingAdjustment[] = adjustments.map((adj: any) => ({
       id: adj.id,
       userId: adj.userId,
       reason: adj.reason,
@@ -148,11 +165,12 @@ export class RatingService {
       timestamp: adj.timestamp.toISOString()
     }));
     
+    // ИСПРАВЛЕНО: добавляем типы для sum и adj
     const summary = {
-      totalRatingChanges: formattedAdjustments.reduce((sum, adj) => sum + adj.ratingChange, 0),
-      totalActivityChanges: formattedAdjustments.reduce((sum, adj) => sum + adj.activityChange, 0),
-      positiveAdjustments: formattedAdjustments.filter(adj => adj.ratingChange > 0).length,
-      negativeAdjustments: formattedAdjustments.filter(adj => adj.ratingChange < 0).length
+      totalRatingChanges: formattedAdjustments.reduce((sum: number, adj: RatingAdjustment) => sum + adj.ratingChange, 0),
+      totalActivityChanges: formattedAdjustments.reduce((sum: number, adj: RatingAdjustment) => sum + adj.activityChange, 0),
+      positiveAdjustments: formattedAdjustments.filter((adj: RatingAdjustment) => adj.ratingChange > 0).length,
+      negativeAdjustments: formattedAdjustments.filter((adj: RatingAdjustment) => adj.ratingChange < 0).length
     };
     
     return {
@@ -178,11 +196,12 @@ export class RatingService {
       { section: 'general', action: 'daily_login', ratingPoints: 0, activityPoints: 2, description: 'Ежедневный вход' },
     ];
     
-    const recentAdjustments = await prisma.ratingAdjustment.findMany({
+    // ИСПРАВЛЕНО: ratingAdjustment → rating_adjustments
+    const recentAdjustments = await prisma.rating_adjustments.findMany({
       take: 10,
       orderBy: { timestamp: 'desc' },
       include: {
-        user: {
+        users: {  // ИСПРАВЛЕНО: user → users
           select: {
             login: true,
             name: true
@@ -191,14 +210,15 @@ export class RatingService {
       }
     });
     
+    // ИСПРАВЛЕНО: добавляем тип для adj
     return {
       userLevels: USER_LEVELS,
       activityLevels: ACTIVITY_LEVELS,
       formulas,
-      currentAdjustments: recentAdjustments.map(adj => ({
+      currentAdjustments: recentAdjustments.map((adj: any) => ({
         id: adj.id,
         userId: adj.userId,
-        userName: adj.user.name || adj.user.login,
+        userName: adj.users?.name || adj.users?.login || 'Неизвестно',
         reason: adj.reason,
         ratingChange: adj.ratingChange,
         activityChange: adj.activityChange,

@@ -7,85 +7,98 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id              String    @id @default(cuid())
-  login           String    @unique
-  email           String    @unique
-  name            String?
-  avatar          String?
-  role            UserRole  @default(USER)
-  isActive        Boolean   @default(true)
-  rating          Int       @default(0)
-  activityPoints  Int       @default(0)
-  totalPosts      Int       @default(0)
-  violations      Int       @default(0)
-  createdAt       DateTime  @default(now())
-  lastLogin       DateTime?
-  passwordHash    String
-  refreshToken    String?
-  
-  adminLogs       AdminLog[]
-  ratingAdjustments RatingAdjustment[]
-  content         Content[]
-  
-  @@map("users")
+model admin_logs {
+  id         String     @id
+  userId     String
+  userName   String
+  action     String
+  targetType TargetType
+  targetId   String?
+  details    Json?
+  ip         String?
+  timestamp  DateTime   @default(now())
+  users      users      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model AdminLog {
-  id          String   @id @default(cuid())
-  userId      String
-  userName    String
-  action      String
-  targetType  TargetType
-  targetId    String?
-  details     Json?
-  ip          String?
-  timestamp   DateTime @default(now())
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("admin_logs")
-}
-
-model RatingAdjustment {
-  id              String   @id @default(cuid())
-  userId          String
-  reason          String
-  ratingChange    Int
-  activityChange  Int
-  adminId         String?
-  adminNote       String?
-  timestamp       DateTime @default(now())
-  
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("rating_adjustments")
-}
-
-model Content {
-  id          String   @id @default(cuid())
+model content {
+  id          String        @id
   userId      String
   type        ContentType
   title       String
   description String?
   category    String?
   status      ContentStatus @default(ACTIVE)
-  views       Int      @default(0)
-  likes       Int      @default(0)
-  comments    Int      @default(0)
-  rating      Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("content")
+  views       Int           @default(0)
+  likes       Int           @default(0)
+  comments    Int           @default(0)
+  rating      Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  users       users         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-enum UserRole {
-  USER
-  MODERATOR
-  ADMIN
+model notifications {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  text      String
+  type      String   @default("SYSTEM")
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([read])
+  @@index([userId])
+}
+
+model rating_adjustments {
+  id             String   @id
+  userId         String
+  reason         String
+  ratingChange   Int
+  activityChange Int
+  adminId        String?
+  adminNote      String?
+  timestamp      DateTime @default(now())
+  users          users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model users {
+  id                 String               @id
+  login              String               @unique
+  email              String               @unique
+  name               String?
+  avatar             String?
+  role               UserRole             @default(USER)
+  isActive           Boolean              @default(true)
+  rating             Int                  @default(0)
+  activityPoints     Int                  @default(0)
+  totalPosts         Int                  @default(0)
+  violations         Int                  @default(0)
+  createdAt          DateTime             @default(now())
+  lastLogin          DateTime?
+  passwordHash       String
+  refreshToken       String?
+  admin_logs         admin_logs[]
+  content            content[]
+  notifications      notifications[]
+  rating_adjustments rating_adjustments[]
+}
+
+enum ContentStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+  BLOCKED
+}
+
+enum ContentType {
+  PROJECT
+  MARKET
+  HELP
+  LIBRARY
 }
 
 enum TargetType {
@@ -96,16 +109,8 @@ enum TargetType {
   CONTENT
 }
 
-enum ContentType {
-  PROJECT
-  MARKET
-  HELP
-  LIBRARY
-}
-
-enum ContentStatus {
-  DRAFT
-  ACTIVE
-  ARCHIVED
-  BLOCKED
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
 }

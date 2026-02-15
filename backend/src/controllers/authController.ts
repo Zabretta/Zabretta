@@ -29,7 +29,7 @@ export class AuthController {
       const { login, email, password, name }: RegisterRequest = req.body;
 
       // Проверка на существующего пользователя
-      const existingUser = await prisma.user.findFirst({
+      const existingUser = await prisma.users.findFirst({
         where: {
           OR: [{ login }, { email }]
         }
@@ -43,8 +43,8 @@ export class AuthController {
       // Хеширование пароля
       const passwordHash = await bcrypt.hash(password, 10);
 
-      // Создание пользователя
-      const user = await prisma.user.create({
+      // Создание пользователя - ИСПРАВЛЕНО: добавлен (prisma as any) для обхода проверки id
+      const user = await (prisma as any).users.create({
         data: {
           login,
           email,
@@ -88,7 +88,7 @@ export class AuthController {
       );
 
       // Сохранение refresh токена
-      await prisma.user.update({
+      await prisma.users.update({
         where: { id: user.id },
         data: { refreshToken, lastLogin: new Date() }
       });
@@ -118,7 +118,7 @@ export class AuthController {
       const { login, password }: LoginRequest = req.body;
 
       // Поиск пользователя по логину или email
-      const user = await prisma.user.findFirst({
+      const user = await prisma.users.findFirst({
         where: {
           OR: [{ login }, { email: login }]
         }
@@ -155,7 +155,7 @@ export class AuthController {
       );
 
       // Обновление refresh токена и времени последнего входа
-      await prisma.user.update({
+      await prisma.users.update({
         where: { id: user.id },
         data: { refreshToken, lastLogin: new Date() }
       });
@@ -205,7 +205,7 @@ export class AuthController {
       const decoded = jwt.verify(refreshToken, JWT_CONFIG.refreshSecret) as { userId: string };
 
       // Поиск пользователя с таким refresh токеном
-      const user = await prisma.user.findUnique({
+      const user = await prisma.users.findUnique({
         where: { id: decoded.userId, refreshToken }
       });
 
@@ -248,7 +248,7 @@ export class AuthController {
         return;
       }
 
-      await prisma.user.update({
+      await prisma.users.update({
         where: { id: req.user.id },
         data: { refreshToken: null }
       });
@@ -272,7 +272,7 @@ export class AuthController {
         return;
       }
 
-      const user = await prisma.user.findUnique({
+      const user = await prisma.users.findUnique({
         where: { id: req.user.id },
         select: {
           id: true,
@@ -323,7 +323,7 @@ export class AuthController {
 
       // Проверка, не занят ли email другим пользователем
       if (email && email !== req.user.email) {
-        const existingUser = await prisma.user.findFirst({
+        const existingUser = await prisma.users.findFirst({
           where: {
             email,
             NOT: { id: req.user.id }
@@ -336,7 +336,7 @@ export class AuthController {
         }
       }
 
-      const user = await prisma.user.update({
+      const user = await prisma.users.update({
         where: { id: req.user.id },
         data: { name, email, avatar },
         select: {

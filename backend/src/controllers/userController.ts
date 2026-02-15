@@ -70,7 +70,8 @@ export class UserController {
 
       const { currentPassword, newPassword } = req.body;
 
-      const user = await prisma.user.findUnique({
+      // ИСПРАВЛЕНО: user → users
+      const user = await prisma.users.findUnique({
         where: { id: req.user.id },
         select: { passwordHash: true }
       });
@@ -89,7 +90,8 @@ export class UserController {
 
       const passwordHash = await bcrypt.hash(newPassword, 10);
 
-      await prisma.user.update({
+      // ИСПРАВЛЕНО: user → users
+      await prisma.users.update({
         where: { id: req.user.id },
         data: { passwordHash }
       });
@@ -115,20 +117,16 @@ export class UserController {
 
       const { confirmation } = req.body;
 
-      // Проверка подтверждения (нужно ввести логин)
       if (!confirmation || confirmation !== req.user.login) {
         res.status(400).json(createErrorResponse('Подтверждение не совпадает с логином'));
         return;
       }
 
-      // Вместо полного удаления - деактивируем аккаунт
-      await prisma.user.update({
+      // ИСПРАВЛЕНО: user → users
+      await prisma.users.update({
         where: { id: req.user.id },
         data: { 
           isActive: false,
-          // Опционально: можно заменить email и логин на анонимные
-          // email: `deleted_${req.user.id}@deleted.com`,
-          // login: `deleted_user_${req.user.id}`
         }
       });
 
@@ -162,6 +160,7 @@ export class UserController {
       if (type) where.type = type;
       if (status) where.status = status;
 
+      // ИСПРАВЛЕНО: content → content (оставляем как есть)
       const [content, total] = await Promise.all([
         prisma.content.findMany({
           where,
@@ -223,6 +222,7 @@ export class UserController {
         const start = new Date(date.setHours(0, 0, 0, 0));
         const end = new Date(date.setHours(23, 59, 59, 999));
 
+        // ИСПРАВЛЕНО: ratingAdjustment → rating_adjustments
         const [contentCreated, ratingChanges] = await Promise.all([
           prisma.content.count({
             where: {
@@ -230,7 +230,7 @@ export class UserController {
               createdAt: { gte: start, lt: end }
             }
           }),
-          prisma.ratingAdjustment.count({
+          prisma.rating_adjustments.count({
             where: {
               userId: req.user.id,
               timestamp: { gte: start, lt: end }

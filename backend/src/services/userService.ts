@@ -2,12 +2,34 @@
 import { prisma } from '../config/database';
 import { UserRole } from '@prisma/client';
 
+
+// Типы для внутреннего использования
+interface ContentStats {
+  projectsCreated: number;
+  mastersAdsCreated: number;
+  helpRequestsCreated: number;
+  libraryPostsCreated: number;
+  likesGiven: number;
+  likesReceived: number;
+  commentsMade: number;
+}
+
+interface RatingAdjustmentData {
+  id: string;
+  reason: string;
+  ratingChange: number;
+  activityChange: number;
+  timestamp: Date;
+  adminId: string | null;
+}
+
 export class UserService {
   /**
    * Получение публичного профиля пользователя по ID
    */
   static async getUserProfile(userId: string) {
-    const user = await prisma.user.findUnique({
+    // ИСПРАВЛЕНО: user → users
+    const user = await prisma.users.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -39,11 +61,12 @@ export class UserService {
       throw new Error('Пользователь не найден');
     }
 
+    // ИСПРАВЛЕНО: добавляем тип для item
     return {
       ...user,
       createdAt: user.createdAt.toISOString(),
       lastLogin: user.lastLogin?.toISOString(),
-      content: user.content.map(item => ({
+      content: user.content.map((item: any) => ({
         ...item,
         createdAt: item.createdAt.toISOString()
       }))
@@ -93,8 +116,9 @@ export class UserService {
         break;
     }
 
+    // ИСПРАВЛЕНО: user → users
     const [users, total] = await Promise.all([
-      prisma.user.findMany({
+      prisma.users.findMany({
         where,
         skip,
         take: limit,
@@ -116,11 +140,12 @@ export class UserService {
           }
         }
       }),
-      prisma.user.count({ where })
+      prisma.users.count({ where })
     ]);
 
+    // ИСПРАВЛЕНО: добавляем тип для user
     return {
-      users: users.map(user => ({
+      users: users.map((user: any) => ({
         ...user,
         createdAt: user.createdAt.toISOString(),
         lastLogin: user.lastLogin?.toISOString(),
@@ -139,7 +164,8 @@ export class UserService {
     name?: string;
     avatar?: string;
   }) {
-    const user = await prisma.user.update({
+    // ИСПРАВЛЕНО: user → users
+    const user = await prisma.users.update({
       where: { id: userId },
       data,
       select: {
@@ -151,14 +177,13 @@ export class UserService {
         role: true,
         rating: true,
         activityPoints: true,
-        createdAt: true // <-- ИСПРАВЛЕНО: вместо updatedAt используем createdAt
+        createdAt: true
       }
     });
 
     return {
       ...user,
       createdAt: user.createdAt.toISOString()
-      // updatedAt убран, так как его нет в select
     };
   }
 
@@ -166,8 +191,9 @@ export class UserService {
    * Получение статистики пользователя
    */
   static async getUserStats(userId: string) {
+    // ИСПРАВЛЕНО: user → users, ratingAdjustment → rating_adjustments
     const [user, contentStats, ratingHistory] = await Promise.all([
-      prisma.user.findUnique({
+      prisma.users.findUnique({
         where: { id: userId },
         select: {
           id: true,
@@ -184,7 +210,7 @@ export class UserService {
         _count: true,
         where: { userId }
       }),
-      prisma.ratingAdjustment.findMany({
+      prisma.rating_adjustments.findMany({
         where: { userId },
         orderBy: { timestamp: 'desc' },
         take: 10,
@@ -194,8 +220,7 @@ export class UserService {
           ratingChange: true,
           activityChange: true,
           timestamp: true,
-          adminId: true // <-- ИСПРАВЛЕНО: вместо admin используем adminId
-          // admin убран, так как его нет в модели
+          adminId: true
         }
       })
     ]);
@@ -204,18 +229,20 @@ export class UserService {
       throw new Error('Пользователь не найден');
     }
 
-    const statsByType = contentStats.reduce((acc, item) => {
+    // ИСПРАВЛЕНО: добавляем типы для acc и item
+    const statsByType = (contentStats || []).reduce((acc: Record<string, number>, item: any) => {
       acc[item.type] = item._count;
       return acc;
     }, {} as Record<string, number>);
 
-    // Получаем имена админов отдельным запросом, если нужны
-    const adminIds = ratingHistory
-      .map(adj => adj.adminId)
-      .filter((id): id is string => id !== null);
+    // Получаем имена админов отдельным запросом
+    const adminIds = (ratingHistory || [])
+      .map((adj: any) => adj.adminId)
+      .filter((id: string | null): id is string => id !== null);
 
+    // ИСПРАВЛЕНО: users вместо user
     const admins = adminIds.length > 0
-      ? await prisma.user.findMany({
+      ? await prisma.users.findMany({
           where: { id: { in: adminIds } },
           select: {
             id: true,
@@ -225,11 +252,13 @@ export class UserService {
         })
       : [];
 
-    const adminMap = admins.reduce((acc, admin) => {
+    // ИСПРАВЛЕНО: добавляем типы для acc и admin
+    const adminMap = admins.reduce((acc: Record<string, any>, admin: any) => {
       acc[admin.id] = admin;
       return acc;
     }, {} as Record<string, any>);
 
+    // ИСПРАВЛЕНО: добавляем типы для sum и count
     return {
       user: {
         ...user,
@@ -237,11 +266,11 @@ export class UserService {
         lastLogin: user.lastLogin?.toISOString()
       },
       content: statsByType,
-      totalContent: Object.values(statsByType).reduce((sum, count) => sum + count, 0),
-      recentRatingAdjustments: ratingHistory.map(adj => ({
+      totalContent: Object.values(statsByType).reduce((sum: number, count: number) => sum + count, 0),
+      recentRatingAdjustments: (ratingHistory || []).map((adj: any) => ({
         ...adj,
         timestamp: adj.timestamp.toISOString(),
-        adminName: adj.adminId ? adminMap[adj.adminId]?.name || adminMap[adj.adminId]?.login : undefined // <-- ИСПРАВЛЕНО: используем adminId для поиска
+        adminName: adj.adminId ? adminMap[adj.adminId]?.name || adminMap[adj.adminId]?.login : undefined
       }))
     };
   }
@@ -250,7 +279,8 @@ export class UserService {
    * Поиск пользователей по логину или имени (для упрощенного поиска)
    */
   static async searchUsers(query: string, limit: number = 10) {
-    const users = await prisma.user.findMany({
+    // ИСПРАВЛЕНО: user → users
+    const users = await prisma.users.findMany({
       where: {
         OR: [
           { login: { contains: query, mode: 'insensitive' } },
@@ -275,7 +305,8 @@ export class UserService {
    * Проверка существования пользователя по email или логину
    */
   static async checkUserExists(email: string, login: string) {
-    const existingUser = await prisma.user.findFirst({
+    // ИСПРАВЛЕНО: user → users
+    const existingUser = await prisma.users.findFirst({
       where: {
         OR: [
           { email },

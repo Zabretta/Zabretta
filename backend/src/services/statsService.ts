@@ -5,12 +5,12 @@ export class StatsService {
 
   /**
    * Получение общей статистики системы для админ-панели.
-   * Аналог AdminService.getAdminStats, но с данными из StatsController.
    */
   static async getSystemStats() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // ИСПРАВЛЕНО: user → users, content → content (оставляем как есть)
     const [
       totalUsers,
       activeUsers,
@@ -24,8 +24,8 @@ export class StatsService {
       newUsersToday,
       newContentToday
     ] = await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { isActive: true } }),
+      prisma.users.count(),
+      prisma.users.count({ where: { isActive: true } }),
       prisma.content.count(),
       prisma.content.aggregate({ _sum: { comments: true } }),
       prisma.content.aggregate({ _sum: { likes: true } }),
@@ -33,11 +33,12 @@ export class StatsService {
       prisma.content.count({ where: { type: 'MARKET' } }),
       prisma.content.count({ where: { type: 'HELP' } }),
       prisma.content.count({ where: { type: 'LIBRARY' } }),
-      prisma.user.count({ where: { createdAt: { gte: today } } }),
+      prisma.users.count({ where: { createdAt: { gte: today } } }),
       prisma.content.count({ where: { createdAt: { gte: today } } })
     ]);
 
-    const topRatedUsers = await prisma.user.findMany({
+    // ИСПРАВЛЕНО: user → users
+    const topRatedUsers = await prisma.users.findMany({
       take: 5,
       orderBy: { rating: 'desc' },
       select: {
@@ -49,7 +50,7 @@ export class StatsService {
       }
     });
 
-    const topActiveUsers = await prisma.user.findMany({
+    const topActiveUsers = await prisma.users.findMany({
       take: 5,
       orderBy: { activityPoints: 'desc' },
       select: {
@@ -61,6 +62,7 @@ export class StatsService {
       }
     });
 
+    // ИСПРАВЛЕНО: добавляем тип для include
     const recentActivity = await prisma.content.findMany({
       take: 10,
       orderBy: { createdAt: 'desc' },
@@ -69,7 +71,7 @@ export class StatsService {
         type: true,
         title: true,
         createdAt: true,
-        user: {
+        users: {  // ИСПРАВЛЕНО: user → users
           select: {
             login: true,
             name: true
@@ -96,25 +98,25 @@ export class StatsService {
         totalLikes: totalLikes._sum.likes || 0
       },
       topUsers: {
-        byRating: topRatedUsers.map(user => ({
+        byRating: topRatedUsers.map((user: any) => ({
           id: user.id,
           name: user.name || user.login,
           rating: user.rating,
           activity: user.activityPoints
         })),
-        byActivity: topActiveUsers.map(user => ({
+        byActivity: topActiveUsers.map((user: any) => ({
           id: user.id,
           name: user.name || user.login,
           rating: user.rating,
           activity: user.activityPoints
         }))
       },
-      recentActivity: recentActivity.map(activity => ({
+      recentActivity: recentActivity.map((activity: any) => ({
         id: activity.id,
         type: activity.type,
         title: activity.title,
         createdAt: activity.createdAt.toISOString(),
-        author: activity.user.name || activity.user.login
+        author: activity.users?.name || activity.users?.login || 'Неизвестно'
       })),
       system: {
         uptime: '99.8%',
@@ -138,8 +140,9 @@ export class StatsService {
       const start = new Date(date.setHours(0, 0, 0, 0));
       const end = new Date(date.setHours(23, 59, 59, 999));
 
+      // ИСПРАВЛЕНО: user → users, ratingAdjustment → rating_adjustments
       const [users, content, comments, likes, ratingAdjustments] = await Promise.all([
-        prisma.user.count({ where: { createdAt: { gte: start, lt: end } } }),
+        prisma.users.count({ where: { createdAt: { gte: start, lt: end } } }),
         prisma.content.count({ where: { createdAt: { gte: start, lt: end } } }),
         prisma.content.aggregate({
           _sum: { comments: true },
@@ -149,7 +152,7 @@ export class StatsService {
           _sum: { likes: true },
           where: { createdAt: { gte: start, lt: end } }
         }),
-        prisma.ratingAdjustment.count({ where: { timestamp: { gte: start, lt: end } } })
+        prisma.rating_adjustments.count({ where: { timestamp: { gte: start, lt: end } } })
       ]);
 
       stats.push({
@@ -162,15 +165,16 @@ export class StatsService {
       });
     }
 
+    // ИСПРАВЛЕНО: добавляем типы для sum и day
     return {
       period: `${days} дней`,
       stats,
       summary: {
-        totalUsers: stats.reduce((sum, day) => sum + day.users, 0),
-        totalContent: stats.reduce((sum, day) => sum + day.content, 0),
-        totalComments: stats.reduce((sum, day) => sum + day.comments, 0),
-        totalLikes: stats.reduce((sum, day) => sum + day.likes, 0),
-        totalRatingAdjustments: stats.reduce((sum, day) => sum + day.ratingAdjustments, 0)
+        totalUsers: stats.reduce((sum: number, day: any) => sum + day.users, 0),
+        totalContent: stats.reduce((sum: number, day: any) => sum + day.content, 0),
+        totalComments: stats.reduce((sum: number, day: any) => sum + day.comments, 0),
+        totalLikes: stats.reduce((sum: number, day: any) => sum + day.likes, 0),
+        totalRatingAdjustments: stats.reduce((sum: number, day: any) => sum + day.ratingAdjustments, 0)
       }
     };
   }
@@ -179,6 +183,7 @@ export class StatsService {
    * Получение расширенной статистики по контенту.
    */
   static async getContentStats() {
+    // ИСПРАВЛЕНО: добавляем типы для всех select
     const [byType, byStatus, byCategory, topViewed, topLiked, topCommented] = await Promise.all([
       prisma.content.groupBy({ by: ['type'], _count: true }),
       prisma.content.groupBy({ by: ['status'], _count: true }),
@@ -191,7 +196,12 @@ export class StatsService {
           type: true,
           title: true,
           views: true,
-          user: { select: { login: true, name: true } }
+          users: {  // ИСПРАВЛЕНО: user → users
+            select: {
+              login: true,
+              name: true
+            }
+          }
         }
       }),
       prisma.content.findMany({
@@ -202,7 +212,12 @@ export class StatsService {
           type: true,
           title: true,
           likes: true,
-          user: { select: { login: true, name: true } }
+          users: {  // ИСПРАВЛЕНО: user → users
+            select: {
+              login: true,
+              name: true
+            }
+          }
         }
       }),
       prisma.content.findMany({
@@ -213,44 +228,50 @@ export class StatsService {
           type: true,
           title: true,
           comments: true,
-          user: { select: { login: true, name: true } }
+          users: {  // ИСПРАВЛЕНО: user → users
+            select: {
+              login: true,
+              name: true
+            }
+          }
         }
       })
     ]);
 
+    // ИСПРАВЛЕНО: добавляем типы для reduce
     return {
-      byType: byType.reduce((acc, item) => {
+      byType: byType.reduce((acc: Record<string, number>, item: any) => {
         acc[item.type] = item._count;
         return acc;
-      }, {} as Record<string, number>),
-      byStatus: byStatus.reduce((acc, item) => {
+      }, {}),
+      byStatus: byStatus.reduce((acc: Record<string, number>, item: any) => {
         acc[item.status] = item._count;
         return acc;
-      }, {} as Record<string, number>),
-      byCategory: byCategory.reduce((acc, item) => {
+      }, {}),
+      byCategory: byCategory.reduce((acc: Record<string, number>, item: any) => {
         acc[item.category || 'Без категории'] = item._count;
         return acc;
-      }, {} as Record<string, number>),
-      topViewed: topViewed.map(item => ({
+      }, {}),
+      topViewed: topViewed.map((item: any) => ({
         id: item.id,
         type: item.type,
         title: item.title,
         views: item.views,
-        author: item.user.name || item.user.login
+        author: item.users?.name || item.users?.login || 'Неизвестно'
       })),
-      topLiked: topLiked.map(item => ({
+      topLiked: topLiked.map((item: any) => ({
         id: item.id,
         type: item.type,
         title: item.title,
         likes: item.likes,
-        author: item.user.name || item.user.login
+        author: item.users?.name || item.users?.login || 'Неизвестно'
       })),
-      topCommented: topCommented.map(item => ({
+      topCommented: topCommented.map((item: any) => ({
         id: item.id,
         type: item.type,
         title: item.title,
         comments: item.comments,
-        author: item.user.name || item.user.login
+        author: item.users?.name || item.users?.login || 'Неизвестно'
       }))
     };
   }
@@ -259,8 +280,9 @@ export class StatsService {
    * Получение статистики активности конкретного пользователя.
    */
   static async getUserActivityStats(userId: string) {
+    // ИСПРАВЛЕНО: user → users
     const [user, content, totalViews, totalLikes, totalComments, contentByType] = await Promise.all([
-      prisma.user.findUnique({
+      prisma.users.findUnique({
         where: { id: userId },
         select: {
           id: true,
@@ -309,6 +331,7 @@ export class StatsService {
       throw new Error('Пользователь не найден');
     }
 
+    // ИСПРАВЛЕНО: добавляем типы для reduce
     return {
       user: {
         ...user,
@@ -323,11 +346,11 @@ export class StatsService {
         averageLikes: content.length > 0 ? (totalLikes._sum.likes || 0) / content.length : 0,
         averageComments: content.length > 0 ? (totalComments._sum.comments || 0) / content.length : 0
       },
-      contentByType: contentByType.reduce((acc, item) => {
+      contentByType: contentByType.reduce((acc: Record<string, number>, item: any) => {
         acc[item.type] = item._count;
         return acc;
-      }, {} as Record<string, number>),
-      recentContent: content.slice(0, 10).map(item => ({
+      }, {}),
+      recentContent: content.slice(0, 10).map((item: any) => ({
         id: item.id,
         type: item.type,
         title: item.title,

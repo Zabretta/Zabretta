@@ -27,10 +27,10 @@
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    "node_modules/@types/node/**/*"
+    "**/*.ts",           // ← все ts файлы в проекте
+    "**/*.tsx",          // ← все tsx файлы в проекте
+    ".next/types/**/*.ts", // ← исправлено
+    "lib/**/*.ts"        // ← явно добавляем lib
   ],
   "exclude": ["node_modules"]
 }

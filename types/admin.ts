@@ -148,26 +148,3 @@ export interface RatingRecord {
   timestamp: Date;
   targetId?: string;
 }
-
-// ========= МОКАП ДАННЫЕ ДЛЯ РАЗРАБОТКИ =========
-export const mockAdminUsers: AdminUser[] = Array.from({ length: 50 }, (_, i) => ({
-  id: `user_${i + 1}`,
-  login: `user${i + 1}`,
-  email: `user${i + 1}@example.com`,
-  role: i === 0 ? 'admin' : i < 5 ? 'moderator' : 'user',
-  registrationDate: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-  lastLogin: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-  rating: Math.floor(Math.random() * 1000),
-  activity: Math.floor(Math.random() * 500),
-  status: Math.random() > 0.1 ? 'active' : 'blocked'
-}));
-
-export const mockAdminNotifications: AdminNotification[] = [
-  { id: 1, text: 'Новый пользователь "ivanov" зарегистрировался', time: '5 мин назад', read: false, type: 'user', link: '/admin/users/user_15' },
-  { id: 2, text: 'Статистика сайта успешно обновлена', time: '10 мин назад', read: true, type: 'system' },
-  { id: 3, text: 'Пользователь "petrov" попросил проверку проекта', time: '15 мин назад', read: false, type: 'warning', link: '/admin/projects/45' },
-  { id: 4, text: 'Завершено резервное копирование базы данных', time: '1 час назад', read: true, type: 'success' },
-  { id: 5, text: 'Получено новое сообщение в обратную связь', time: '2 часа назад', read: false, type: 'user' },
-  { id: 6, text: 'Обновлены правила сообщества', time: '5 часов назад', read: true, type: 'system' },
-  { id: 7, text: 'Критическое обновление безопасности требуется', time: '1 день назад', read: false, type: 'warning' },
-];

@@ -6,7 +6,6 @@ import './UserModals.css';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { adminApi } from '@/lib/api/admin';
 import { formatDate, getRoleLabel } from '@/utils/admin';
-import { USER_LEVELS } from '@/api/mocks-admin';
 
 // Импортируем модальные окна
 import UserProfileModal from './UserProfileModal';
@@ -29,6 +28,15 @@ interface AdminUser {
   lastLogin?: string;
   avatar?: string;
 }
+
+// Определяем уровни прямо здесь (перенесено из mocks-admin)
+const USER_LEVELS = [
+  { min: 0, max: 200, name: "Студент", icon: "★" },
+  { min: 201, max: 500, name: "Инженер", icon: "★★" },
+  { min: 501, max: 1000, name: "Инженер-конструктор", icon: "★★★" },
+  { min: 1001, max: 2000, name: "Профессор Сомоделкин", icon: "★★★★" },
+  { min: 2001, max: Infinity, name: "Эксперт сообщества", icon: "★★★★★" }
+];
 
 export default function AdminUsersPage() {
   // Аутентификация
@@ -245,34 +253,30 @@ export default function AdminUsersPage() {
     setDistributionData(newDistribution);
   };
 
-  // Загрузка при монтировании (УБРАЛИ search из зависимостей!)
+  // Загрузка при монтировании
   useEffect(() => {
     if (isAuthorized) {
       loadUsers();
     }
-  }, [isAuthorized, currentPage, filterRole]); // search удалён!
+  }, [isAuthorized, currentPage, filterRole]);
 
   // ОБРАБОТЧИК ПОИСКА С DEBOUNCE
   const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearch(value);
     
-    // Очищаем предыдущий таймер
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
     
-    // Устанавливаем новый таймер на 500мс
     searchTimeoutRef.current = setTimeout(() => {
       loadUsers();
     }, 500);
   };
 
-  // Обработчик отправки формы (для кнопки поиска)
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Очищаем таймер, если есть
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
@@ -303,7 +307,6 @@ export default function AdminUsersPage() {
     if (confirm(`Вы уверены, что хотите ${action} пользователя ${user.login}?`)) {
       try {
         if (!isBackendAvailable) {
-          // Демо-режим
           alert(`Демо: пользователь ${user.login} ${user.isActive ? 'заблокирован' : 'разблокирован'}`);
           setUsers(prev => prev.map(u => 
             u.id === user.id ? { ...u, isActive: !u.isActive } : u
@@ -349,7 +352,6 @@ export default function AdminUsersPage() {
     
     try {
       if (!isBackendAvailable) {
-        // Демо-режим
         alert(`Демо: данные пользователя ${selectedUser.login} обновлены`);
         setUsers(prev => prev.map(u => 
           u.id === selectedUser.id ? { ...u, ...updates } : u
@@ -379,7 +381,6 @@ export default function AdminUsersPage() {
     
     try {
       if (!isBackendAvailable) {
-        // Демо-режим
         const newRating = (selectedUser.rating || 0) + adjustment.ratingChange;
         const newActivity = (selectedUser.activityPoints || 0) + adjustment.activityChange;
         alert(`Демо: рейтинг ${selectedUser.login} скорректирован!\nНовый рейтинг: ${newRating}\nНовая активность: ${newActivity}`);

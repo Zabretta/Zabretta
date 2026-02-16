@@ -16,6 +16,7 @@ export default function AdminPage() {
       'refresh': 'refresh'
     };
     
+    // ИСПРАВЛЕНО: добавлен оператор ||
     const newAction = actionMap[action] || action;
     
     // Если это resetTotal (старое действие), выполняем специальную логику

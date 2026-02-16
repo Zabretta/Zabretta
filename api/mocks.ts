@@ -1,14 +1,10 @@
 // api/mocks.ts
 // ==================== ГЛАВНЫЙ ФАЙЛ МОКОВ (единая точка входа) ====================
 
-// Импорт всех модулей
-import { adminAPI } from './mocks-admin';
-import { statsAPI } from './mocks-stats';
-import { authAPI } from './mocks-auth';
+// Импорт только оставшихся модулей
 import { rulesAPI } from './mocks-rules';
 import { marketAPI } from './mocks-market';
 import { sessionsAPI } from './mocks-sessions'; // <-- ДОБАВЛЕН ИМПОРТ СЕССИЙ
-import { notificationsAPI } from './mocks-notifications'; // <-- НОВЫЙ ИМПОРТ УВЕДОМЛЕНИЙ
 
 // === БАЗОВЫЕ ТИПЫ (ВЫНЕСТИ В api/types.ts - УЖЕ ВЫНЕСЛИ) ===
 
@@ -27,8 +23,6 @@ export interface AppSettings {
 }
 
 // Типы теперь импортируются из отдельных файлов
-export type { StatsData } from './mocks-stats';
-export type { User } from './mocks-auth';
 export type { 
   RulesData, 
   AcceptRulesResponse, 
@@ -118,27 +112,16 @@ export const mockAPI = {
     }
   },
 
-  // Барахолка (теперь импортируется)
+  // Барахолка (ещё не на бэкенде)
   marketplace: marketAPI,
 
-  // Аутентификация (теперь импортируется)
-  auth: authAPI,
-
-  // Правила сообщества (теперь импортируется)
+  // Правила сообщества (ещё не на бэкенде)
   rules: rulesAPI,
 
-  // Система статистики (теперь импортируется)
-  stats: statsAPI,
-
-  // Админ-панель API (теперь импортируется)
-  admin: adminAPI,
-
-  // Система сессий (НОВЫЙ МОДУЛЬ)
-  sessions: sessionsAPI,
-
-  // ========= НОВЫЙ МОДУЛЬ: УВЕДОМЛЕНИЯ =========
-  notifications: notificationsAPI
+  // Система сессий (ещё не на бэкенде)
+  sessions: sessionsAPI
 };
 
-// Экспорт всех API для гибкости
-export { adminAPI, statsAPI, authAPI, rulesAPI, marketAPI, sessionsAPI, notificationsAPI };
+// Экспорт только оставшихся API
+export { rulesAPI, marketAPI, sessionsAPI };
+

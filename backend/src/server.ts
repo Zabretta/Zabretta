@@ -10,7 +10,8 @@ import authRoutes from './routes/auth';
 import ratingRoutes from './routes/rating';
 import statsRoutes from './routes/stats';
 import userRoutes from './routes/user';
-import notificationRoutes from './routes/notifications'; // ← ДОБАВЛЕНО
+import notificationRoutes from './routes/notifications';
+import settingsRoutes from './routes/settings'; // ← ДОБАВЛЕНО
 
 // Загрузка переменных окружения
 dotenv.config();
@@ -47,7 +48,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/rating', ratingRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/admin/notifications', notificationRoutes); // ← ДОБАВЛЕНО
+app.use('/api/admin/notifications', notificationRoutes);
+app.use('/api/settings', settingsRoutes);      // ← ДОБАВЛЕНО
 
 // Обработка 404
 app.use('*', (req, res) => {

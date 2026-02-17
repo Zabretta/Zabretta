@@ -4,9 +4,9 @@
 // Импорт только оставшихся модулей
 import { rulesAPI } from './mocks-rules';
 import { marketAPI } from './mocks-market';
-import { sessionsAPI } from './mocks-sessions'; // <-- ДОБАВЛЕН ИМПОРТ СЕССИЙ
+import { sessionsAPI } from './mocks-sessions';
 
-// === БАЗОВЫЕ ТИПЫ (ВЫНЕСТИ В api/types.ts - УЖЕ ВЫНЕСЛИ) ===
+// === БАЗОВЫЕ ТИПЫ ===
 
 export interface APIResponse<T = any> {
   success: boolean;
@@ -15,14 +15,7 @@ export interface APIResponse<T = any> {
   timestamp: string;
 }
 
-export interface AppSettings {
-  theme: 'light' | 'dark' | 'auto' | 'brown';
-  brightness: number;
-  fontSize: number;
-  showAnimations: boolean;
-}
-
-// Типы теперь импортируются из отдельных файлов
+// Типы импортируются из отдельных файлов
 export type { 
   RulesData, 
   AcceptRulesResponse, 
@@ -36,92 +29,18 @@ export type {
   MarketFilters 
 } from './mocks-market';
 
-// === mockAPI ОБЪЕКТ (единая точка входа) ===
+// === mockAPI ОБЪЕКТ (только оставшиеся модули) ===
 
 export const mockAPI = {
-  // Настройки
-  settings: {
-    loadSettings: async (): Promise<APIResponse<AppSettings>> => {
-      console.log('[API MOCKS] Загрузка настроек с сервера...');
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 200));
-      
-      const savedSettings = localStorage.getItem('server_settings');
-      const defaultSettings: AppSettings = { 
-        theme: 'auto', 
-        brightness: 100, 
-        fontSize: 100,
-        showAnimations: true
-      };
-      
-      const mockResponse: APIResponse<AppSettings> = {
-        success: true,
-        data: savedSettings ? JSON.parse(savedSettings) : defaultSettings,
-        timestamp: new Date().toISOString()
-      };
-      
-      console.log('[API MOCKS] Настройки загружены:', mockResponse);
-      return mockResponse;
-    },
-    
-    saveSettings: async (settings: AppSettings): Promise<APIResponse<{ synced: boolean }>> => {
-      console.log('[API MOCKS] Сохранение настроек на сервер...', settings);
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 200));
-      
-      localStorage.setItem('server_settings', JSON.stringify(settings));
-      
-      const mockResponse: APIResponse<{ synced: boolean }> = {
-        success: Math.random() > 0.1,
-        data: { synced: true },
-        error: Math.random() > 0.9 ? 'Ошибка синхронизации' : undefined,
-        timestamp: new Date().toISOString()
-      };
-      
-      console.log('[API MOCKS] Настройки сохранены:', mockResponse);
-      return mockResponse;
-    },
-    
-    syncSettings: async (): Promise<APIResponse<{ 
-      merged: AppSettings; 
-      conflicts?: string[] 
-    }>> => {
-      console.log('[API MOCKS] Синхронизация настроек...');
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 200));
-      
-      const serverSettings = localStorage.getItem('server_settings');
-      const defaultSettings: AppSettings = { 
-        theme: 'auto', 
-        brightness: 100, 
-        fontSize: 100,
-        showAnimations: true
-      };
-      
-      const mockResponse: APIResponse<{
-        merged: AppSettings;
-        conflicts?: string[];
-      }> = {
-        success: true,
-        data: {
-          merged: serverSettings ? JSON.parse(serverSettings) : defaultSettings,
-          conflicts: Math.random() > 0.7 ? ['theme', 'brightness'] : undefined
-        },
-        timestamp: new Date().toISOString()
-      };
-      
-      console.log('[API MOCKS] Синхронизация завершена:', mockResponse);
-      return mockResponse;
-    }
-  },
-
-  // Барахолка (ещё не на бэкенде)
+  // Барахолка
   marketplace: marketAPI,
 
-  // Правила сообщества (ещё не на бэкенде)
+  // Правила сообщества
   rules: rulesAPI,
 
-  // Система сессий (ещё не на бэкенде)
+  // Система сессий
   sessions: sessionsAPI
 };
 
-// Экспорт только оставшихся API
+// Экспорт оставшихся API
 export { rulesAPI, marketAPI, sessionsAPI };
-

@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSettings } from './SettingsContext';
-import { mockAPI } from '../api/mocks';
+import { settingsApi } from '@/lib/api/settings'; // ← ЗАМЕНИЛ ИМПОРТ
 import './SettingsModal.css';
 
 interface SettingsModalProps {
@@ -18,16 +18,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const [syncStatus, setSyncStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [lastSynced, setLastSynced] = useState<string | null>(null);
 
-  // При загрузке компонента загружаем настройки с "сервера"
+  // При загрузке компонента загружаем настройки с сервера
   useEffect(() => {
     const loadSettings = async () => {
       setLoading(true);
       try {
-        const result = await mockAPI.settings.loadSettings();
-        if (result.success && result.data) {
-          setLocalSettings(result.data);
-          updateSettings(result.data);
-        }
+        const data = await settingsApi.getSettings(); // ← ЗАМЕНИЛ
+        setLocalSettings(data);
+        updateSettings(data);
       } catch (error) {
         console.error('Ошибка загрузки настроек:', error);
       } finally {
@@ -49,7 +47,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const handleSave = async () => {
     setSyncStatus('loading');
     
-    // Приведение типа для совместимости
     const settingsToSave = {
       theme: localSettings.theme as 'light' | 'dark' | 'auto' | 'brown',
       brightness: localSettings.brightness,
@@ -57,15 +54,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       showAnimations: localSettings.showAnimations
     };
     
-    const result = await mockAPI.settings.saveSettings(settingsToSave);
-    
-    if (result.success) {
-      updateSettings(localSettings);
+    try {
+      const data = await settingsApi.saveSettings(settingsToSave); // ← ЗАМЕНИЛ
+      updateSettings(data);
       setSyncStatus('success');
       setLastSynced(new Date().toISOString());
       setTimeout(() => setSyncStatus('idle'), 2000);
       onClose();
-    } else {
+    } catch (error) {
       setSyncStatus('error');
       alert('Ошибка сохранения настроек. Проверьте соединение.');
     }
@@ -80,34 +76,39 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     };
     
     setSyncStatus('loading');
-    const result = await mockAPI.settings.saveSettings(defaultSettings);
-    
-    if (result.success) {
+    try {
+      const data = await settingsApi.saveSettings(defaultSettings); // ← ЗАМЕНИЛ
       resetSettings();
       setSyncStatus('success');
       setLastSynced(new Date().toISOString());
       setTimeout(() => setSyncStatus('idle'), 2000);
       setShowResetConfirm(false);
       onClose();
-    } else {
+    } catch (error) {
       setSyncStatus('error');
     }
   };
 
   const handleSync = async () => {
     setSyncStatus('loading');
-    const result = await mockAPI.settings.syncSettings();
-    
-    if (result.success && result.data) {
-      setLocalSettings(result.data.merged);
-      updateSettings(result.data.merged);
+    try {
+      const clientSettings = {
+        theme: localSettings.theme as 'light' | 'dark' | 'auto' | 'brown',
+        brightness: localSettings.brightness,
+        fontSize: localSettings.fontSize,
+        showAnimations: localSettings.showAnimations
+      };
+      const result = await settingsApi.syncSettings(clientSettings); // ← ЗАМЕНИЛ
+      
+      setLocalSettings(result.merged);
+      updateSettings(result.merged);
       setSyncStatus('success');
       setLastSynced(new Date().toISOString());
       
-      if (result.data.conflicts) {
-        console.warn('Обнаружены конфликты:', result.data.conflicts);
+      if (result.conflicts) {
+        console.warn('Обнаружены конфликты:', result.conflicts);
       }
-    } else {
+    } catch (error) {
       setSyncStatus('error');
     }
   };
@@ -134,7 +135,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         </div>
 
         <div className="settings-modal-content">
-          {/* Статус синхронизации - БЕЗ ИКОНКИ КНОПКИ */}
+          {/* Статус синхронизации */}
           <div className="sync-status-bar">
             <div className="sync-info">
               <span className="sync-label">Синхронизация:</span>

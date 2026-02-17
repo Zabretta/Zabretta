@@ -8,7 +8,7 @@ datasource db {
 }
 
 model admin_logs {
-  id         String     @id
+  id         String     @id @default(cuid())
   userId     String
   userName   String
   action     String
@@ -21,7 +21,7 @@ model admin_logs {
 }
 
 model content {
-  id          String        @id
+  id          String        @id @default(cuid())
   userId      String
   type        ContentType
   title       String
@@ -33,7 +33,7 @@ model content {
   comments    Int           @default(0)
   rating      Int           @default(0)
   createdAt   DateTime      @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime      @updatedAt
   users       users         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -45,7 +45,7 @@ model notifications {
   link      String?
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
@@ -54,7 +54,7 @@ model notifications {
 }
 
 model rating_adjustments {
-  id             String   @id
+  id             String   @id @default(cuid())
   userId         String
   reason         String
   ratingChange   Int
@@ -65,8 +65,22 @@ model rating_adjustments {
   users          users    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model setting {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  theme           String   @default("auto")
+  brightness      Int      @default(100)
+  fontSize        Int      @default(100)
+  showAnimations  Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+
+  users users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("settings")
+}
+
 model users {
-  id                 String               @id
+  id                 String               @id @default(cuid())
   login              String               @unique
   email              String               @unique
   name               String?
@@ -85,6 +99,7 @@ model users {
   content            content[]
   notifications      notifications[]
   rating_adjustments rating_adjustments[]
+  setting            setting?
 }
 
 enum ContentStatus {

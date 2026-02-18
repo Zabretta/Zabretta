@@ -1,12 +1,8 @@
 // api/mocks.ts
-// ==================== ГЛАВНЫЙ ФАЙЛ МОКОВ (единая точка входа) ====================
+// ==================== ГЛАВНЫЙ ФАЙЛ МОКОВ ====================
 
 // Импорт только оставшихся модулей
-import { rulesAPI } from './mocks-rules';
 import { marketAPI } from './mocks-market';
-import { sessionsAPI } from './mocks-sessions';
-
-// === БАЗОВЫЕ ТИПЫ ===
 
 export interface APIResponse<T = any> {
   success: boolean;
@@ -15,12 +11,7 @@ export interface APIResponse<T = any> {
   timestamp: string;
 }
 
-// Типы импортируются из отдельных файлов
-export type { 
-  RulesData, 
-  AcceptRulesResponse, 
-  ResetAcceptanceResponse 
-} from './mocks-rules';
+// Типы для оставшихся моков
 export type { 
   MarketItem, 
   ItemType,
@@ -29,18 +20,10 @@ export type {
   MarketFilters 
 } from './mocks-market';
 
-// === mockAPI ОБЪЕКТ (только оставшиеся модули) ===
-
 export const mockAPI = {
   // Барахолка
-  marketplace: marketAPI,
-
-  // Правила сообщества
-  rules: rulesAPI,
-
-  // Система сессий
-  sessions: sessionsAPI
+  marketplace: marketAPI
 };
 
 // Экспорт оставшихся API
-export { rulesAPI, marketAPI, sessionsAPI };
+export { marketAPI };

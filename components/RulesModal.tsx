@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { mockAPI } from "../api/mocks";
+import { rulesApi } from "@/lib/api/rules"; // ← ЗАМЕНИЛИ ИМПОРТ
 import "./RulesModal.css";
 
 interface RulesModalProps {
@@ -26,10 +26,8 @@ export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
     const checkAcceptance = async () => {
       if (isOpen) {
         try {
-          const response = await mockAPI.rules.checkAcceptance();
-          if (response.success && response.data) {
-            setHasAccepted(response.data.accepted);
-          }
+          const data = await rulesApi.checkAcceptance(); // ← ЗАМЕНИЛИ
+          setHasAccepted(data.accepted);
         } catch (error) {
           console.error('Ошибка проверки принятия правил:', error);
           // Fallback на localStorage
@@ -61,13 +59,18 @@ export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
       if (isOpen && !rulesData) {
         setIsLoading(true);
         try {
-          const response = await mockAPI.rules.loadRules();
-          if (response.success && response.data) {
-            setRulesData(response.data);
-            setHasAccepted(response.data.accepted);
-          } else {
-            console.error('Ошибка загрузки правил:', response.error);
-          }
+          const data = await rulesApi.getRulesWithAcceptance(); // ← ЗАМЕНИЛИ
+          
+          // Преобразуем массив объектов Rule в массив строк
+          const ruleStrings = data.rules.map(rule => rule.text);
+          
+          setRulesData({
+            rules: ruleStrings,
+            accepted: data.accepted,
+            acceptedDate: data.acceptedDate
+          });
+          setHasAccepted(data.accepted);
+          
         } catch (error) {
           console.error('Ошибка API при загрузке правил:', error);
           // Fallback на локальные правила
@@ -95,28 +98,26 @@ export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
   // Функция принятия правил через API
   const handleAcceptRules = async () => {
     try {
-      const response = await mockAPI.rules.acceptRules();
-      if (response.success && response.data) {
-        setHasAccepted(true);
-        
-        // Обновляем локальные данные
-        if (rulesData) {
-          setRulesData({
-            ...rulesData,
-            accepted: true,
-            acceptedDate: response.data.acceptedDate
-          });
-        }
-        
-        alert('✅ Правила приняты! Добро пожаловать в сообщество Кулибиных!');
-        
-        // Закрываем модалку через 1 секунду
-        setTimeout(() => {
-          onClose();
-        }, 1000);
-      } else {
-        alert('Ошибка при принятии правил: ' + (response.error || 'Неизвестная ошибка'));
+      const data = await rulesApi.acceptRules(); // ← ЗАМЕНИЛИ
+      
+      setHasAccepted(true);
+      
+      // Обновляем локальные данные
+      if (rulesData) {
+        setRulesData({
+          ...rulesData,
+          accepted: true,
+          acceptedDate: data.acceptedDate
+        });
       }
+      
+      alert('✅ Правила приняты! Добро пожаловать в сообщество Кулибиных!');
+      
+      // Закрываем модалку через 1 секунду
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+      
     } catch (error) {
       console.error('Ошибка API при принятии правил:', error);
       // Fallback на локальное сохранение
@@ -135,18 +136,18 @@ export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
   const handleResetAcceptance = async () => {
     if (confirm('Сбросить принятие правил? Это для тестирования.')) {
       try {
-        const response = await mockAPI.rules.resetAcceptance();
-        if (response.success) {
-          setHasAccepted(false);
-          if (rulesData) {
-            setRulesData({
-              ...rulesData,
-              accepted: false,
-              acceptedDate: undefined
-            });
-          }
-          alert('Согласие сброшено. Можете принять правила заново.');
+        await rulesApi.resetAcceptance(); // ← ЗАМЕНИЛИ
+        
+        setHasAccepted(false);
+        if (rulesData) {
+          setRulesData({
+            ...rulesData,
+            accepted: false,
+            acceptedDate: undefined
+          });
         }
+        alert('Согласие сброшено. Можете принять правила заново.');
+        
       } catch (error) {
         console.error('Ошибка сброса принятия:', error);
         localStorage.removeItem('samodelkin_rules_accepted');

@@ -11,7 +11,8 @@ import ratingRoutes from './routes/rating';
 import statsRoutes from './routes/stats';
 import userRoutes from './routes/user';
 import notificationRoutes from './routes/notifications';
-import settingsRoutes from './routes/settings'; // ← ДОБАВЛЕНО
+import settingsRoutes from './routes/settings';
+import rulesRoutes from './routes/rules'; // ← ДОБАВЛЕНО
 
 // Загрузка переменных окружения
 dotenv.config();
@@ -42,14 +43,15 @@ app.get('/api/health', (req, res) => {
 });
 
 // Регистрация маршрутов
-app.use('/admin', adminRoutes);                // для фронтенда
-app.use('/api/admin', adminRoutes);            // для обратной совместимости
+app.use('/admin', adminRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/rating', ratingRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin/notifications', notificationRoutes);
-app.use('/api/settings', settingsRoutes);      // ← ДОБАВЛЕНО
+app.use('/api/settings', settingsRoutes);
+app.use('/api/rules', rulesRoutes); // ← ДОБАВЛЕНО
 
 // Обработка 404
 app.use('*', (req, res) => {

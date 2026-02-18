@@ -79,6 +79,30 @@ model setting {
   @@map("settings")
 }
 
+// 🔥 НОВАЯ МОДЕЛЬ: Правила сайта
+model rule {
+  id          String   @id @default(cuid())
+  text        String
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("rules")
+}
+
+// 🔥 НОВАЯ МОДЕЛЬ: Принятие правил пользователями
+model ruleAcceptance {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  acceptedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("rule_acceptances")
+}
+
 model users {
   id                 String               @id @default(cuid())
   login              String               @unique
@@ -100,6 +124,7 @@ model users {
   notifications      notifications[]
   rating_adjustments rating_adjustments[]
   setting            setting?
+  ruleAcceptance     ruleAcceptance?       // ← связь с принятием правил
 }
 
 enum ContentStatus {

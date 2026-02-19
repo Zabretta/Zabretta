@@ -1,7 +1,8 @@
+// components/Marketplace.tsx
 "use client"
 
 import { useState, useMemo, ChangeEvent, useEffect } from "react";
-import { mockAPI } from "../api/mocks";
+import { marketApi } from "@/lib/api/market";
 import "./Marketplace.css";
 
 interface MarketplaceProps {
@@ -20,7 +21,7 @@ type ItemCategory = "tools" | "materials" | "furniture" | "electronics" | "cooki
                    "auto" | "sport" | "robot" | "handmade" | "stolar" | "hammer" | "other";
 
 interface MarketItem {
-  id: number;
+  id: string;
   title: string;
   description: string;
   price: number | "free";
@@ -69,38 +70,127 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     { id: "2months" as DurationType, label: "2 месяца", description: "Длительный срок" }
   ];
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /**
+   * Сжимает изображение перед загрузкой
+   */
+  const compressImage = (file: File, maxSizeMB: number = 10): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      // Если файл и так меньше лимита, не сжимаем
+      if (file.size <= maxSizeMB * 1024 * 1024) {
+        console.log(`📦 Файл ${(file.size / 1024 / 1024).toFixed(2)}MB - не требуется сжатие`);
+        resolve(file);
+        return;
+      }
+
+      console.log(`🔄 Сжатие файла ${(file.size / 1024 / 1024).toFixed(2)}MB...`);
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        
+        img.onload = () => {
+          // Создаем canvas для сжатия
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Уменьшаем размер, если изображение слишком большое
+          const maxDimension = 1200;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+            console.log(`📐 Изменение размера: ${img.width}x${img.height} → ${width}x${height}`);
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Конвертируем обратно в файл с качеством 0.8
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                });
+                console.log(`✅ Сжатие завершено: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
+                resolve(compressedFile);
+              } else {
+                reject(new Error('Не удалось сжать изображение'));
+              }
+            },
+            'image/jpeg',
+            0.8
+          );
+        };
+        
+        img.onerror = () => {
+          reject(new Error('Ошибка загрузки изображения'));
+        };
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('Ошибка чтения файла'));
+      };
+    });
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("Файл слишком большой! Максимальный размер: 5MB.");
+      try {
+        console.log('📸 Выбран файл:', file.name, (file.size / 1024 / 1024).toFixed(2) + 'MB');
+        
+        // 🔥 УВЕЛИЧЕННЫЙ ЛИМИТ: проверяем размер до сжатия (макс 20MB чтобы не убить браузер)
+        if (file.size > 20 * 1024 * 1024) {
+          alert(`Файл слишком большой (${(file.size / 1024 / 1024).toFixed(2)}MB). Максимальный размер: 20MB.`);
+          e.target.value = '';
+          return;
+        }
+        
+        // Проверяем тип файла
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (!allowedTypes.includes(file.type)) {
+          alert("Неподдерживаемый формат файла! Разрешены: JPG, PNG, WebP, GIF.");
+          e.target.value = '';
+          return;
+        }
+        
+        // Сжимаем изображение если нужно (цель - не больше 10MB для сервера)
+        const processedFile = await compressImage(file, 10);
+        setImageFile(processedFile);
+        
+        // Создаем превью
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target?.result as string;
+          setSelectedImage(dataUrl);
+          setImageUrl(dataUrl);
+        };
+        reader.onerror = () => {
+          alert("Ошибка при загрузке изображения");
+          e.target.value = '';
+          setImageFile(null);
+          setSelectedImage(null);
+          setImageUrl(undefined);
+        };
+        reader.readAsDataURL(processedFile);
+        
+      } catch (error) {
+        console.error('❌ Ошибка обработки изображения:', error);
+        alert('Ошибка при обработке изображения');
         e.target.value = '';
-        return;
       }
-      
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-      if (!allowedTypes.includes(file.type)) {
-        alert("Неподдерживаемый формат файла! Разрешены: JPG, PNG, WebP, GIF.");
-        e.target.value = '';
-        return;
-      }
-      
-      setImageFile(file);
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        setSelectedImage(dataUrl);
-        setImageUrl(dataUrl);
-      };
-      reader.onerror = () => {
-        alert("Ошибка при загрузке изображения");
-        e.target.value = '';
-        setImageFile(null);
-        setSelectedImage(null);
-        setImageUrl(undefined);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -112,6 +202,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     if (fileInput) fileInput.value = '';
   };
 
+  // ✅ ИСПРАВЛЕННАЯ ЗАГРУЗКА ОБЪЯВЛЕНИЙ
   useEffect(() => {
     const loadItems = async () => {
       setIsLoading(true);
@@ -124,20 +215,19 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         }
         
         console.log('📡 Загрузка объявлений с фильтрами:', filters);
-        const result = await mockAPI.marketplace.loadItems(filters);
+        const response = await marketApi.loadItems(filters) as any;
         
-        if (result.success && result.data) {
-          console.log(`✅ Загружено ${result.data.length} объявлений`);
-          setItems(result.data);
-          
-          const itemsWithPhotos = result.data.filter(item => item.imageUrl);
-          console.log(`📸 Объявлений с фото: ${itemsWithPhotos.length}/${result.data.length}`);
-        } else {
-          setApiError(result.error || "Не удалось загрузить объявления");
-          console.error('❌ Ошибка загрузки:', result.error);
-        }
+        // ✅ API возвращает объект с полем items
+        const itemsArray = response.items || [];
+        
+        console.log(`✅ Загружено ${itemsArray.length} объявлений`);
+        setItems(itemsArray);
+        
+        const itemsWithPhotos = itemsArray.filter((item: MarketItem) => item.imageUrl);
+        console.log(`📸 Объявлений с фото: ${itemsWithPhotos.length}/${itemsArray.length}`);
+        
       } catch (error) {
-        console.error("Ошибка загрузки объявлений:", error);
+        console.error("❌ Ошибка загрузки объявлений:", error);
         setApiError("Ошибка соединения с сервером");
       } finally {
         setIsLoading(false);
@@ -239,7 +329,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       
       const negotiable = formData.get("negotiable") === "on";
       
-      // ⚡ ИСПРАВЛЕННАЯ ЛОГИКА ЦЕНЫ
       let price: number | "free" = "free";
       
       if (priceValue && priceValue.trim() !== "") {
@@ -248,16 +337,13 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
           if (parsedPrice > 0) {
             price = parsedPrice;
           } else if (parsedPrice === 0 && negotiable) {
-            // Если цена 0 И стоит галочка "договорная" - это договорная цена
             price = 0;
           } else if (parsedPrice === 0) {
-            // Если цена 0 И НЕТ галочки "договорная" - это бесплатно
             price = "free";
           }
         }
       }
       
-      // Если negotiable=true, но price="free", меняем на price=0
       if (negotiable && price === "free") {
         price = 0;
       }
@@ -277,61 +363,62 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       
       console.log('📝 Отправка данных для создания объявления:', {
         ...newItemData,
-        imageUrl: imageUrl ? `Data URL (${imageUrl.length} chars)` : 'нет фото',
+        imageUrl: imageUrl ? `Data URL (${Math.round(imageUrl.length / 1024)}KB)` : 'нет фото',
         price: price === "free" ? "бесплатно" : `${price} ₽`,
         negotiable: negotiable,
         category: category || 'не выбрана'
       });
       
-      const result = await mockAPI.marketplace.createItem(newItemData);
+      const result = await marketApi.createItem(newItemData);
       
-      if (result.success && result.data) {
-        setSelectedImage(null);
-        setImageFile(null);
-        setImageUrl(undefined);
-        
-        const newItemWithAuthor = {
-          ...result.data,
-          author: currentUser.login,
-          rating: 4.5
-        };
-        
-        setItems(prev => [newItemWithAuthor, ...prev]);
-        
-        const expirationDate = result.data.expirationDate ? 
-          new Date(result.data.expirationDate).toLocaleDateString('ru-RU') : 
-          'не указана';
-        
-        // Улучшенное сообщение об успехе
-        let priceMessage = "";
-        if (price === "free") {
-          priceMessage = "Цена: Бесплатно";
-        } else if (price === 0 && negotiable) {
-          priceMessage = "Цена: Договорная";
-        } else {
-          priceMessage = `Цена: ${price} ₽${negotiable ? " (договорная)" : ""}`;
-        }
-        
-        alert(`✅ Объявление "${result.data.title}" успешно создано!\nАвтор: ${currentUser.login}\n${priceMessage}\nБудет активно до: ${expirationDate}`);
-        setIsCreatingAd(false);
-        setSelectedDuration("1month");
+      setSelectedImage(null);
+      setImageFile(null);
+      setImageUrl(undefined);
+      
+      const newItemWithAuthor: MarketItem = {
+        ...result,
+        author: currentUser.login,
+        rating: 4.5
+      };
+      
+      setItems(prev => [newItemWithAuthor, ...prev]);
+      
+      const expirationDate = result.expirationDate ? 
+        new Date(result.expirationDate).toLocaleDateString('ru-RU') : 
+        'не указана';
+      
+      let priceMessage = "";
+      if (price === "free") {
+        priceMessage = "Цена: Бесплатно";
+      } else if (price === 0 && negotiable) {
+        priceMessage = "Цена: Договорная";
       } else {
-        alert(result.error || "Не удалось создать объявление");
-        console.error('❌ Ошибка создания объявления:', result.error);
+        priceMessage = `Цена: ${price} ₽${negotiable ? " (договорная)" : ""}`;
       }
+      
+      alert(`✅ Объявление "${result.title}" успешно создано!\nАвтор: ${currentUser.login}\n${priceMessage}\nБудет активно до: ${expirationDate}`);
+      setIsCreatingAd(false);
+      setSelectedDuration("1month");
+      
     } catch (error) {
-      console.error("Ошибка при создании объявления:", error);
-      alert("Не удалось создать объявление. Попробуйте ещё раз.");
+      console.error("❌ Ошибка при создании объявления:", error);
+      
+      // Специальная обработка ошибки 413
+      if (error instanceof Error && error.message.includes('413')) {
+        alert('Файл слишком большой. Максимальный размер: 10MB. Попробуйте выбрать фото меньше или сжать его.');
+      } else {
+        alert("Не удалось создать объявление. Попробуйте ещё раз.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleContact = async (itemId: number) => {
+  const handleContact = async (itemId: string) => {
     setIsLoading(true);
     
     try {
-      const result = await mockAPI.marketplace.contactAuthor({
+      const result = await marketApi.contactAuthor({
         itemId: itemId,
         message: "Здравствуйте! Я заинтересован в вашем объявлении",
         contactMethod: "message"
@@ -340,12 +427,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       if (result.success) {
         const item = items.find(i => i.id === itemId);
         alert(`✅ Сообщение автору "${item?.author}" отправлено!`);
-      } else {
-        alert(result.error || "Не удалось отправить сообщение");
-        console.error('❌ Ошибка отправки сообщения:', result.error);
       }
+      
     } catch (error) {
-      console.error("Ошибка при отправке сообщения:", error);
+      console.error("❌ Ошибка при отправке сообщения:", error);
       alert("Не удалось отправить сообщение. Попробуйте ещё раз.");
     } finally {
       setIsLoading(false);
@@ -708,7 +793,13 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
                   onChange={handleImageSelect}
                 />
                 <p className="file-input-info">
-                  Максимальный размер: 5MB. Разрешены: JPG, PNG, WebP, GIF
+                  📸 Максимальный размер: <strong>10MB</strong> (после сжатия). Разрешены: JPG, PNG, WebP, GIF.
+                  {imageFile && (
+                    <span className="file-size-info">
+                      {" "}
+                      Выбран файл: {(imageFile.size / 1024 / 1024).toFixed(2)}MB
+                    </span>
+                  )}
                 </p>
                 
                 {selectedImage && (
@@ -815,7 +906,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
                   
                   <div className="item-meta">
                     <div className="item-price">
-                      {/* ⚡ ИСПРАВЛЕННАЯ ЛОГИКА ОТОБРАЖЕНИЯ ЦЕНЫ */}
                       {item.price === "free" ? (
                         <span className="free-price">Бесплатно</span>
                       ) : item.price === 0 && item.negotiable ? (

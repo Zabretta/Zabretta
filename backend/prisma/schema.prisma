@@ -79,7 +79,6 @@ model setting {
   @@map("settings")
 }
 
-// 🔥 НОВАЯ МОДЕЛЬ: Правила сайта
 model rule {
   id          String   @id @default(cuid())
   text        String
@@ -91,7 +90,6 @@ model rule {
   @@map("rules")
 }
 
-// 🔥 НОВАЯ МОДЕЛЬ: Принятие правил пользователями
 model ruleAcceptance {
   id          String   @id @default(cuid())
   userId      String   @unique
@@ -101,6 +99,70 @@ model ruleAcceptance {
   users users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("rule_acceptances")
+}
+
+// 🔥 МОДЕЛЬ: Объявления в барахолке
+model marketItem {
+  id             String        @id @default(cuid())
+  title          String
+  description    String
+  price          String        // "free" или число как строка
+  priceValue     Int?          // числовое значение цены (для сортировки)
+  location       String
+  author         String
+  authorId       String
+  rating         Float         @default(4.5)
+  type           ItemType
+  imageUrl       String?
+  negotiable     Boolean       @default(false)
+  expirationDate DateTime?
+  duration       DurationType? // 2weeks, 1month, 2months
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  views          Int           @default(0)
+  contacts       Int           @default(0)
+  category       ItemCategory? // категория товара
+  categoryId     String?       // связь с категорией
+
+  users        users           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  marketCategory marketCategory? @relation(fields: [categoryId], references: [id])
+  messages     marketMessage[]
+
+  @@map("market_items")
+}
+
+// 🔥 МОДЕЛЬ: Категории товаров
+model marketCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  label       String
+  icon        String?  // эмодзи или иконка
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items marketItem[]
+
+  @@map("market_categories")
+}
+
+// 🔥 МОДЕЛЬ: Сообщения между пользователями
+model marketMessage {
+  id         String   @id @default(cuid())
+  itemId     String
+  fromUserId String
+  toUserId   String
+  message    String
+  read       Boolean  @default(false)
+  contactMethod String // message, phone, email
+  createdAt  DateTime @default(now())
+
+  item marketItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  fromUser users @relation("messages_from", fields: [fromUserId], references: [id])
+  toUser   users @relation("messages_to", fields: [toUserId], references: [id])
+
+  @@map("market_messages")
 }
 
 model users {
@@ -124,7 +186,11 @@ model users {
   notifications      notifications[]
   rating_adjustments rating_adjustments[]
   setting            setting?
-  ruleAcceptance     ruleAcceptance?       // ← связь с принятием правил
+  ruleAcceptance     ruleAcceptance?
+  marketItems        marketItem[]
+  // ✅ Явные имена для связей с сообщениями
+  marketMessagesFrom marketMessage[]      @relation("messages_from")
+  marketMessagesTo   marketMessage[]      @relation("messages_to")
 }
 
 enum ContentStatus {
@@ -153,4 +219,34 @@ enum UserRole {
   USER
   MODERATOR
   ADMIN
+}
+
+// 🔥 НОВЫЕ ENUM ДЛЯ БАРАХОЛКИ
+enum ItemType {
+  SELL
+  BUY
+  FREE
+  EXCHANGE
+  AUCTION
+}
+
+enum DurationType {
+  TWOWEEKS
+  ONEMONTH
+  TWOMONTHS
+}
+
+enum ItemCategory {
+  TOOLS
+  MATERIALS
+  FURNITURE
+  ELECTRONICS
+  COOKING
+  AUTO
+  SPORT
+  ROBOT
+  HANDMADE
+  STOLAR
+  HAMMER
+  OTHER
 }

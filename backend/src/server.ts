@@ -12,7 +12,8 @@ import statsRoutes from './routes/stats';
 import userRoutes from './routes/user';
 import notificationRoutes from './routes/notifications';
 import settingsRoutes from './routes/settings';
-import rulesRoutes from './routes/rules'; // ← ДОБАВЛЕНО
+import rulesRoutes from './routes/rules';
+import marketRoutes from './routes/market';
 
 // Загрузка переменных окружения
 dotenv.config();
@@ -27,8 +28,10 @@ app.use(cors({
   credentials: true
 }));
 app.use(morgan('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// 🔥 УВЕЛИЧИВАЕМ ЛИМИТ ДЛЯ ЗАГРУЗКИ ФАЙЛОВ
+app.use(express.json({ limit: '10mb' })); // Увеличиваем до 10MB
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Подключение к базе данных
 connectDB().catch(console.error);
@@ -51,7 +54,8 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin/notifications', notificationRoutes);
 app.use('/api/settings', settingsRoutes);
-app.use('/api/rules', rulesRoutes); // ← ДОБАВЛЕНО
+app.use('/api/rules', rulesRoutes);
+app.use('/api/market', marketRoutes);
 
 // Обработка 404
 app.use('*', (req, res) => {
@@ -64,7 +68,16 @@ app.use('*', (req, res) => {
 
 // Обработка ошибок
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Ошибка сервера:', err);
+  console.error('❌ Ошибка сервера:', err);
+  
+  // Специальная обработка ошибки "Payload Too Large"
+  if (err.type === 'entity.too.large') {
+    res.status(413).json({
+      success: false,
+      error: 'Файл слишком большой. Максимальный размер: 10MB'
+    });
+    return;
+  }
   
   res.status(err.status || 500).json({
     success: false,
@@ -80,6 +93,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
   console.log(`📁 База данных: ${process.env.DATABASE_URL?.split('@')[1] || 'не настроена'}`);
   console.log(`🌍 Окружение: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📦 Лимит загрузки: 10MB`);
 });
 
 // Обработка завершения работы

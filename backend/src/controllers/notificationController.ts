@@ -5,139 +5,116 @@ import { NotificationService } from '../services/notificationService';
 import { createSuccessResponse, createErrorResponse } from '../utils/response';
 
 export class NotificationController {
+  
+  // ===== МЕТОДЫ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ =====
+
   /**
-   * Получить все уведомления
-   * GET /api/admin/notifications
+   * GET /api/notifications
+   * Получить уведомления текущего пользователя
    */
-  static async getNotifications(req: AuthRequest, res: Response): Promise<void> {
+  static async getUserNotifications(req: AuthRequest, res: Response) {
     try {
       if (!req.user) {
-        res.status(401).json(createErrorResponse('Требуется авторизация'));
-        return;
+        return res.status(401).json(createErrorResponse('Требуется авторизация'));
       }
 
-      const notifications = await NotificationService.getNotifications(req.user.id);
-      res.json(createSuccessResponse(notifications));
+      const { type, read, page, limit } = req.query;
+      
+      const typeArray = type 
+        ? (type as string).split(',').map(t => t.toUpperCase()) as any
+        : undefined;
+
+      const filters = {
+        userId: req.user.id,
+        type: typeArray,
+        read: read !== undefined ? read === 'true' : undefined,
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 20
+      };
+
+      const result = await NotificationService.getNotifications(filters);
+      
+      res.json(createSuccessResponse(result));
     } catch (error) {
-      console.error('Ошибка при получении уведомлений:', error);
+      console.error('Ошибка получения уведомлений:', error);
       res.status(500).json(createErrorResponse('Ошибка при получении уведомлений'));
     }
   }
 
   /**
-   * Получить количество непрочитанных
-   * GET /api/admin/notifications/unread/count
+   * GET /api/notifications/unread-count
+   * Получить количество непрочитанных уведомлений текущего пользователя
    */
-  static async getUnreadCount(req: AuthRequest, res: Response): Promise<void> {
+  static async getUnreadCount(req: AuthRequest, res: Response) {
     try {
       if (!req.user) {
-        res.status(401).json(createErrorResponse('Требуется авторизация'));
-        return;
+        return res.status(401).json(createErrorResponse('Требуется авторизация'));
       }
 
       const count = await NotificationService.getUnreadCount(req.user.id);
+      
       res.json(createSuccessResponse({ count }));
     } catch (error) {
-      console.error('Ошибка при получении количества уведомлений:', error);
+      console.error('Ошибка получения количества уведомлений:', error);
       res.status(500).json(createErrorResponse('Ошибка при получении количества уведомлений'));
     }
   }
 
   /**
-   * Отметить уведомление как прочитанное
-   * PUT /api/admin/notifications/:id/read
+   * POST /api/notifications/:id/read
+   * Отметить своё уведомление как прочитанное
    */
-  static async markAsRead(req: AuthRequest, res: Response): Promise<void> {
+  static async markAsRead(req: AuthRequest, res: Response) {
     try {
       if (!req.user) {
-        res.status(401).json(createErrorResponse('Требуется авторизация'));
-        return;
+        return res.status(401).json(createErrorResponse('Требуется авторизация'));
       }
 
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        res.status(400).json(createErrorResponse('Неверный идентификатор уведомления'));
-        return;
-      }
-
-      const notification = await NotificationService.markAsRead(id, req.user.id);
-      res.json(createSuccessResponse(notification));
+      const { id } = req.params;
+      
+      await NotificationService.markAsRead(req.user.id, id);
+      
+      res.json(createSuccessResponse({ success: true }));
     } catch (error) {
       console.error('Ошибка при отметке уведомления:', error);
-      res.status(500).json(createErrorResponse('Ошибка при обновлении уведомления'));
+      res.status(500).json(createErrorResponse('Ошибка при отметке уведомления'));
     }
   }
 
   /**
-   * Пометить все уведомления как прочитанные
-   * PUT /api/admin/notifications/read-all
+   * POST /api/notifications/read-all
+   * Отметить все свои уведомления как прочитанные
    */
-  static async markAllAsRead(req: AuthRequest, res: Response): Promise<void> {
+  static async markAllAsRead(req: AuthRequest, res: Response) {
     try {
       if (!req.user) {
-        res.status(401).json(createErrorResponse('Требуется авторизация'));
-        return;
+        return res.status(401).json(createErrorResponse('Требуется авторизация'));
       }
 
-      const result = await NotificationService.markAllAsRead(req.user.id);
-      res.json(createSuccessResponse(result));
+      await NotificationService.markAllAsRead(req.user.id);
+      
+      res.json(createSuccessResponse({ success: true }));
     } catch (error) {
       console.error('Ошибка при отметке всех уведомлений:', error);
-      res.status(500).json(createErrorResponse('Ошибка при обновлении уведомлений'));
+      res.status(500).json(createErrorResponse('Ошибка при отметке всех уведомлений'));
     }
   }
 
   /**
-   * Создать новое уведомление (для тестирования)
-   * POST /api/admin/notifications
+   * DELETE /api/notifications/:id
+   * Удалить своё уведомление
    */
-  static async createNotification(req: AuthRequest, res: Response): Promise<void> {
+  static async delete(req: AuthRequest, res: Response) {
     try {
       if (!req.user) {
-        res.status(401).json(createErrorResponse('Требуется авторизация'));
-        return;
+        return res.status(401).json(createErrorResponse('Требуется авторизация'));
       }
 
-      const { text, type, link } = req.body;
-
-      if (!text) {
-        res.status(400).json(createErrorResponse('Текст уведомления обязателен'));
-        return;
-      }
-
-      const notification = await NotificationService.createNotification({
-        userId: req.user.id,
-        text,
-        type: type || 'SYSTEM',
-        link,
-      });
-
-      res.json(createSuccessResponse(notification));
-    } catch (error) {
-      console.error('Ошибка при создании уведомления:', error);
-      res.status(500).json(createErrorResponse('Ошибка при создании уведомления'));
-    }
-  }
-
-  /**
-   * Удалить уведомление
-   * DELETE /api/admin/notifications/:id
-   */
-  static async deleteNotification(req: AuthRequest, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json(createErrorResponse('Требуется авторизация'));
-        return;
-      }
-
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        res.status(400).json(createErrorResponse('Неверный идентификатор уведомления'));
-        return;
-      }
-
-      const result = await NotificationService.deleteNotification(id, req.user.id);
-      res.json(createSuccessResponse(result));
+      const { id } = req.params;
+      
+      await NotificationService.delete(req.user.id, id);
+      
+      res.json(createSuccessResponse({ success: true }));
     } catch (error) {
       console.error('Ошибка при удалении уведомления:', error);
       res.status(500).json(createErrorResponse('Ошибка при удалении уведомления'));
@@ -145,21 +122,184 @@ export class NotificationController {
   }
 
   /**
-   * Удалить все уведомления
-   * DELETE /api/admin/notifications
+   * GET /api/notifications/settings
+   * Получить настройки уведомлений текущего пользователя
    */
-  static async deleteAllNotifications(req: AuthRequest, res: Response): Promise<void> {
+  static async getSettings(req: AuthRequest, res: Response) {
     try {
       if (!req.user) {
-        res.status(401).json(createErrorResponse('Требуется авторизация'));
-        return;
+        return res.status(401).json(createErrorResponse('Требуется авторизация'));
       }
 
-      const result = await NotificationService.deleteAllNotifications(req.user.id);
+      const settings = await NotificationService.getUserSettings(req.user.id);
+      
+      res.json(createSuccessResponse(settings));
+    } catch (error) {
+      console.error('Ошибка получения настроек уведомлений:', error);
+      res.status(500).json(createErrorResponse('Ошибка при получении настроек'));
+    }
+  }
+
+  /**
+   * PUT /api/notifications/settings
+   * Обновить настройки уведомлений текущего пользователя
+   */
+  static async updateSettings(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json(createErrorResponse('Требуется авторизация'));
+      }
+
+      const settings = await NotificationService.updateSettings(req.user.id, req.body);
+      
+      res.json(createSuccessResponse(settings));
+    } catch (error) {
+      console.error('Ошибка обновления настроек уведомлений:', error);
+      res.status(500).json(createErrorResponse('Ошибка при обновлении настроек'));
+    }
+  }
+
+  // ===== МЕТОДЫ ДЛЯ АДМИНИСТРАТОРОВ =====
+
+  /**
+   * GET /api/admin/notifications
+   * Получить все уведомления (с фильтрацией)
+   */
+  static async getAllNotifications(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'ADMIN') {
+        return res.status(403).json(createErrorResponse('Доступ запрещён'));
+      }
+
+      const { userId, type, read, page, limit, startDate, endDate } = req.query;
+      
+      const typeArray = type 
+        ? (type as string).split(',').map(t => t.toUpperCase()) as any
+        : undefined;
+
+      const filters = {
+        userId: userId as string,
+        type: typeArray,
+        read: read !== undefined ? read === 'true' : undefined,
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 20,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined
+      };
+
+      const result = await NotificationService.getNotifications(filters);
+      
       res.json(createSuccessResponse(result));
     } catch (error) {
-      console.error('Ошибка при удалении всех уведомлений:', error);
-      res.status(500).json(createErrorResponse('Ошибка при удалении уведомлений'));
+      console.error('Ошибка получения уведомлений:', error);
+      res.status(500).json(createErrorResponse('Ошибка при получении уведомлений'));
+    }
+  }
+
+  /**
+   * POST /api/admin/notifications
+   * Создать уведомление для конкретного пользователя
+   */
+  static async createNotification(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'ADMIN') {
+        return res.status(403).json(createErrorResponse('Доступ запрещён'));
+      }
+
+      const { userId, type, title, message, link } = req.body;
+
+      if (!userId || !type || !title || !message) {
+        return res.status(400).json(createErrorResponse('Не все обязательные поля заполнены'));
+      }
+
+      const notification = await NotificationService.create({
+        userId,
+        type: type.toUpperCase(),
+        title,
+        message,
+        link
+      });
+      
+      res.json(createSuccessResponse(notification));
+    } catch (error) {
+      console.error('Ошибка создания уведомления:', error);
+      res.status(500).json(createErrorResponse('Ошибка при создании уведомления'));
+    }
+  }
+
+  /**
+   * POST /api/admin/notifications/bulk
+   * Массовая рассылка уведомлений
+   */
+  static async sendBulkNotification(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'ADMIN') {
+        return res.status(403).json(createErrorResponse('Доступ запрещён'));
+      }
+
+      const { userIds, all, type, title, message, link } = req.body;
+
+      if (!type || !title || !message) {
+        return res.status(400).json(createErrorResponse('Не все обязательные поля заполнены'));
+      }
+
+      if (!all && (!userIds || userIds.length === 0)) {
+        return res.status(400).json(createErrorResponse('Нужно указать получателей'));
+      }
+
+      const result = await NotificationService.createBulk({
+        userIds,
+        all,
+        type: type.toUpperCase(),
+        title,
+        message,
+        link
+      });
+      
+      res.json(createSuccessResponse(result));
+    } catch (error) {
+      console.error('Ошибка массовой рассылки:', error);
+      res.status(500).json(createErrorResponse('Ошибка при массовой рассылке'));
+    }
+  }
+
+  /**
+   * GET /api/admin/notifications/stats
+   * Получить статистику по уведомлениям
+   */
+  static async getStats(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'ADMIN') {
+        return res.status(403).json(createErrorResponse('Доступ запрещён'));
+      }
+
+      const stats = await NotificationService.getStats();
+      
+      res.json(createSuccessResponse(stats));
+    } catch (error) {
+      console.error('Ошибка получения статистики:', error);
+      res.status(500).json(createErrorResponse('Ошибка при получении статистики'));
+    }
+  }
+
+  /**
+   * DELETE /api/admin/notifications/:id
+   * Удалить любое уведомление (админский метод)
+   */
+  static async deleteAsAdmin(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'ADMIN') {
+        return res.status(403).json(createErrorResponse('Доступ запрещён'));
+      }
+
+      const { id } = req.params;
+      
+      await NotificationService.deleteAsAdmin(id);
+      
+      res.json(createSuccessResponse({ success: true }));
+    } catch (error) {
+      console.error('Ошибка при удалении уведомления:', error);
+      res.status(500).json(createErrorResponse('Ошибка при удалении уведомления'));
     }
   }
 }

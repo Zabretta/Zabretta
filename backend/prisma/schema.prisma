@@ -1,3 +1,5 @@
+// backend/prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -35,22 +37,6 @@ model content {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   users       users         @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model notifications {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  text      String
-  type      String   @default("SYSTEM")
-  link      String?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([createdAt])
-  @@index([read])
-  @@index([userId])
 }
 
 model rating_adjustments {
@@ -165,6 +151,73 @@ model marketMessage {
   @@map("market_messages")
 }
 
+// ===== НОВЫЕ МОДЕЛИ ДЛЯ УВЕДОМЛЕНИЙ =====
+
+// ✅ Модель для уведомлений (новая, без конфликтов)
+model UserNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  
+  // Связь с пользователем
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
+  @@map("user_notifications")
+}
+
+// ✅ Модель для настроек уведомлений
+model NotificationSetting {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  
+  // Email уведомления
+  emailEnabled   Boolean @default(true)
+  emailLikes     Boolean @default(true)
+  emailComments  Boolean @default(true)
+  emailMessages  Boolean @default(true)
+  
+  // Push уведомления
+  pushEnabled    Boolean @default(false)
+  pushLikes      Boolean @default(true)
+  pushComments   Boolean @default(true)
+  pushMessages   Boolean @default(true)
+  
+  // Внутренние уведомления
+  siteLikes      Boolean @default(true)
+  siteComments   Boolean @default(true)
+  siteMessages   Boolean @default(true)
+  
+  // Режим "Не беспокоить"
+  quietHours     Boolean @default(false)
+  quietStart     Int?
+  quietEnd       Int?
+  
+  updatedAt      DateTime @updatedAt
+  
+  // Связь с пользователем
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_settings")
+}
+
+// ===== НОВЫЙ ENUM ДЛЯ УВЕДОМЛЕНИЙ =====
+enum NotificationType {
+  LIKE
+  COMMENT
+  MESSAGE
+  SYSTEM
+  ACHIEVEMENT
+}
+
+// ===== МОДЕЛЬ ПОЛЬЗОВАТЕЛЯ (обновлённая с новыми связями) =====
 model users {
   id                 String               @id @default(cuid())
   login              String               @unique
@@ -181,18 +234,23 @@ model users {
   lastLogin          DateTime?
   passwordHash       String
   refreshToken       String?
+  
+  // Существующие связи
   admin_logs         admin_logs[]
   content            content[]
-  notifications      notifications[]
   rating_adjustments rating_adjustments[]
   setting            setting?
   ruleAcceptance     ruleAcceptance?
   marketItems        marketItem[]
-  // ✅ Явные имена для связей с сообщениями
   marketMessagesFrom marketMessage[]      @relation("messages_from")
   marketMessagesTo   marketMessage[]      @relation("messages_to")
+  
+  // ⚠️ НОВЫЕ СВЯЗИ
+  userNotifications  UserNotification[]
+  notificationSetting NotificationSetting?
 }
 
+// Существующие ENUM
 enum ContentStatus {
   DRAFT
   ACTIVE
@@ -221,7 +279,7 @@ enum UserRole {
   ADMIN
 }
 
-// 🔥 НОВЫЕ ENUM ДЛЯ БАРАХОЛКИ
+// ENUM для барахолки
 enum ItemType {
   SELL
   BUY

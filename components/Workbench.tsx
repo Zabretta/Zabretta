@@ -1,3 +1,4 @@
+// components/Workbench.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -6,6 +7,8 @@ import RulesModal from "./RulesModal";
 import AuthModal from "./AuthModal";
 import Marketplace from "./Marketplace";
 import SettingsModal from "./SettingsModal";
+import ProfileModal from "./ProfileModal";
+import NotificationsModal from "./NotificationsModal"; // ✅ ИМПОРТ МОДАЛКИ УВЕДОМЛЕНИЙ
 import { useAuth } from "./useAuth";
 import { useSettings } from "./SettingsContext";
 import { useRating, RatingProvider } from "./RatingContext";
@@ -18,6 +21,9 @@ function WorkbenchContent() {
   const [isMobile, setIsMobile] = useState(false);
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false); // ✅ СОСТОЯНИЕ ДЛЯ УВЕДОМЛЕНИЙ
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(3); // ✅ СЧЁТЧИК
   const [isLoading, setIsLoading] = useState(false);
   
   // Реальные данные с бэкенда
@@ -141,7 +147,7 @@ function WorkbenchContent() {
     loadRealStats();
   }, [loadRealStats]);
 
-  // Периодическое обновление (раз в 30 секунд) - БЕЗ ВИЗУАЛЬНОЙ ЗАГРУЗКИ!
+  // Периодическое обновление (раз в 30 секунд)
   useEffect(() => {
     if (!isInitialized) return;
     
@@ -189,12 +195,37 @@ function WorkbenchContent() {
     return () => clearInterval(interval);
   }, [isInitialized]);
 
+  // Загрузка количества непрочитанных уведомлений
+  const loadUnreadCount = useCallback(async () => {
+    if (!isAuthenticated || !user) return;
+    
+    try {
+      // Здесь будет реальный запрос к API
+      // const response = await fetch(`/api/notifications/unread-count?userId=${user.id}`);
+      // const data = await response.json();
+      // setUnreadNotificationsCount(data.count || 0);
+      
+      // Пока оставляем тестовое значение
+      setUnreadNotificationsCount(3);
+    } catch (error) {
+      console.error('Ошибка загрузки уведомлений:', error);
+    }
+  }, [isAuthenticated, user]);
+
+  // Загружаем уведомления при монтировании и периодически
+  useEffect(() => {
+    loadUnreadCount();
+    
+    const interval = setInterval(loadUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [loadUnreadCount]);
+
   const handleRulesClick = () => setIsRulesModalOpen(true);
   const handleCloseRulesModal = () => setIsRulesModalOpen(false);
   
   const handleAuthButtonClick = () => {
     if (isAuthenticated) {
-      alert("Переход в личный кабинет");
+      setIsProfileOpen(true);
     } else {
       setAuthModalOpen(true);
     }
@@ -234,6 +265,13 @@ function WorkbenchContent() {
         case "liked":
           alert("Загрузка понравившихся проектов...");
           break;
+        case "profile":
+          if (isAuthenticated) {
+            setIsProfileOpen(true);
+          } else {
+            setAuthModalOpen(true);
+          }
+          break;
         default:
           console.log(`Открываем: ${drawerId}`);
       }
@@ -254,16 +292,18 @@ function WorkbenchContent() {
     { id: "profile", label: "Мой профиль", icon: "👤", color: "#8B4513" },
     { id: "myprojects", label: "Мои проекты", icon: "🛠️", color: "#A0522D" },
     { id: "liked", label: "Понравилось", icon: "❤️", color: "#D2691E" },
-    { id: "myworkshop", label: "Моя мастерская", icon: "📸", color: "#CD853F" },
+    { id: "myworkshop", label: "Моя мастерская", icon: "🔨", color: "#CD853F" },
     { id: "support", label: "Помощь", icon: "🆘", color: "#D2691E" },
     { id: "logout", label: "Выйти", icon: "🚪", color: "#CD853F", action: () => logout() },
   ];
 
+  // ✅ МАССИВ С КНОПКОЙ УВЕДОМЛЕНИЙ
   const tools = [
     { id: "hammer", label: "Похвалить", icon: "🔨" },
     { id: "share", label: "Поделиться", icon: "📤" },
     { id: "heart", label: "Избранное", icon: "❤️" },
     { id: "pencil", label: "Комментировать", icon: "✏️" },
+    { id: "notifications", label: "Уведомления", icon: "🔔", action: () => setIsNotificationsOpen(true) },
     { id: "settings", label: "Настройки", icon: "⚙️", action: () => setIsSettingsOpen(true) },
   ];
 
@@ -305,17 +345,21 @@ function WorkbenchContent() {
           {tools.map((tool) => (
             <button
               key={tool.id}
-              className={`tool ${isMobile ? 'mobile' : ''}`}
+              className={`tool ${isMobile ? 'mobile' : ''} ${tool.id === 'notifications' && unreadNotificationsCount > 0 ? 'has-notifications' : ''}`}
               title={tool.label}
               onClick={tool.action}
               disabled={isLoading}
               style={{
                 flex: isMobile ? '0 0 auto' : '1 1 0',
-                minWidth: isMobile ? '90px' : 'auto'
+                minWidth: isMobile ? '90px' : 'auto',
+                position: 'relative'
               }}
             >
               <span className="tool-icon">{tool.icon}</span>
               <span className="tool-label">{tool.label}</span>
+              {tool.id === 'notifications' && unreadNotificationsCount > 0 && (
+                <span className="notification-badge">{unreadNotificationsCount}</span>
+              )}
             </button>
           ))}
         </div>
@@ -479,16 +523,34 @@ function WorkbenchContent() {
           currentUser={user}
         />
       )}
+      
       <RulesModal 
         isOpen={isRulesModalOpen} 
         onClose={handleCloseRulesModal} 
       />
+      
       <AuthModal 
         isOpen={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 
       />
+      
       {isSettingsOpen && (
         <SettingsModal onClose={() => setIsSettingsOpen(false)} />
+      )}
+      
+      {isProfileOpen && (
+        <ProfileModal 
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+        />
+      )}
+
+      {/* ✅ МОДАЛКА УВЕДОМЛЕНИЙ */}
+      {isNotificationsOpen && (
+        <NotificationsModal 
+          isOpen={isNotificationsOpen}
+          onClose={() => setIsNotificationsOpen(false)}
+        />
       )}
     </div>
   );

@@ -1,36 +1,24 @@
 // backend/src/routes/notifications.ts
-// Роуты для работы с уведомлениями
-
 import express from 'express';
 import { NotificationController } from '../controllers/notificationController';
 import { authenticate } from '../middleware/auth';
-import { requireAdmin } from '../middleware/admin';
 
 const router = express.Router();
 
-// Все маршруты требуют авторизации и прав администратора
+// Все маршруты требуют авторизации
 router.use(authenticate);
-router.use(requireAdmin);
 
-// Получение всех уведомлений
-router.get('/', NotificationController.getNotifications);
+// Основные маршруты для пользователей
+router.get('/', NotificationController.getUserNotifications);
+router.get('/unread-count', NotificationController.getUnreadCount);
+router.post('/read-all', NotificationController.markAllAsRead);
 
-// Получение количества непрочитанных
-router.get('/unread/count', NotificationController.getUnreadCount);
+// Настройки уведомлений
+router.get('/settings', NotificationController.getSettings);
+router.put('/settings', NotificationController.updateSettings);
 
-// Создание нового уведомления (для тестирования)
-router.post('/', NotificationController.createNotification);
-
-// Пометить уведомление как прочитанное
-router.put('/:id/read', NotificationController.markAsRead);
-
-// Пометить все как прочитанные
-router.put('/read-all', NotificationController.markAllAsRead);
-
-// Удалить уведомление
-router.delete('/:id', NotificationController.deleteNotification);
-
-// Удалить все уведомления
-router.delete('/', NotificationController.deleteAllNotifications);
+// Работа с конкретным уведомлением
+router.post('/:id/read', NotificationController.markAsRead);
+router.delete('/:id', NotificationController.delete);
 
 export default router;

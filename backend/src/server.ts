@@ -10,7 +10,9 @@ import authRoutes from './routes/auth';
 import ratingRoutes from './routes/rating';
 import statsRoutes from './routes/stats';
 import userRoutes from './routes/user';
+// Импорты для уведомлений
 import notificationRoutes from './routes/notifications';
+import adminNotificationRoutes from './routes/admin/notifications';
 import settingsRoutes from './routes/settings';
 import rulesRoutes from './routes/rules';
 import marketRoutes from './routes/market';
@@ -52,7 +54,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/rating', ratingRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/admin/notifications', notificationRoutes);
+
+// ✅ Маршруты для уведомлений (раздельные)
+app.use('/api/notifications', notificationRoutes);           // для обычных пользователей
+app.use('/api/admin/notifications', adminNotificationRoutes); // для админки
+
 app.use('/api/settings', settingsRoutes);
 app.use('/api/rules', rulesRoutes);
 app.use('/api/market', marketRoutes);
@@ -90,10 +96,13 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // Запуск сервера
 app.listen(PORT, () => {
-  console.log(`🚀 Сервер запущен на порту ${PORT}`);
-  console.log(`📁 База данных: ${process.env.DATABASE_URL?.split('@')[1] || 'не настроена'}`);
-  console.log(`🌍 Окружение: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📦 Лимит загрузки: 10MB`);
+  console.log('🚀 Сервер запущен на порту', PORT);
+  console.log('📁 База данных:', process.env.DATABASE_URL?.split('@')[1] || 'не настроена');
+  console.log('🌍 Окружение:', process.env.NODE_ENV || 'development');
+  console.log('📦 Лимит загрузки: 10MB');
+  console.log('📬 Маршруты уведомлений:');
+  console.log('   - /api/notifications (для пользователей)');
+  console.log('   - /api/admin/notifications (для админки)');
 });
 
 // Обработка завершения работы

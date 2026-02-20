@@ -86,3 +86,6 @@ const RatingBadge: React.FC<RatingBadgeProps> = ({
     </div>
   );
 };
+
+// ✅ ДОБАВЛЯЕМ ЭКСПОРТ
+export default RatingBadge;

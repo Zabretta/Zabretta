@@ -35,7 +35,7 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
     }
   }, [isOpen, user]);
 
-  // ✅ ИСПРАВЛЕНО: Функция загрузки уведомлений из реального API
+  // Загрузка уведомлений из API
   const loadNotifications = async (pageNum: number) => {
     if (!user) return;
     
@@ -65,8 +65,6 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
         
         setHasMore(pageNum < (totalPages || 1));
         setPage(pageNum);
-        
-        console.log(`✅ Загружено ${newNotifications?.length || 0} уведомлений`);
       }
     } catch (error) {
       console.error('❌ Ошибка загрузки уведомлений:', error);
@@ -75,11 +73,14 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
     }
   };
 
-  // ✅ ИСПРАВЛЕНО: Отметить как прочитанное через API
-  const handleMarkAsRead = async (notificationId: string) => {
+  // Клик по уведомлению - отмечаем как прочитанное
+  const handleNotificationClick = async (notification: Notification) => {
+    // Если уже прочитано - ничего не делаем
+    if (notification.read) return;
+    
     try {
       const token = localStorage.getItem('samodelkin_auth_token');
-      const response = await fetch(`http://localhost:3001/api/notifications/${notificationId}/read`, {
+      await fetch(`http://localhost:3001/api/notifications/${notification.id}/read`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -87,27 +88,25 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
         }
       });
       
-      if (!response.ok) {
-        throw new Error(`Ошибка отметки: ${response.status}`);
-      }
-      
       // Обновляем локальное состояние
       setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+        prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
       );
       
-      console.log(`✅ Уведомление ${notificationId} отмечено как прочитанное`);
+      console.log(`✅ Уведомление ${notification.id} отмечено как прочитанное`);
     } catch (error) {
       console.error('❌ Ошибка при отметке уведомления:', error);
     }
   };
 
-  // ✅ ИСПРАВЛЕНО: Отметить все как прочитанные через API
-  const handleMarkAllAsRead = async () => {
+  // Удаление уведомления
+  const handleDeleteNotification = async (e: React.MouseEvent, notificationId: string) => {
+    e.stopPropagation(); // Предотвращаем срабатывание клика на уведомлении
+    
     try {
       const token = localStorage.getItem('samodelkin_auth_token');
-      const response = await fetch('http://localhost:3001/api/notifications/read-all', {
-        method: 'POST',
+      const response = await fetch(`http://localhost:3001/api/notifications/${notificationId}`, {
+        method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -115,27 +114,36 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
       });
       
       if (!response.ok) {
-        throw new Error(`Ошибка отметки всех: ${response.status}`);
+        throw new Error(`Ошибка удаления: ${response.status}`);
       }
       
-      // Обновляем локальное состояние
+      // Удаляем из локального состояния
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      
+      console.log(`✅ Уведомление ${notificationId} удалено`);
+    } catch (error) {
+      console.error('❌ Ошибка при удалении уведомления:', error);
+    }
+  };
+
+  // Отметить все как прочитанные
+  const handleMarkAllAsRead = async () => {
+    try {
+      const token = localStorage.getItem('samodelkin_auth_token');
+      await fetch('http://localhost:3001/api/notifications/read-all', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       
       console.log('✅ Все уведомления отмечены как прочитанные');
     } catch (error) {
       console.error('❌ Ошибка при отметке всех уведомлений:', error);
     }
-  };
-
-  // Клик по уведомлению
-  const handleNotificationClick = (notification: Notification) => {
-    if (!notification.read) {
-      handleMarkAsRead(notification.id);
-    }
-    if (notification.link) {
-      window.location.href = notification.link;
-    }
-    onClose();
   };
 
   // Загрузить ещё
@@ -242,6 +250,22 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
                       {formatDate(notification.createdAt)}
                     </span>
                   </div>
+
+                  {/* Подсказка для непрочитанных */}
+                  {!notification.read && (
+                    <div className="notification-click-hint" title="Нажмите чтобы отметить прочитанным">
+                      ✓
+                    </div>
+                  )}
+
+                  {/* Корзина для удаления */}
+                  <button
+                    className="notification-delete-btn"
+                    onClick={(e) => handleDeleteNotification(e, notification.id)}
+                    title="Удалить уведомление"
+                  >
+                    🗑️
+                  </button>
                 </div>
               ))}
               
@@ -258,18 +282,11 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
           )}
         </div>
 
-        {/* Подвал со ссылкой на все уведомления */}
+        {/* Подвал с подсказкой */}
         <div className="notifications-footer">
-          <button 
-            className="view-all-btn"
-            onClick={() => {
-              onClose();
-              // TODO: Открыть профиль на вкладке уведомлений
-              console.log('Открыть все уведомления в профиле');
-            }}
-          >
-            Все уведомления в профиле →
-          </button>
+          <p className="footer-note">
+            Чтобы ответить на сообщение, перейдите в личный кабинет
+          </p>
         </div>
       </div>
     </div>

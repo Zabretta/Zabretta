@@ -415,19 +415,26 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     }
   };
 
+  // ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ handleContact
   const handleContact = async (itemId: string) => {
     setIsLoading(true);
     
     try {
+      // Находим объявление, чтобы получить его название
+      const item = items.find(i => i.id === itemId);
+      
+      if (!item) {
+        throw new Error('Объявление не найдено');
+      }
+      
       const result = await marketApi.contactAuthor({
         itemId: itemId,
-        message: "Здравствуйте! Я заинтересован в вашем объявлении",
+        message: `Здравствуйте! Я заинтересован в вашем объявлении "${item.title}"`,
         contactMethod: "message"
       });
       
       if (result.success) {
-        const item = items.find(i => i.id === itemId);
-        alert(`✅ Сообщение автору "${item?.author}" отправлено!`);
+        alert(`✅ Сообщение автору "${item.author}" отправлено!\n\nТекст сообщения:\nЗдравствуйте! Я заинтересован в вашем объявлении "${item.title}"`);
       }
       
     } catch (error) {

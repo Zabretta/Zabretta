@@ -199,6 +199,62 @@
   font-size: 12px;
 }
 
+/* Подсказка для непрочитанных */
+.notification-click-hint {
+  position: absolute;
+  right: 50px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  border: 2px solid #F5DEB3;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.notification-item:hover .notification-click-hint {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* Корзина для удаления */
+.notification-delete-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  background: rgba(139, 69, 19, 0.3);
+  border: 1px solid #8B4513;
+  border-radius: 6px;
+  color: #D4B28C;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  opacity: 0.5;
+  padding: 0;
+  z-index: 10;
+}
+
+.notification-delete-btn:hover {
+  opacity: 1;
+  background: rgba(255, 69, 0, 0.3);
+  border-color: #FF4500;
+  color: #FF4500;
+  transform: scale(1.1);
+}
+
 /* Загрузка */
 .notifications-loading {
   display: flex;
@@ -274,26 +330,34 @@
   cursor: not-allowed;
 }
 
-/* Подвал */
+/* Подвал с подсказкой */
 .notifications-footer {
-  padding: 15px 25px;
+  padding: 20px 25px;
   border-top: 2px solid rgba(139, 69, 19, 0.3);
   text-align: center;
+  background: rgba(26, 18, 11, 0.5);
+  border-radius: 0 0 20px 20px;
 }
 
-.view-all-btn {
-  background: transparent;
-  border: none;
+.footer-note {
   color: #D4B28C;
-  cursor: pointer;
-  transition: all 0.3s ease;
   font-size: 14px;
-  font-weight: 600;
+  margin: 0;
+  padding: 5px 10px;
+  background: rgba(210, 105, 30, 0.15);
+  border-radius: 20px;
+  display: inline-block;
+  border: 1px solid #D2691E;
+  line-height: 1.5;
+  max-width: 90%;
+  font-style: italic;
 }
 
-.view-all-btn:hover {
+.footer-note:hover {
+  background: rgba(210, 105, 30, 0.25);
+  border-color: #FF8C00;
   color: #F5DEB3;
-  text-decoration: underline;
+  transition: all 0.3s ease;
 }
 
 /* Анимация пульсации */
@@ -357,6 +421,21 @@
     font-size: 11px;
   }
 
+  .notification-click-hint {
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    right: 40px;
+  }
+
+  .notification-delete-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    bottom: 6px;
+    right: 6px;
+  }
+
   .empty-icon {
     font-size: 48px;
   }
@@ -368,12 +447,18 @@
   .empty-note {
     font-size: 13px;
   }
+
+  .footer-note {
+    font-size: 13px;
+    padding: 4px 8px;
+  }
 }
 
 @media (max-width: 480px) {
   .notification-item {
     flex-direction: column;
     align-items: flex-start;
+    padding-bottom: 40px;
   }
 
   .notification-icon-wrapper {
@@ -386,5 +471,26 @@
 
   .notification-message {
     font-size: 12px;
+  }
+
+  .notification-click-hint {
+    top: auto;
+    bottom: 10px;
+    right: 40px;
+    transform: none;
+  }
+
+  .notification-delete-btn {
+    bottom: 10px;
+    right: 10px;
+  }
+
+  .notification-item:hover .notification-click-hint {
+    transform: scale(1.1);
+  }
+
+  .footer-note {
+    font-size: 12px;
+    max-width: 100%;
   }
 }

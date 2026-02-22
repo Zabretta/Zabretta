@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { NotificationService } from '../services/notificationService';
 import { createSuccessResponse, createErrorResponse } from '../utils/response';
+import { prisma } from '../config/database'; // ✅ ДОБАВЛЕН ИМПОРТ
 
 export class NotificationController {
   
@@ -300,6 +301,63 @@ export class NotificationController {
     } catch (error) {
       console.error('Ошибка при удалении уведомления:', error);
       res.status(500).json(createErrorResponse('Ошибка при удалении уведомления'));
+    }
+  }
+
+  // ===== ДОБАВЛЕННЫЕ МЕТОДЫ ДЛЯ АДМИНКИ =====
+  
+  /**
+   * POST /api/admin/notifications/:id/read
+   * Отметить уведомление как прочитанное (админский метод)
+   */
+  static async markAdminAsRead(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'ADMIN') {
+        return res.status(403).json(createErrorResponse('Доступ запрещён'));
+      }
+
+      const { id } = req.params;
+      
+      // Получаем уведомление, чтобы узнать userId
+      const notification = await prisma.userNotification.findUnique({
+        where: { id }
+      });
+
+      if (!notification) {
+        return res.status(404).json(createErrorResponse('Уведомление не найдено'));
+      }
+
+      await NotificationService.markAsRead(notification.userId, id);
+      
+      res.json(createSuccessResponse({ success: true }));
+    } catch (error) {
+      console.error('Ошибка при отметке уведомления:', error);
+      res.status(500).json(createErrorResponse('Ошибка при отметке уведомления'));
+    }
+  }
+
+  /**
+   * POST /api/admin/notifications/read-all
+   * Отметить все уведомления пользователя как прочитанные (админский метод)
+   */
+  static async markAdminAllAsRead(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'ADMIN') {
+        return res.status(403).json(createErrorResponse('Доступ запрещён'));
+      }
+
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json(createErrorResponse('Не указан userId'));
+      }
+
+      await NotificationService.markAllAsRead(userId);
+      
+      res.json(createSuccessResponse({ success: true }));
+    } catch (error) {
+      console.error('Ошибка при отметке всех уведомлений:', error);
+      res.status(500).json(createErrorResponse('Ошибка при отметке всех уведомлений'));
     }
   }
 }

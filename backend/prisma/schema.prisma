@@ -37,7 +37,104 @@ model content {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   users       users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  likeRecords   Like[]
+  commentRecords Comment[]
+
+  @@map("content")
 }
+
+// ===== НОВЫЕ МОДЕЛИ =====
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  contentId String
+  createdAt DateTime @default(now())
+
+  user   users   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentId])
+  @@index([userId])
+  @@index([contentId])
+  @@map("likes")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  userId    String
+  contentId String
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    users   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([contentId])
+  @@index([createdAt])
+  @@map("comments")
+}
+
+model UserNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
+  @@map("user_notifications")
+}
+
+// МОДЕЛЬ ДЛЯ НАСТРОЕК УВЕДОМЛЕНИЙ
+model NotificationSetting {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  
+  emailEnabled   Boolean @default(true)
+  emailLikes     Boolean @default(true)
+  emailComments  Boolean @default(true)
+  emailMessages  Boolean @default(true)
+  
+  pushEnabled    Boolean @default(false)
+  pushLikes      Boolean @default(true)
+  pushComments   Boolean @default(true)
+  pushMessages   Boolean @default(true)
+  
+  siteLikes      Boolean @default(true)
+  siteComments   Boolean @default(true)
+  siteMessages   Boolean @default(true)
+  
+  quietHours     Boolean @default(false)
+  quietStart     Int?
+  quietEnd       Int?
+  
+  updatedAt      DateTime @updatedAt
+  
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_settings")
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  MESSAGE
+  SYSTEM
+  ACHIEVEMENT
+}
+
+// ===== СУЩЕСТВУЮЩИЕ МОДЕЛИ =====
 
 model rating_adjustments {
   id             String   @id @default(cuid())
@@ -87,13 +184,12 @@ model ruleAcceptance {
   @@map("rule_acceptances")
 }
 
-// 🔥 МОДЕЛЬ: Объявления в барахолке
 model marketItem {
   id             String        @id @default(cuid())
   title          String
   description    String
-  price          String        // "free" или число как строка
-  priceValue     Int?          // числовое значение цены (для сортировки)
+  price          String
+  priceValue     Int?
   location       String
   author         String
   authorId       String
@@ -102,13 +198,13 @@ model marketItem {
   imageUrl       String?
   negotiable     Boolean       @default(false)
   expirationDate DateTime?
-  duration       DurationType? // 2weeks, 1month, 2months
+  duration       DurationType?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   views          Int           @default(0)
   contacts       Int           @default(0)
-  category       ItemCategory? // категория товара
-  categoryId     String?       // связь с категорией
+  category       ItemCategory?
+  categoryId     String?
 
   users        users           @relation(fields: [authorId], references: [id], onDelete: Cascade)
   marketCategory marketCategory? @relation(fields: [categoryId], references: [id])
@@ -117,12 +213,11 @@ model marketItem {
   @@map("market_items")
 }
 
-// 🔥 МОДЕЛЬ: Категории товаров
 model marketCategory {
   id          String   @id @default(cuid())
   name        String   @unique
   label       String
-  icon        String?  // эмодзи или иконка
+  icon        String?
   order       Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -133,91 +228,39 @@ model marketCategory {
   @@map("market_categories")
 }
 
-// 🔥 МОДЕЛЬ: Сообщения между пользователями
+// ОБНОВЛЕННАЯ МОДЕЛЬ СООБЩЕНИЙ - ИСПРАВЛЕНО
 model marketMessage {
   id         String   @id @default(cuid())
+  parentId   String?  
   itemId     String
   fromUserId String
   toUserId   String
   message    String
   read       Boolean  @default(false)
-  contactMethod String // message, phone, email
+  contactMethod String
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt @default(now())  // Добавлено default(now())
 
-  item marketItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  // Связи
+  item     marketItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   fromUser users @relation("messages_from", fields: [fromUserId], references: [id])
   toUser   users @relation("messages_to", fields: [toUserId], references: [id])
+  
+  // Для древовидных ответов
+  parent   marketMessage? @relation("MessageReplies", fields: [parentId], references: [id])
+  replies  marketMessage[] @relation("MessageReplies")
 
+  // Индексы
+  @@index([itemId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([createdAt])
+  @@index([parentId])
+  
   @@map("market_messages")
 }
 
-// ===== НОВЫЕ МОДЕЛИ ДЛЯ УВЕДОМЛЕНИЙ =====
-
-// ✅ Модель для уведомлений (новая, без конфликтов)
-model UserNotification {
-  id        String   @id @default(cuid())
-  userId    String
-  type      NotificationType
-  title     String
-  message   String
-  link      String?
-  read      Boolean  @default(false)
-  readAt    DateTime?
-  createdAt DateTime @default(now())
-  
-  // Связь с пользователем
-  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, read])
-  @@index([createdAt])
-  @@map("user_notifications")
-}
-
-// ✅ Модель для настроек уведомлений
-model NotificationSetting {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  
-  // Email уведомления
-  emailEnabled   Boolean @default(true)
-  emailLikes     Boolean @default(true)
-  emailComments  Boolean @default(true)
-  emailMessages  Boolean @default(true)
-  
-  // Push уведомления
-  pushEnabled    Boolean @default(false)
-  pushLikes      Boolean @default(true)
-  pushComments   Boolean @default(true)
-  pushMessages   Boolean @default(true)
-  
-  // Внутренние уведомления
-  siteLikes      Boolean @default(true)
-  siteComments   Boolean @default(true)
-  siteMessages   Boolean @default(true)
-  
-  // Режим "Не беспокоить"
-  quietHours     Boolean @default(false)
-  quietStart     Int?
-  quietEnd       Int?
-  
-  updatedAt      DateTime @updatedAt
-  
-  // Связь с пользователем
-  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("notification_settings")
-}
-
-// ===== НОВЫЙ ENUM ДЛЯ УВЕДОМЛЕНИЙ =====
-enum NotificationType {
-  LIKE
-  COMMENT
-  MESSAGE
-  SYSTEM
-  ACHIEVEMENT
-}
-
-// ===== МОДЕЛЬ ПОЛЬЗОВАТЕЛЯ (обновлённая с новыми связями) =====
+// ===== МОДЕЛЬ ПОЛЬЗОВАТЕЛЯ =====
 model users {
   id                 String               @id @default(cuid())
   login              String               @unique
@@ -235,7 +278,12 @@ model users {
   passwordHash       String
   refreshToken       String?
   
-  // Существующие связи
+  // Настройки приватности
+  showPhone          Boolean              @default(false)
+  showEmail          Boolean              @default(false)
+  showCity           Boolean              @default(false)
+  
+  // Связи
   admin_logs         admin_logs[]
   content            content[]
   rating_adjustments rating_adjustments[]
@@ -245,12 +293,14 @@ model users {
   marketMessagesFrom marketMessage[]      @relation("messages_from")
   marketMessagesTo   marketMessage[]      @relation("messages_to")
   
-  // ⚠️ НОВЫЕ СВЯЗИ
   userNotifications  UserNotification[]
   notificationSetting NotificationSetting?
+  
+  likes              Like[]
+  comments           Comment[]
 }
 
-// Существующие ENUM
+// ENUM
 enum ContentStatus {
   DRAFT
   ACTIVE
@@ -279,7 +329,6 @@ enum UserRole {
   ADMIN
 }
 
-// ENUM для барахолки
 enum ItemType {
   SELL
   BUY

@@ -1,3 +1,4 @@
+// backend/src/services/marketService.ts
 import { prisma } from '../config/database';
 import { ItemType, DurationType, ItemCategory } from '@prisma/client';
 
@@ -16,8 +17,8 @@ export interface CreateItemData {
 }
 
 export interface MarketFilters {
-  type?: string; // Приходит из запроса как строка (sell, buy и т.д.)
-  category?: string; // Приходит из запроса как строка (tools, materials и т.д.)
+  type?: string;
+  category?: string;
   search?: string;
   page?: number;
   limit?: number;
@@ -31,6 +32,30 @@ export interface ContactAuthorData {
   toUserId: string;
 }
 
+export interface SendReplyData {
+  messageId: string;
+  fromUserId: string;
+  text: string;
+}
+
+export interface MessageThreadResponse {
+  thread: any[];
+  otherUser: {
+    id: string;
+    login: string;
+    name: string | null;
+    avatar: string | null;
+    phone?: string | null;
+    email?: string | null;
+  };
+  item: {
+    id: string;
+    title: string;
+    price: string | number;
+    imageUrl: string | null;
+  };
+}
+
 export class MarketService {
   /**
    * Получить объявления с фильтрацией
@@ -41,19 +66,14 @@ export class MarketService {
 
     const where: any = {};
 
-    // 🔥 ИСПРАВЛЕНИЕ: Преобразуем строковые значения в enum Prisma
     if (type) {
-      // Преобразуем "sell" → "SELL", "buy" → "BUY" и т.д.
       const typeEnum = type.toUpperCase() as ItemType;
       where.type = typeEnum;
-      console.log(`🔍 Фильтр по типу: "${type}" → "${typeEnum}"`);
     }
 
     if (category) {
-      // Преобразуем "tools" → "TOOLS" и т.д.
       const categoryEnum = category.toUpperCase() as ItemCategory;
       where.category = categoryEnum;
-      console.log(`🔍 Фильтр по категории: "${category}" → "${categoryEnum}"`);
     }
 
     if (search) {
@@ -63,10 +83,7 @@ export class MarketService {
         { author: { contains: search, mode: 'insensitive' } },
         { location: { contains: search, mode: 'insensitive' } }
       ];
-      console.log(`🔍 Поиск по строке: "${search}"`);
     }
-
-    console.log('📦 Итоговый where для Prisma:', JSON.stringify(where, null, 2));
 
     try {
       const [items, total] = await Promise.all([
@@ -88,9 +105,6 @@ export class MarketService {
         prisma.marketItem.count({ where })
       ]);
 
-      console.log(`✅ Найдено ${items.length} из ${total} объявлений`);
-
-      // Преобразуем в формат для фронтенда (строчные буквы)
       const formattedItems = items.map(item => ({
         id: item.id,
         title: item.title,
@@ -101,16 +115,16 @@ export class MarketService {
         author: item.author,
         authorId: item.authorId,
         rating: item.rating,
-        type: item.type.toLowerCase() as any, // SELL → sell
+        type: item.type.toLowerCase() as any,
         imageUrl: item.imageUrl || undefined,
         negotiable: item.negotiable,
         expirationDate: item.expirationDate?.toISOString(),
-        duration: item.duration?.toLowerCase() as any, // ONEMONTH → 1month
+        duration: item.duration?.toLowerCase() as any,
         createdAt: item.createdAt.toISOString(),
         updatedAt: item.updatedAt.toISOString(),
         views: item.views,
         contacts: item.contacts,
-        category: item.category?.toLowerCase() as any // TOOLS → tools
+        category: item.category?.toLowerCase() as any
       }));
 
       return {
@@ -129,29 +143,25 @@ export class MarketService {
    * Создать новое объявление
    */
   static async createItem(data: CreateItemData) {
-    console.log('📝 Создание объявления:', data);
-
-    // Рассчитываем дату истечения
-    const now = new Date();
-    const expirationDate = new Date(now);
-
-    switch (data.duration) {
-      case 'TWOWEEKS':
-        expirationDate.setDate(now.getDate() + 14);
-        break;
-      case 'ONEMONTH':
-        expirationDate.setMonth(now.getMonth() + 1);
-        break;
-      case 'TWOMONTHS':
-        expirationDate.setMonth(now.getMonth() + 2);
-        break;
-    }
-
-    // Подготавливаем цену
-    const price = data.price === 'free' ? 'free' : data.price.toString();
-    const priceValue = data.price === 'free' ? null : Number(data.price);
-
     try {
+      const now = new Date();
+      const expirationDate = new Date(now);
+
+      switch (data.duration) {
+        case 'TWOWEEKS':
+          expirationDate.setDate(now.getDate() + 14);
+          break;
+        case 'ONEMONTH':
+          expirationDate.setMonth(now.getMonth() + 1);
+          break;
+        case 'TWOMONTHS':
+          expirationDate.setMonth(now.getMonth() + 2);
+          break;
+      }
+
+      const price = data.price === 'free' ? 'free' : data.price.toString();
+      const priceValue = data.price === 'free' ? null : Number(data.price);
+
       const item = await prisma.marketItem.create({
         data: {
           title: data.title,
@@ -161,7 +171,7 @@ export class MarketService {
           location: data.location,
           author: data.author,
           authorId: data.authorId,
-          type: data.type, // Уже приходит как SELL, BUY и т.д.
+          type: data.type,
           category: data.category,
           imageUrl: data.imageUrl,
           negotiable: data.negotiable || false,
@@ -172,8 +182,6 @@ export class MarketService {
           contacts: 0
         }
       });
-
-      console.log(`✅ Объявление создано с ID: ${item.id}`);
 
       return {
         id: item.id,
@@ -191,11 +199,8 @@ export class MarketService {
    * Связаться с автором объявления
    */
   static async contactAuthor(data: ContactAuthorData) {
-    console.log('📧 Отправка сообщения:', data);
-
     try {
-      // Создаём сообщение
-      await prisma.marketMessage.create({
+      const message = await prisma.marketMessage.create({
         data: {
           itemId: data.itemId,
           fromUserId: data.fromUserId,
@@ -206,14 +211,35 @@ export class MarketService {
         }
       });
 
-      // Увеличиваем счётчик контактов
       await prisma.marketItem.update({
         where: { id: data.itemId },
         data: { contacts: { increment: 1 } }
       });
 
-      console.log('✅ Сообщение отправлено');
-      return { success: true };
+      const item = await prisma.marketItem.findUnique({
+        where: { id: data.itemId },
+        select: { title: true }
+      });
+
+      const fromUser = await prisma.users.findUnique({
+        where: { id: data.fromUserId },
+        select: { login: true }
+      });
+
+      if (item && fromUser) {
+        await prisma.userNotification.create({
+          data: {
+            userId: data.toUserId,
+            type: 'MESSAGE',
+            title: 'Новый запрос по объявлению',
+            message: `Пользователь ${fromUser.login} хочет связаться по поводу "${item.title}"`,
+            link: `/profile?tab=messages`,
+            read: false
+          }
+        });
+      }
+
+      return { success: true, message };
     } catch (error) {
       console.error('❌ Ошибка отправки сообщения:', error);
       throw error;
@@ -224,8 +250,6 @@ export class MarketService {
    * Получить объявление по ID
    */
   static async getItemById(id: string) {
-    console.log(`🔍 Поиск объявления по ID: ${id}`);
-
     try {
       const item = await prisma.marketItem.findUnique({
         where: { id },
@@ -244,13 +268,10 @@ export class MarketService {
         throw new Error('Объявление не найдено');
       }
 
-      // Увеличиваем счётчик просмотров
       await prisma.marketItem.update({
         where: { id },
         data: { views: { increment: 1 } }
       });
-
-      console.log(`✅ Объявление найдено: ${item.title}`);
 
       return {
         id: item.id,
@@ -283,10 +304,7 @@ export class MarketService {
    * Удалить объявление
    */
   static async deleteItem(id: string, userId: string) {
-    console.log(`🗑️ Удаление объявления ${id} пользователем ${userId}`);
-
     try {
-      // Проверяем, что пользователь - автор
       const item = await prisma.marketItem.findUnique({
         where: { id }
       });
@@ -303,7 +321,6 @@ export class MarketService {
         where: { id }
       });
 
-      console.log('✅ Объявление удалено');
       return { success: true };
     } catch (error) {
       console.error('❌ Ошибка удаления объявления:', error);
@@ -315,10 +332,7 @@ export class MarketService {
    * Обновить объявление
    */
   static async updateItem(id: string, userId: string, data: Partial<CreateItemData>) {
-    console.log(`📝 Обновление объявления ${id} пользователем ${userId}`);
-
     try {
-      // Проверяем, что пользователь - автор
       const item = await prisma.marketItem.findUnique({
         where: { id }
       });
@@ -333,23 +347,11 @@ export class MarketService {
 
       const updateData: any = { ...data };
 
-      // Обрабатываем цену, если передана
       if (data.price !== undefined) {
         updateData.price = data.price === 'free' ? 'free' : data.price.toString();
         updateData.priceValue = data.price === 'free' ? null : Number(data.price);
       }
 
-      // Обрабатываем тип, если передан (преобразуем в верхний регистр для enum)
-      if (data.type) {
-        updateData.type = data.type; // Уже должен быть SELL, BUY и т.д.
-      }
-
-      // Обрабатываем категорию, если передана
-      if (data.category) {
-        updateData.category = data.category; // Уже должна быть TOOLS, MATERIALS и т.д.
-      }
-
-      // Обрабатываем длительность, если передана
       if (data.duration) {
         const now = new Date();
         const expirationDate = new Date(now);
@@ -374,8 +376,6 @@ export class MarketService {
         data: updateData
       });
 
-      console.log('✅ Объявление обновлено');
-
       return {
         id: updatedItem.id,
         title: updatedItem.title,
@@ -392,10 +392,6 @@ export class MarketService {
    * Получить категории
    */
   static async getCategories() {
-    console.log('📋 Запрос категорий');
-    
-    // В реальном проекте здесь может быть отдельная таблица категорий
-    // Пока возвращаем статичный список
     return [
       { id: 'tools', name: 'tools', label: 'Инструменты', icon: '🔧' },
       { id: 'materials', name: 'materials', label: 'Материалы', icon: '📦' },
@@ -410,5 +406,305 @@ export class MarketService {
       { id: 'hammer', name: 'hammer', label: 'Кузнечное дело', icon: '🔨' },
       { id: 'other', name: 'other', label: 'Другое', icon: '📌' }
     ];
+  }
+
+  // ===== МЕТОДЫ ДЛЯ СООБЩЕНИЙ =====
+
+  /**
+   * Получить все сообщения пользователя
+   */
+  static async getUserMessages(userId: string) {
+    try {
+      const messages = await prisma.marketMessage.findMany({
+        where: {
+          OR: [
+            { fromUserId: userId },
+            { toUserId: userId }
+          ]
+        },
+        include: {
+          fromUser: {
+            select: {
+              id: true,
+              login: true,
+              name: true,
+              avatar: true
+            }
+          },
+          toUser: {
+            select: {
+              id: true,
+              login: true,
+              name: true,
+              avatar: true
+            }
+          },
+          item: {
+            select: {
+              id: true,
+              title: true,
+              price: true,
+              imageUrl: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      return messages;
+    } catch (error) {
+      console.error('❌ Ошибка получения сообщений:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Получить переписку по сообщению
+   */
+  static async getMessageThread(messageId: string, userId: string): Promise<MessageThreadResponse> {
+    try {
+      const originalMessage = await prisma.marketMessage.findUnique({
+        where: { id: messageId },
+        include: {
+          fromUser: {
+            select: {
+              id: true,
+              login: true,
+              name: true,
+              avatar: true
+            }
+          },
+          toUser: {
+            select: {
+              id: true,
+              login: true,
+              name: true,
+              avatar: true
+            }
+          },
+          item: {
+            select: {
+              id: true,
+              title: true,
+              price: true,
+              imageUrl: true
+            }
+          }
+        }
+      });
+
+      if (!originalMessage) {
+        throw new Error('Сообщение не найдено');
+      }
+
+      if (originalMessage.fromUserId !== userId && originalMessage.toUserId !== userId) {
+        throw new Error('Доступ запрещен');
+      }
+
+      const thread = await prisma.marketMessage.findMany({
+        where: {
+          itemId: originalMessage.itemId,
+          OR: [
+            {
+              fromUserId: originalMessage.fromUserId,
+              toUserId: originalMessage.toUserId
+            },
+            {
+              fromUserId: originalMessage.toUserId,
+              toUserId: originalMessage.fromUserId
+            }
+          ]
+        },
+        include: {
+          fromUser: {
+            select: {
+              id: true,
+              login: true,
+              name: true,
+              avatar: true
+            }
+          },
+          toUser: {
+            select: {
+              id: true,
+              login: true,
+              name: true,
+              avatar: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      });
+
+      const otherUserId = originalMessage.fromUserId === userId 
+        ? originalMessage.toUserId 
+        : originalMessage.fromUserId;
+
+      // Получаем данные собеседника без поля phone (показываем только login)
+      const otherUser = await prisma.users.findUnique({
+        where: { id: otherUserId },
+        select: {
+          id: true,
+          login: true,
+          name: true,
+          avatar: true
+        }
+      });
+
+      if (!otherUser) {
+        throw new Error('Пользователь не найден');
+      }
+
+      return {
+        thread,
+        otherUser: {
+          id: otherUser.id,
+          login: otherUser.login,
+          name: otherUser.name,
+          avatar: otherUser.avatar,
+          phone: null,
+          email: null
+        },
+        item: {
+          id: originalMessage.item.id,
+          title: originalMessage.item.title,
+          price: originalMessage.item.price,
+          imageUrl: originalMessage.item.imageUrl
+        }
+      };
+    } catch (error) {
+      console.error('❌ Ошибка получения переписки:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Отправить ответ на сообщение
+   */
+  static async sendReply(data: SendReplyData) {
+    try {
+      const originalMessage = await prisma.marketMessage.findUnique({
+        where: { id: data.messageId },
+        include: {
+          item: {
+            select: {
+              title: true
+            }
+          }
+        }
+      });
+
+      if (!originalMessage) {
+        throw new Error('Исходное сообщение не найдено');
+      }
+
+      const toUserId = originalMessage.fromUserId === data.fromUserId 
+        ? originalMessage.toUserId 
+        : originalMessage.fromUserId;
+
+      const newMessage = await prisma.marketMessage.create({
+        data: {
+          parentId: data.messageId,
+          itemId: originalMessage.itemId,
+          fromUserId: data.fromUserId,
+          toUserId,
+          message: data.text,
+          contactMethod: originalMessage.contactMethod,
+          read: false
+        },
+        include: {
+          fromUser: {
+            select: {
+              id: true,
+              login: true,
+              name: true,
+              avatar: true
+            }
+          },
+          toUser: {
+            select: {
+              id: true,
+              login: true,
+              name: true,
+              avatar: true
+            }
+          },
+          item: {
+            select: {
+              id: true,
+              title: true
+            }
+          }
+        }
+      });
+
+      await prisma.userNotification.create({
+        data: {
+          userId: toUserId,
+          type: 'MESSAGE',
+          title: 'Новый ответ',
+          message: `Вам ответили по объявлению "${originalMessage.item?.title || 'Без названия'}"`,
+          link: `/profile?tab=messages`,
+          read: false
+        }
+      });
+
+      return newMessage;
+    } catch (error) {
+      console.error('❌ Ошибка отправки ответа:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Отметить сообщение как прочитанное
+   */
+  static async markMessageAsRead(messageId: string, userId: string) {
+    try {
+      const message = await prisma.marketMessage.findUnique({
+        where: { id: messageId }
+      });
+
+      if (!message) {
+        throw new Error('Сообщение не найдено');
+      }
+
+      if (message.toUserId !== userId) {
+        throw new Error('Нет прав на отметку этого сообщения');
+      }
+
+      const updatedMessage = await prisma.marketMessage.update({
+        where: { id: messageId },
+        data: { read: true }
+      });
+
+      return updatedMessage;
+    } catch (error) {
+      console.error('❌ Ошибка отметки сообщения:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Получить количество непрочитанных сообщений
+   */
+  static async getUnreadCount(userId: string) {
+    try {
+      const count = await prisma.marketMessage.count({
+        where: {
+          toUserId: userId,
+          read: false
+        }
+      });
+
+      return count;
+    } catch (error) {
+      console.error('❌ Ошибка получения количества непрочитанных:', error);
+      throw error;
+    }
   }
 }

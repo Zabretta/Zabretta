@@ -21,4 +21,7 @@ router.get('/content', UserController.getUserContent);
 router.get('/activity', UserController.getUserActivity);
 router.get('/stats', UserController.getUserStats);
 
+// ✅ НОВЫЙ МАРШРУТ: Статистика для личного кабинета
+router.get('/dashboard-stats', UserController.getDashboardStats);
+
 export default router;

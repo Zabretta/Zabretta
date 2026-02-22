@@ -40,6 +40,9 @@ export interface NotificationSettings {
   siteLikes: boolean;
   siteComments: boolean;
   siteMessages: boolean;
+  quietHours?: boolean;
+  quietStart?: number | null;
+  quietEnd?: number | null;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -64,24 +67,103 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-    credentials: 'include',
-  });
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Неизвестная ошибка' }));
-    throw new Error(error.error || `Ошибка ${response.status}`);
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      console.error(`❌ Ошибка ${response.status}:`, responseData);
+      throw new Error(responseData.error || `Ошибка ${response.status}`);
+    }
+
+    return responseData.data;
+  } catch (error) {
+    console.error(`❌ Ошибка запроса к ${endpoint}:`, error);
+    throw error;
   }
-
-  const result = await response.json();
-  return result.data;
 };
 
 // ========== ОБЩИЙ API ДЛЯ УВЕДОМЛЕНИЙ ==========
 export const notificationsApi = {
-  // ===== МЕТОДЫ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ (User) =====
+  // ===== МЕТОДЫ ДЛЯ АДМИНИСТРАТОРОВ =====
+
+  /**
+   * Получить все уведомления (для админки)
+   */
+  async getNotifications(): Promise<AdminNotification[]> {
+    try {
+      const result = await fetchWithAuth('/api/admin/notifications');
+      return result || [];
+    } catch (error) {
+      console.error('Ошибка при получении уведомлений:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Пометить уведомление как прочитанное (для админки)
+   */
+  async markAsRead(id: number | string): Promise<void> {
+    try {
+      await fetchWithAuth(`/api/admin/notifications/${id}/read`, {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error(`Ошибка при отметке уведомления ${id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Пометить все уведомления как прочитанные (для админки)
+   */
+  async markAllAsRead(userId: string): Promise<void> {
+    try {
+      await fetchWithAuth('/api/admin/notifications/read-all', {
+        method: 'POST',
+        body: JSON.stringify({ userId })
+      });
+    } catch (error) {
+      console.error('Ошибка при отметке всех уведомлений:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Создать новое уведомление (для тестирования или рассылки)
+   */
+  async createNotification(text: string, type: AdminNotification['type'] = 'system'): Promise<AdminNotification> {
+    try {
+      const result = await fetchWithAuth('/api/admin/notifications', {
+        method: 'POST',
+        body: JSON.stringify({ text, type: type.toUpperCase() }),
+      });
+      return result;
+    } catch (error) {
+      console.error('Ошибка при создании уведомления:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Получить количество непрочитанных уведомлений для админки
+   */
+  async getAdminUnreadCount(): Promise<number> {
+    try {
+      const result = await fetchWithAuth('/api/admin/notifications/unread/count');
+      return result?.count || 0;
+    } catch (error) {
+      console.error('Ошибка при получении количества уведомлений:', error);
+      return 0;
+    }
+  },
+
+  // ===== МЕТОДЫ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ =====
   
   /**
    * Получить уведомления текущего пользователя
@@ -154,88 +236,31 @@ export const notificationsApi = {
    * Получить настройки уведомлений текущего пользователя
    */
   async getMySettings(): Promise<NotificationSettings> {
-    return fetchWithAuth('/api/notifications/settings');
+    try {
+      const result = await fetchWithAuth('/api/notifications/settings');
+      console.log('📥 getMySettings ответ:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Ошибка получения настроек:', error);
+      throw error;
+    }
   },
 
   /**
    * Обновить настройки уведомлений текущего пользователя
    */
   async updateMySettings(settings: Partial<NotificationSettings>): Promise<NotificationSettings> {
-    return fetchWithAuth('/api/notifications/settings', {
-      method: 'PUT',
-      body: JSON.stringify(settings)
-    });
-  },
-
-  // ===== МЕТОДЫ ДЛЯ АДМИНИСТРАТОРОВ (Admin) =====
-
-  /**
-   * Получить все уведомления (для админки)
-   */
-  async getAllNotifications(): Promise<AdminNotification[]> {
     try {
-      const result = await fetchWithAuth('/api/admin/notifications');
-      return result || [];
-    } catch (error) {
-      console.error('Ошибка при получении уведомлений:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Пометить уведомление как прочитанное (для админки)
-   */
-  async markAsRead(id: number): Promise<void> {
-    try {
-      await fetchWithAuth(`/api/admin/notifications/${id}/read`, {
+      console.log('📤 updateMySettings отправка:', settings);
+      const result = await fetchWithAuth('/api/notifications/settings', {
         method: 'PUT',
+        body: JSON.stringify(settings)
       });
-    } catch (error) {
-      console.error(`Ошибка при отметке уведомления ${id}:`, error);
-      throw error;
-    }
-  },
-
-  /**
-   * Пометить все уведомления как прочитанные (для админки)
-   */
-  async markAllAsRead(): Promise<void> {
-    try {
-      await fetchWithAuth('/api/admin/notifications/read-all', {
-        method: 'PUT',
-      });
-    } catch (error) {
-      console.error('Ошибка при отметке всех уведомлений:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Создать новое уведомление (для тестирования или рассылки)
-   */
-  async createNotification(text: string, type: AdminNotification['type'] = 'system'): Promise<AdminNotification> {
-    try {
-      const result = await fetchWithAuth('/api/admin/notifications', {
-        method: 'POST',
-        body: JSON.stringify({ text, type: type.toUpperCase() }),
-      });
+      console.log('✅ updateMySettings ответ:', result);
       return result;
     } catch (error) {
-      console.error('Ошибка при создании уведомления:', error);
+      console.error('❌ Ошибка обновления настроек:', error);
       throw error;
-    }
-  },
-
-  /**
-   * Получить количество непрочитанных уведомлений для админки
-   */
-  async getAdminUnreadCount(): Promise<number> {
-    try {
-      const result = await fetchWithAuth('/api/admin/notifications/unread/count');
-      return result?.count || 0;
-    } catch (error) {
-      console.error('Ошибка при получении количества уведомлений:', error);
-      return 0;
     }
   },
 

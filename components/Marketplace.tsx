@@ -348,6 +348,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         price = 0;
       }
       
+      // 🔥 ИСПРАВЛЕНО: category передаётся как null, если не выбрана
       const newItemData = {
         title: title.trim(),
         description: description.trim(),
@@ -355,7 +356,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         location: location.trim(),
         type: type,
         author: currentUser.login,
-        category: category,
+        category: category || null, // ← категория может быть null
         imageUrl: imageUrl,
         negotiable: negotiable,
         duration: selectedDuration,
@@ -366,7 +367,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         imageUrl: imageUrl ? `Data URL (${Math.round(imageUrl.length / 1024)}KB)` : 'нет фото',
         price: price === "free" ? "бесплатно" : `${price} ₽`,
         negotiable: negotiable,
-        category: category || 'не выбрана'
+        category: category || 'не выбрана (null)'
       });
       
       const result = await marketApi.createItem(newItemData);

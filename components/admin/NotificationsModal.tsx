@@ -1,7 +1,7 @@
 // components/admin/NotificationsModal.tsx
 "use client";
 
-import { useState } from 'react'; // <-- ДОБАВЛЕНО
+import { useState, useEffect } from 'react';
 import { useNotifications } from './NotificationsContext';
 import './NotificationsModal.css';
 
@@ -11,19 +11,22 @@ export default function NotificationsModal() {
     closeNotificationsModal,
     notifications,
     unreadCount,
-    isLoading,
     markAsRead,
     markAllAsRead
   } = useNotifications();
 
-  // ДОБАВЛЕНО: состояние для нового уведомления
   const [newNotificationText, setNewNotificationText] = useState('');
   const [isAddingNotification, setIsAddingNotification] = useState(false);
 
-  // Если модальное окно закрыто, ничего не рендерим
+  useEffect(() => {
+    if (isNotificationsModalOpen && notifications.length > 0) {
+      console.log('📨 Уведомления в модалке:', notifications);
+      console.log('📊 unreadCount:', unreadCount);
+    }
+  }, [isNotificationsModalOpen, notifications, unreadCount]);
+
   if (!isNotificationsModalOpen) return null;
 
-  // Получаем иконку в зависимости от типа уведомления
   const getNotificationIcon = (type?: string) => {
     switch (type) {
       case 'user': return '👤';
@@ -34,7 +37,6 @@ export default function NotificationsModal() {
     }
   };
 
-  // Получаем цвет класса в зависимости от типа
   const getNotificationTypeClass = (type?: string) => {
     switch (type) {
       case 'user': return 'type-user';
@@ -45,15 +47,56 @@ export default function NotificationsModal() {
     }
   };
 
-  const handleNotificationClick = (notificationId: number, link?: string) => {
-    markAsRead(notificationId);
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Неизвестно';
     
-    if (link) {
-      console.log('Переход по ссылке:', link);
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return 'только что';
+      if (diffMins < 60) return `${diffMins} мин назад`;
+      if (diffHours < 24) return `${diffHours} ч назад`;
+      if (diffDays === 1) return 'вчера';
+      if (diffDays < 7) return `${diffDays} дн назад`;
+      return date.toLocaleDateString('ru-RU');
+    } catch (e) {
+      return 'Неизвестно';
     }
   };
 
-  // ОБНОВЛЕННАЯ ФУНКЦИЯ: добавление реального уведомления
+  const getNotificationText = (notification: any): string => {
+    return notification.text || 
+           notification.message || 
+           notification.description || 
+           notification.content || 
+           'Нет текста';
+  };
+
+  const handleNotificationClick = (notificationId: string | number, link?: string) => {
+    const id = String(notificationId);
+    markAsRead(id);
+    
+    if (link) {
+      window.location.href = link;
+    }
+  };
+
+  const handleMarkButtonClick = (e: React.MouseEvent, notificationId: string | number) => {
+    e.stopPropagation();
+    const id = String(notificationId);
+    markAsRead(id);
+  };
+
+  const handleMarkAllClick = () => {
+    markAllAsRead();
+  };
+
+  // ✅ ВРЕМЕННАЯ ФУНКЦИЯ для тестирования
   const handleAddTestNotification = async () => {
     if (!newNotificationText.trim()) {
       alert('Введите текст уведомления');
@@ -63,26 +106,10 @@ export default function NotificationsModal() {
     setIsAddingNotification(true);
     
     try {
-      // Добавляем новое уведомление в список
-      const newNotification = {
-        id: notifications.length > 0 ? Math.max(...notifications.map(n => n.id)) + 1 : 1,
-        text: newNotificationText,
-        time: 'Только что',
-        read: false,
-        type: 'system' as const
-      };
-
-      // В реальном приложении здесь будет вызов API:
-      // await mockAPI.notifications.createNotification(newNotificationText, 'system');
+      // Пока просто имитируем отправку
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Пока просто добавляем локально
-      const updatedNotifications = [newNotification, ...notifications];
-      
-      // Обновляем контекст (в реальном приложении нужно будет обновить логику контекста)
-      console.log('✅ Добавлено новое уведомление:', newNotification);
-      alert(`Уведомление добавлено: "${newNotificationText}"`);
-      
-      // Очищаем поле ввода
+      alert(`✅ Уведомление отправлено (тест): "${newNotificationText}"`);
       setNewNotificationText('');
       
     } catch (error) {
@@ -93,7 +120,6 @@ export default function NotificationsModal() {
     }
   };
 
-  // Обработчик нажатия Enter в поле ввода
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -118,7 +144,7 @@ export default function NotificationsModal() {
             {unreadCount > 0 && (
               <button 
                 className="action-btn tertiary mark-all-btn"
-                onClick={markAllAsRead}
+                onClick={handleMarkAllClick}
                 title="Пометить все как прочитанные"
               >
                 📋 Прочитать все
@@ -135,7 +161,7 @@ export default function NotificationsModal() {
         </div>
 
         <div className="modal-content notifications-content">
-          {/* ДОБАВЛЕНО: форма для нового уведомления */}
+          {/* Форма для нового уведомления */}
           <div className="add-notification-form">
             <div className="form-group">
               <label htmlFor="notification-text">Новое уведомление:</label>
@@ -149,15 +175,17 @@ export default function NotificationsModal() {
                 rows={3}
                 disabled={isAddingNotification}
               />
+              <button 
+                className="action-btn text-notification" // ✅ ИСПРАВЛЕНО: используем правильный класс
+                onClick={handleAddTestNotification}
+                disabled={isAddingNotification || !newNotificationText.trim()}
+              >
+                {isAddingNotification ? '⏳ Добавление...' : '📝 Добавить уведомление'}
+              </button>
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="loading-state">
-              <div className="loading-spinner"></div>
-              <p className="loading-text">Загрузка уведомлений...</p>
-            </div>
-          ) : notifications.length === 0 ? (
+          {notifications.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">📭</div>
               <h3>Уведомлений пока нет</h3>
@@ -165,45 +193,46 @@ export default function NotificationsModal() {
             </div>
           ) : (
             <div className="notifications-list">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`notification-item ${getNotificationTypeClass(notification.type)} ${
-                    notification.read ? 'read' : 'unread'
-                  }`}
-                  onClick={() => handleNotificationClick(notification.id, notification.link)}
-                >
-                  <div className="notification-icon">
-                    {getNotificationIcon(notification.type)}
-                  </div>
-                  
-                  <div className="notification-content">
-                    <div className="notification-text">
-                      {notification.text}
-                      {notification.link && (
-                        <span className="notification-link-hint"> →</span>
-                      )}
-                    </div>
-                    <div className="notification-meta">
-                      <span className="notification-time">{notification.time}</span>
-                      {!notification.read && (
-                        <span className="unread-dot" title="Непрочитанное"></span>
-                      )}
-                    </div>
-                  </div>
-
-                  <button
-                    className="notification-mark-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      markAsRead(notification.id);
-                    }}
-                    title={notification.read ? "Прочитано" : "Пометить как прочитанное"}
+              {notifications.map((notification) => {
+                return (
+                  <div
+                    key={notification.id}
+                    className={`notification-item ${getNotificationTypeClass(notification.type)} ${
+                      notification.read ? 'read' : 'unread'
+                    }`}
+                    onClick={() => handleNotificationClick(notification.id, notification.link)}
                   >
-                    {notification.read ? '✓' : '○'}
-                  </button>
-                </div>
-              ))}
+                    <div className="notification-icon">
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    
+                    <div className="notification-content">
+                      <div className="notification-text">
+                        {getNotificationText(notification)}
+                        {notification.link && (
+                          <span className="notification-link-hint"> →</span>
+                        )}
+                      </div>
+                      <div className="notification-meta">
+                        <span className="notification-time">
+                          {formatDate(notification.createdAt)}
+                        </span>
+                        {!notification.read && (
+                          <span className="unread-dot" title="Непрочитанное"></span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      className="notification-mark-btn"
+                      onClick={(e) => handleMarkButtonClick(e, notification.id)}
+                      title={notification.read ? "Прочитано" : "Пометить как прочитанное"}
+                    >
+                      {notification.read ? '✓' : '○'}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -223,14 +252,6 @@ export default function NotificationsModal() {
               onClick={closeNotificationsModal}
             >
               Закрыть
-            </button>
-            <button 
-              className="action-btn text-notification" 
-              onClick={handleAddTestNotification}
-              disabled={isAddingNotification || !newNotificationText.trim()}
-              title={newNotificationText.trim() ? "Добавить уведомление" : "Введите текст уведомления"}
-            >
-              {isAddingNotification ? '⏳ Добавляется...' : '📝 Добавить уведомление'}
             </button>
           </div>
         </div>

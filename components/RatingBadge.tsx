@@ -23,6 +23,8 @@ const RatingBadge: React.FC<RatingBadgeProps> = ({
   showDetails = false,
   showOnlyIcon = false
 }) => {
+  console.log('🎨 RatingBadge рендер:', { rating, activity, level, icon, size });
+
   const getBadgeClass = () => {
     if (rating >= 2001) return 'rating-expert';
     if (rating >= 1001) return 'rating-professor';
@@ -87,5 +89,4 @@ const RatingBadge: React.FC<RatingBadgeProps> = ({
   );
 };
 
-// ✅ ДОБАВЛЯЕМ ЭКСПОРТ
 export default RatingBadge;

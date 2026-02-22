@@ -26,8 +26,8 @@ export class UserController {
         res.status(404).json(createErrorResponse('Пользователь не найден'));
         return;
       }
-      console.error('Get current user error:', error);
-      res.status(500).json(createErrorResponse('Ошибка при получении данных пользователя'));
+      console.error('Ошибка при получении данных о текущем пользователе:', error);
+      res.status(500).json(createErrorResponse('Ошибка при получении данных о пользователе'));
     }
   }
 
@@ -52,7 +52,7 @@ export class UserController {
       res.json(createSuccessResponse(updatedUser));
       
     } catch (error: any) {
-      console.error('Update profile error:', error);
+      console.error('Ошибка при обновлении профиля:', error);
       res.status(500).json(createErrorResponse('Ошибка при обновлении профиля'));
     }
   }
@@ -70,7 +70,6 @@ export class UserController {
 
       const { currentPassword, newPassword } = req.body;
 
-      // ИСПРАВЛЕНО: user → users
       const user = await prisma.users.findUnique({
         where: { id: req.user.id },
         select: { passwordHash: true }
@@ -90,7 +89,6 @@ export class UserController {
 
       const passwordHash = await bcrypt.hash(newPassword, 10);
 
-      // ИСПРАВЛЕНО: user → users
       await prisma.users.update({
         where: { id: req.user.id },
         data: { passwordHash }
@@ -99,8 +97,8 @@ export class UserController {
       res.json(createSuccessResponse({ success: true, message: 'Пароль успешно изменен' }));
       
     } catch (error) {
-      console.error('Change password error:', error);
-      res.status(500).json(createErrorResponse('Ошибка при изменении пароля'));
+      console.error('Ошибка при смене пароля:', error);
+      res.status(500).json(createErrorResponse('Ошибка при смене пароля'));
     }
   }
 
@@ -122,7 +120,6 @@ export class UserController {
         return;
       }
 
-      // ИСПРАВЛЕНО: user → users
       await prisma.users.update({
         where: { id: req.user.id },
         data: { 
@@ -136,7 +133,7 @@ export class UserController {
       }));
       
     } catch (error) {
-      console.error('Delete account error:', error);
+      console.error('Ошибка при удалении аккаунта:', error);
       res.status(500).json(createErrorResponse('Ошибка при удалении аккаунта'));
     }
   }
@@ -160,7 +157,6 @@ export class UserController {
       if (type) where.type = type;
       if (status) where.status = status;
 
-      // ИСПРАВЛЕНО: content → content (оставляем как есть)
       const [content, total] = await Promise.all([
         prisma.content.findMany({
           where,
@@ -197,8 +193,8 @@ export class UserController {
       }));
       
     } catch (error) {
-      console.error('Get user content error:', error);
-      res.status(500).json(createErrorResponse('Ошибка при получении контента пользователя'));
+      console.error('Ошибка при получении пользовательского контента:', error);
+      res.status(500).json(createErrorResponse('Ошибка при получении пользовательского контента'));
     }
   }
 
@@ -222,7 +218,6 @@ export class UserController {
         const start = new Date(date.setHours(0, 0, 0, 0));
         const end = new Date(date.setHours(23, 59, 59, 999));
 
-        // ИСПРАВЛЕНО: ratingAdjustment → rating_adjustments
         const [contentCreated, ratingChanges] = await Promise.all([
           prisma.content.count({
             where: {
@@ -257,7 +252,7 @@ export class UserController {
       }));
       
     } catch (error) {
-      console.error('Get user activity error:', error);
+      console.error('Ошибка при получении активности пользователя:', error);
       res.status(500).json(createErrorResponse('Ошибка при получении активности пользователя'));
     }
   }
@@ -281,14 +276,40 @@ export class UserController {
         res.status(404).json(createErrorResponse('Пользователь не найден'));
         return;
       }
-      console.error('Get user stats error:', error);
+      console.error('Ошибка при получении статистики пользователя:', error);
       res.status(500).json(createErrorResponse('Ошибка при получении статистики пользователя'));
+    }
+  }
+
+  // ===== НОВЫЙ МЕТОД =====
+
+  /**
+   * Получение полной статистики для личного кабинета
+   * GET /api/user/dashboard-stats
+   */
+  static async getDashboardStats(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json(createErrorResponse('Требуется авторизация'));
+        return;
+      }
+
+      const stats = await UserService.getUserDashboardStats(req.user.id);
+      res.json(createSuccessResponse(stats));
+      
+    } catch (error: any) {
+      if (error.message === 'Пользователь не найден') {
+        res.status(404).json(createErrorResponse('Пользователь не найден'));
+        return;
+      }
+      console.error('Ошибка при получении статистики для личного кабинета:', error);
+      res.status(500).json(createErrorResponse('Ошибка при получении статистики'));
     }
   }
 
   /**
    * Поиск пользователей
-   * GET /api/user/search?q=query&limit=10
+   * GET /api/user/search?q=запрос&limit=10
    */
   static async searchUsers(req: Request, res: Response): Promise<void> {
     try {
@@ -303,7 +324,7 @@ export class UserController {
       res.json(createSuccessResponse(users));
       
     } catch (error) {
-      console.error('Search users error:', error);
+      console.error('Ошибка при поиске пользователей:', error);
       res.status(500).json(createErrorResponse('Ошибка при поиске пользователей'));
     }
   }
@@ -325,7 +346,7 @@ export class UserController {
       res.json(createSuccessResponse(result));
       
     } catch (error) {
-      console.error('Check user exists error:', error);
+      console.error('Ошибка при проверке пользователя:', error);
       res.status(500).json(createErrorResponse('Ошибка при проверке пользователя'));
     }
   }
@@ -359,7 +380,7 @@ export class UserController {
         res.status(404).json(createErrorResponse('Пользователь не найден'));
         return;
       }
-      console.error('Get user profile error:', error);
+      console.error('Ошибка при получении профиля пользователя:', error);
       res.status(500).json(createErrorResponse('Ошибка при получении профиля пользователя'));
     }
   }

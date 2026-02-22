@@ -14,6 +14,12 @@ router.get('/', NotificationController.getAllNotifications);
 router.post('/', NotificationController.createNotification);
 router.post('/bulk', NotificationController.sendBulkNotification);
 router.get('/stats', NotificationController.getStats);
+
+// ✅ ДОБАВЛЕНО: Маршруты для отметки прочитанных уведомлений
+router.post('/:id/read', NotificationController.markAdminAsRead);
+router.post('/read-all', NotificationController.markAdminAllAsRead);
+
+// Удаление уведомления
 router.delete('/:id', NotificationController.deleteAsAdmin);
 
 export default router;

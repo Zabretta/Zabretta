@@ -35,88 +35,95 @@ const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose
     }
   }, [isOpen, user]);
 
-  // Функция загрузки уведомлений
+  // ✅ ИСПРАВЛЕНО: Функция загрузки уведомлений из реального API
   const loadNotifications = async (pageNum: number) => {
     if (!user) return;
     
     setIsLoading(true);
     try {
-      // Имитация загрузки с бэкенда
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const token = localStorage.getItem('samodelkin_auth_token');
+      const response = await fetch(`http://localhost:3001/api/notifications?page=${pageNum}&limit=10`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
-      // Тестовые данные
-      const mockNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'LIKE',
-          title: 'Новый лайк!',
-          message: 'Иван оценил ваш проект "Скамейка из дерева"',
-          link: '/projects/1',
-          read: false,
-          createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 минут назад
-        },
-        {
-          id: '2',
-          type: 'COMMENT',
-          title: 'Новый комментарий',
-          message: 'Мария оставила комментарий к вашему проекту "Табурет в стиле лофт"',
-          link: '/projects/2',
-          read: false,
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 часа назад
-        },
-        {
-          id: '3',
-          type: 'MESSAGE',
-          title: 'Запрос по объявлению',
-          message: 'Пользователь хочет связаться по поводу "Дрель Makita"',
-          link: '/market/messages/3',
-          read: true,
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 день назад
-        },
-        {
-          id: '4',
-          type: 'ACHIEVEMENT',
-          title: 'Новый уровень!',
-          message: 'Вы достигли уровня "Мастер"! Поздравляем!',
-          read: true,
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(), // 3 дня назад
-        },
-      ];
-      
-      if (pageNum === 1) {
-        setNotifications(mockNotifications);
-      } else {
-        setNotifications(prev => [...prev, ...mockNotifications]);
+      if (!response.ok) {
+        throw new Error(`Ошибка загрузки: ${response.status}`);
       }
       
-      setHasMore(pageNum < 3); // Для теста: всего 3 страницы
-      setPage(pageNum);
+      const result = await response.json();
+      
+      if (result.success) {
+        const { notifications: newNotifications, totalPages } = result.data;
+        
+        if (pageNum === 1) {
+          setNotifications(newNotifications || []);
+        } else {
+          setNotifications(prev => [...prev, ...(newNotifications || [])]);
+        }
+        
+        setHasMore(pageNum < (totalPages || 1));
+        setPage(pageNum);
+        
+        console.log(`✅ Загружено ${newNotifications?.length || 0} уведомлений`);
+      }
     } catch (error) {
-      console.error('Ошибка загрузки уведомлений:', error);
+      console.error('❌ Ошибка загрузки уведомлений:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Отметить как прочитанное
+  // ✅ ИСПРАВЛЕНО: Отметить как прочитанное через API
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      // Здесь будет запрос к API
+      const token = localStorage.getItem('samodelkin_auth_token');
+      const response = await fetch(`http://localhost:3001/api/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Ошибка отметки: ${response.status}`);
+      }
+      
+      // Обновляем локальное состояние
       setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
       );
+      
+      console.log(`✅ Уведомление ${notificationId} отмечено как прочитанное`);
     } catch (error) {
-      console.error('Ошибка при отметке уведомления:', error);
+      console.error('❌ Ошибка при отметке уведомления:', error);
     }
   };
 
-  // Отметить все как прочитанные
+  // ✅ ИСПРАВЛЕНО: Отметить все как прочитанные через API
   const handleMarkAllAsRead = async () => {
     try {
-      // Здесь будет запрос к API
+      const token = localStorage.getItem('samodelkin_auth_token');
+      const response = await fetch('http://localhost:3001/api/notifications/read-all', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Ошибка отметки всех: ${response.status}`);
+      }
+      
+      // Обновляем локальное состояние
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      
+      console.log('✅ Все уведомления отмечены как прочитанные');
     } catch (error) {
-      console.error('Ошибка при отметке всех уведомлений:', error);
+      console.error('❌ Ошибка при отметке всех уведомлений:', error);
     }
   };
 

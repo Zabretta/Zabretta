@@ -56,6 +56,64 @@ export interface MarketFilters {
   limit?: number;
 }
 
+// ===== ТИПЫ ДЛЯ СООБЩЕНИЙ =====
+export interface MarketMessage {
+  id: string;
+  parentId?: string | null;
+  itemId: string;
+  fromUserId: string;
+  toUserId: string;
+  message: string;
+  read: boolean;
+  contactMethod: string;
+  createdAt: string;
+  updatedAt: string;
+  fromUser?: {
+    id: string;
+    login: string;
+    name: string | null;
+    avatar: string | null;
+  };
+  toUser?: {
+    id: string;
+    login: string;
+    name: string | null;
+    avatar: string | null;
+  };
+  item?: {
+    id: string;
+    title: string;
+    price: string | number;
+    imageUrl: string | null;
+  };
+}
+
+export interface MessageThread {
+  thread: MarketMessage[];
+  otherUser: {
+    id: string;
+    login: string;
+    name: string | null;
+    avatar: string | null;
+    phone: string | null;
+    email: string | null;
+  };
+  item: {
+    id: string;
+    title: string;
+    price: string | number;
+    imageUrl: string | null;
+  };
+}
+
+export interface SendReplyData {
+  message: string;
+}
+
+export interface UnreadCountResponse {
+  count: number;
+}
+
 const getAuthToken = (): string | null => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('samodelkin_auth_token') || 
@@ -158,5 +216,52 @@ export const marketApi = {
    */
   getCategories: async (): Promise<{ id: string; name: string; label: string; icon?: string }[]> => {
     return fetchWithAuth('/market/categories');
+  },
+
+  // ===== МЕТОДЫ ДЛЯ СООБЩЕНИЙ =====
+
+  /**
+   * Получить все сообщения текущего пользователя
+   * GET /api/market/messages
+   */
+  getMessages: async (): Promise<MarketMessage[]> => {
+    return fetchWithAuth('/market/messages');
+  },
+
+  /**
+   * Получить переписку по сообщению
+   * GET /api/market/messages/:id/thread
+   */
+  getMessageThread: async (messageId: string): Promise<MessageThread> => {
+    return fetchWithAuth(`/market/messages/${messageId}/thread`);
+  },
+
+  /**
+   * Отправить ответ на сообщение
+   * POST /api/market/messages/:id/reply
+   */
+  sendReply: async (messageId: string, data: SendReplyData): Promise<MarketMessage> => {
+    return fetchWithAuth(`/market/messages/${messageId}/reply`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * Отметить сообщение как прочитанное
+   * PUT /api/market/messages/:id/read
+   */
+  markAsRead: async (messageId: string): Promise<MarketMessage> => {
+    return fetchWithAuth(`/market/messages/${messageId}/read`, {
+      method: 'PUT',
+    });
+  },
+
+  /**
+   * Получить количество непрочитанных сообщений
+   * GET /api/market/messages/unread/count
+   */
+  getUnreadCount: async (): Promise<UnreadCountResponse> => {
+    return fetchWithAuth('/market/messages/unread/count');
   },
 };

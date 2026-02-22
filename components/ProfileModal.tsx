@@ -1,9 +1,12 @@
 // components/ProfileModal.tsx
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useReducer } from 'react';
 import { useRating } from './RatingContext';
 import { useAuth } from './useAuth';
+import { userApi } from '@/lib/api/user';
+import { notificationsApi } from '@/lib/api/notifications';
+import { marketApi } from '@/lib/api/market';
 import RatingBadge from './RatingBadge';
 import './ProfileModal.css';
 
@@ -40,9 +43,121 @@ interface Notification {
   createdAt: string;
 }
 
+// Тип для сообщения из маркета
+interface MarketMessage {
+  id: string;
+  itemId: string;
+  fromUserId: string;
+  toUserId: string;
+  message: string;
+  read: boolean;
+  contactMethod: string;
+  createdAt: string;
+  fromUser?: {
+    id: string;
+    login: string;
+    phone?: string;
+    email?: string;
+  };
+  toUser?: {
+    id: string;
+    login: string;
+    phone?: string;
+    email?: string;
+  };
+  item?: {
+    id: string;
+    title: string;
+  };
+}
+
+// Тип для переписки
+interface MessageThread {
+  thread: MarketMessage[];
+  otherUser: {
+    id: string;
+    login: string;
+    phone: string | null;
+    email: string | null;
+  };
+  item: {
+    id: string;
+    title: string;
+  };
+}
+
+// Тип для ответа от API
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  timestamp: string;
+}
+
+// Тип для статистики из API
+interface DashboardStatsData {
+  user: {
+    id: string;
+    login: string;
+    name: string | null;
+    avatar: string | null;
+    rating: number;
+    activityPoints: number;
+    registeredAt: string;
+    lastLogin: string | null;
+  };
+  stats: {
+    projectsCreated: number;
+    mastersAdsCreated: number;
+    helpRequestsCreated: number;
+    libraryPostsCreated: number;
+    likesGiven: number;
+    likesReceived: number;
+    commentsMade: number;
+    commentsReceived: number;
+    totalViews: number;
+  };
+  totalContent: number;
+}
+
+// Тип для профиля пользователя из API
+interface UserProfile {
+  id: string;
+  login: string;
+  name: string | null;
+  avatar: string | null;
+  rating: number;
+  activityPoints: number;
+  createdAt: string;
+  lastLogin: string | null;
+  content: any[];
+}
+
+// Тип для настроек уведомлений
+interface NotificationSettings {
+  id?: string;
+  userId?: string;
+  emailEnabled: boolean;
+  emailLikes: boolean;
+  emailComments: boolean;
+  emailMessages: boolean;
+  pushEnabled: boolean;
+  pushLikes: boolean;
+  pushComments: boolean;
+  pushMessages: boolean;
+  siteLikes: boolean;
+  siteComments: boolean;
+  siteMessages: boolean;
+  quietHours: boolean;
+  quietStart: number | null;
+  quietEnd: number | null;
+}
+
 const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [avatarVersion, setAvatarVersion] = useState(0);
   const [editedName, setEditedName] = useState('');
   const [editedBio, setEditedBio] = useState('');
   const [editedLocation, setEditedLocation] = useState('');
@@ -57,9 +172,16 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [showPhone, setShowPhone] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showCity, setShowCity] = useState(false);
-  const [notifyMessages, setNotifyMessages] = useState(true);
-  const [notifyLikes, setNotifyLikes] = useState(true);
-  const [notifyComments, setNotifyComments] = useState(true);
+  
+  // Настройки уведомлений
+  const [notifyMessages, setNotifyMessages] = useState(false);
+  const [notifyLikes, setNotifyLikes] = useState(false);
+  const [notifyComments, setNotifyComments] = useState(false);
+  
+  // Флаги инициализации и изменений
+  const [settingsInitialized, setSettingsInitialized] = useState(false);
+  const [profileDataLoaded, setProfileDataLoaded] = useState(false);
+  const [settingsChanged, setSettingsChanged] = useState(false);
   
   // Состояния для уведомлений
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -67,23 +189,262 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [notificationsFilter, setNotificationsFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalNotifications, setTotalNotifications] = useState(0);
+  
+  // Состояния для сообщений из маркета
+  const [messages, setMessages] = useState<MarketMessage[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  
+  // Состояния для диалога
+  const [selectedMessage, setSelectedMessage] = useState<MarketMessage | null>(null);
+  const [messageThread, setMessageThread] = useState<MessageThread | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [isSendingReply, setIsSendingReply] = useState(false);
+  const [isLoadingThread, setIsLoadingThread] = useState(false);
+  
+  // Состояния для статистики
+  const [dashboardStats, setDashboardStats] = useState<DashboardStatsData | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
   
   const { user } = useAuth();
   const { userRating } = useRating();
 
+  // Принудительное обновление
+  const [, forceUpdate] = useReducer(x => x + 1, 0);
+
   // Приводим user к расширенному типу
   const extendedUser = user as ExtendedUser | null;
 
-  // Загружаем данные при открытии
+  // Функция сохранения настроек уведомлений
+  const saveNotificationSettingsWithValue = useCallback(async (settingsToSend: {
+    siteMessages: boolean;
+    siteLikes: boolean;
+    siteComments: boolean;
+  }) => {
+    if (!user) return;
+    
+    setIsSavingSettings(true);
+    
+    try {
+      await notificationsApi.updateMySettings(settingsToSend);
+      
+      // Дублируем в localStorage
+      localStorage.setItem(`notifyMessages_${user.id}`, JSON.stringify(settingsToSend.siteMessages));
+      localStorage.setItem(`notifyLikes_${user.id}`, JSON.stringify(settingsToSend.siteLikes));
+      localStorage.setItem(`notifyComments_${user.id}`, JSON.stringify(settingsToSend.siteComments));
+      
+      setSettingsChanged(false);
+      forceUpdate();
+      
+    } catch (error) {
+      console.error('Ошибка сохранения настроек уведомлений:', error);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }, [user]);
+
+  // Универсальный обработчик для всех чекбоксов уведомлений
+  const handleNotificationChange = async (
+    field: 'siteMessages' | 'siteLikes' | 'siteComments',
+    newValue: boolean
+  ) => {
+    // Обновляем соответствующее состояние
+    if (field === 'siteMessages') {
+      setNotifyMessages(newValue);
+    } else if (field === 'siteLikes') {
+      setNotifyLikes(newValue);
+    } else {
+      setNotifyComments(newValue);
+    }
+    
+    setSettingsChanged(true);
+    
+    // Формируем объект для отправки
+    const settingsToSend = {
+      siteMessages: field === 'siteMessages' ? newValue : notifyMessages,
+      siteLikes: field === 'siteLikes' ? newValue : notifyLikes,
+      siteComments: field === 'siteComments' ? newValue : notifyComments
+    };
+    
+    await saveNotificationSettingsWithValue(settingsToSend);
+  };
+
+  // Обработчики изменений чекбоксов приватности
+  const handleShowPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setShowPhone(e.target.checked);
+    setSettingsChanged(true);
+    forceUpdate();
+  };
+
+  const handleShowEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setShowEmail(e.target.checked);
+    setSettingsChanged(true);
+    forceUpdate();
+  };
+
+  const handleShowCityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setShowCity(e.target.checked);
+    setSettingsChanged(true);
+    forceUpdate();
+  };
+
+  // Функция сохранения всех настроек при выходе
+  const saveAllSettingsOnExit = useCallback(async () => {
+    if (!user || !settingsChanged) return;
+    
+    // Сохраняем настройки приватности в localStorage
+    localStorage.setItem(`setting_showPhone_${user.id}`, JSON.stringify(showPhone));
+    localStorage.setItem(`setting_showEmail_${user.id}`, JSON.stringify(showEmail));
+    localStorage.setItem(`setting_showCity_${user.id}`, JSON.stringify(showCity));
+    
+    // Сохраняем настройки уведомлений
+    await saveNotificationSettingsWithValue({
+      siteMessages: notifyMessages,
+      siteLikes: notifyLikes,
+      siteComments: notifyComments
+    });
+  }, [user, settingsChanged, showPhone, showEmail, showCity, notifyMessages, notifyLikes, notifyComments, saveNotificationSettingsWithValue]);
+
+  // Загрузка настроек уведомлений из API
+  const loadNotificationSettings = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const settings = await notificationsApi.getMySettings() as NotificationSettings;
+      
+      if (settings) {
+        setNotifyMessages(settings.siteMessages ?? false);
+        setNotifyLikes(settings.siteLikes ?? false);
+        setNotifyComments(settings.siteComments ?? false);
+        
+        // Синхронизируем с localStorage
+        localStorage.setItem(`notifyMessages_${user.id}`, JSON.stringify(settings.siteMessages ?? false));
+        localStorage.setItem(`notifyLikes_${user.id}`, JSON.stringify(settings.siteLikes ?? false));
+        localStorage.setItem(`notifyComments_${user.id}`, JSON.stringify(settings.siteComments ?? false));
+        
+        setSettingsInitialized(true);
+        setSettingsChanged(false);
+        forceUpdate();
+      }
+      
+    } catch (error) {
+      console.error('Ошибка загрузки настроек уведомлений:', error);
+      loadSettingsFromLocalStorage();
+    }
+  }, [user]);
+
+  // Загрузка из localStorage как запасной вариант
+  const loadSettingsFromLocalStorage = useCallback(() => {
+    if (!user) return;
+    
+    const savedMessages = localStorage.getItem(`notifyMessages_${user.id}`);
+    const savedLikes = localStorage.getItem(`notifyLikes_${user.id}`);
+    const savedComments = localStorage.getItem(`notifyComments_${user.id}`);
+    
+    setNotifyMessages(savedMessages ? JSON.parse(savedMessages) : false);
+    setNotifyLikes(savedLikes ? JSON.parse(savedLikes) : false);
+    setNotifyComments(savedComments ? JSON.parse(savedComments) : false);
+    
+    setSettingsInitialized(true);
+    setSettingsChanged(false);
+    forceUpdate();
+  }, [user]);
+
+  // Сохранение при закрытии модалки
   useEffect(() => {
-    if (extendedUser) {
+    if (!isOpen && settingsChanged) {
+      saveAllSettingsOnExit();
+    }
+  }, [isOpen, settingsChanged, saveAllSettingsOnExit]);
+
+  // Сохранение при смене пользователя
+  useEffect(() => {
+    if (settingsChanged) {
+      saveAllSettingsOnExit();
+    }
+  }, [user, settingsChanged, saveAllSettingsOnExit]);
+
+  // Загрузка настроек при открытии вкладки
+  useEffect(() => {
+    if (isOpen && user && activeTab === 'settings' && !settingsInitialized) {
+      loadNotificationSettings();
+    }
+  }, [isOpen, user, activeTab, settingsInitialized, loadNotificationSettings]);
+
+  // Сброс флагов при смене пользователя
+  useEffect(() => {
+    setSettingsInitialized(false);
+    setProfileDataLoaded(false);
+    setSettingsChanged(false);
+  }, [user]);
+
+  // Сброс флагов при закрытии модалки
+  useEffect(() => {
+    if (!isOpen) {
+      setSettingsInitialized(false);
+      setProfileDataLoaded(false);
+    }
+  }, [isOpen]);
+
+  // Загрузка статистики
+  const loadDashboardStats = useCallback(async () => {
+    if (!user) return;
+    
+    setIsLoadingStats(true);
+    try {
+      const response = await userApi.getDashboardStats();
+      const apiResponse = response as unknown as ApiResponse<DashboardStatsData>;
+      
+      if (apiResponse && apiResponse.success && apiResponse.data) {
+        setDashboardStats(apiResponse.data);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки статистики:', error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, [user]);
+
+  // Загрузка профиля из API
+  const loadUserProfile = useCallback(async () => {
+    if (!user || profileDataLoaded) return;
+    
+    try {
+      const userData = await userApi.getCurrentUser() as UserProfile;
+      
+      if (userData.name) {
+        setEditedName(userData.name);
+      }
+      
+      if (userData.avatar) {
+        setAvatarPreview(userData.avatar);
+        localStorage.setItem(`avatar_${user.id}`, userData.avatar);
+        setAvatarVersion(prev => prev + 1);
+      }
+      
+      setProfileDataLoaded(true);
+      
+    } catch (error) {
+      console.error('Ошибка загрузки профиля:', error);
+    }
+  }, [user, profileDataLoaded]);
+
+  // Загрузка данных при открытии
+  useEffect(() => {
+    if (isOpen && user && !profileDataLoaded) {
+      loadUserProfile();
+      loadDashboardStats();
+    }
+  }, [isOpen, user, profileDataLoaded, loadUserProfile, loadDashboardStats]);
+
+  // Загрузка локальных данных при открытии
+  useEffect(() => {
+    if (extendedUser && isOpen && !profileDataLoaded) {
       setEditedName(extendedUser.name || extendedUser.login || '');
       setEditedBio(extendedUser.bio || '');
       setEditedLocation(extendedUser.location || '');
       setEditedPhone(extendedUser.phone || '');
       
-      // Загружаем настройки из localStorage (временное решение)
+      // Загружаем настройки приватности из localStorage
       const savedShowPhone = localStorage.getItem(`setting_showPhone_${extendedUser.id}`);
       const savedShowEmail = localStorage.getItem(`setting_showEmail_${extendedUser.id}`);
       const savedShowCity = localStorage.getItem(`setting_showCity_${extendedUser.id}`);
@@ -92,28 +453,277 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       setShowEmail(savedShowEmail ? JSON.parse(savedShowEmail) : false);
       setShowCity(savedShowCity ? JSON.parse(savedShowCity) : false);
       
-      // Загружаем аватар
+      // Загружаем аватар из localStorage
       const savedAvatar = localStorage.getItem(`avatar_${extendedUser.id}`);
       setAvatarPreview(savedAvatar || extendedUser.avatar || null);
+      
+      forceUpdate();
     }
-  }, [extendedUser, isOpen]);
+  }, [extendedUser, isOpen, profileDataLoaded]);
 
-  // Загружаем уведомления при открытии вкладки
+  // Загрузка уведомлений при открытии вкладки
   useEffect(() => {
     if (activeTab === 'notifications' && user) {
       loadNotifications(1);
     }
   }, [activeTab, notificationsFilter, user]);
 
+  // Загрузка сообщений при открытии вкладки - ИСПОЛЬЗУЕМ marketApi
+  useEffect(() => {
+    if (activeTab === 'messages' && user) {
+      loadMarketMessages();
+    }
+  }, [activeTab, user]);
+
+  // Загрузка статистики при открытии вкладки
+  useEffect(() => {
+    if (activeTab === 'stats' && user) {
+      loadDashboardStats();
+    }
+  }, [activeTab, user]);
+
   // Сброс состояния при выходе из режима редактирования
   useEffect(() => {
-    if (!isEditing) {
+    if (!isEditing && extendedUser) {
       setAvatarFile(null);
-      setAvatarPreview(extendedUser?.avatar || null);
+      const savedAvatar = localStorage.getItem(`avatar_${extendedUser.id}`);
+      setAvatarPreview(savedAvatar || extendedUser.avatar || null);
+      setAvatarVersion(prev => prev + 1);
+      forceUpdate();
     }
   }, [isEditing, extendedUser]);
 
-  if (!isOpen || !extendedUser) return null;
+  // Загрузка переписки при выборе сообщения
+  useEffect(() => {
+    if (selectedMessage) {
+      loadMessageThread(selectedMessage.id);
+    }
+  }, [selectedMessage]);
+
+  // Загрузка сообщений через API
+  const loadMarketMessages = useCallback(async () => {
+    if (!user) return;
+    
+    setIsLoadingMessages(true);
+    try {
+      const messages = await marketApi.getMessages();
+      setMessages(messages);
+    } catch (error) {
+      console.error('Ошибка загрузки сообщений:', error);
+      setMessages([]);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }, [user]);
+
+  // Загрузка переписки через API
+  const loadMessageThread = async (messageId: string) => {
+    setIsLoadingThread(true);
+    try {
+      const thread = await marketApi.getMessageThread(messageId);
+      setMessageThread(thread);
+    } catch (error) {
+      console.error('Ошибка загрузки переписки:', error);
+    } finally {
+      setIsLoadingThread(false);
+    }
+  };
+
+  // Отправка ответа через API
+  const handleSendReply = async () => {
+    if (!selectedMessage || !replyText.trim()) return;
+    
+    setIsSendingReply(true);
+    try {
+      await marketApi.sendReply(selectedMessage.id, { message: replyText });
+      
+      // Обновляем список сообщений
+      await loadMarketMessages();
+      
+      // Обновляем переписку
+      await loadMessageThread(selectedMessage.id);
+      
+      setReplyText('');
+    } catch (error) {
+      console.error('Ошибка отправки ответа:', error);
+      alert('Не удалось отправить ответ');
+    } finally {
+      setIsSendingReply(false);
+    }
+  };
+
+  // Обработчик клика на сообщение
+  const handleMessageClick = async (message: MarketMessage) => {
+    // Отмечаем как прочитанное, если это входящее непрочитанное
+    if (!message.read && message.toUserId === user?.id) {
+      try {
+        await marketApi.markAsRead(message.id);
+        setMessages(prev =>
+          prev.map(m => m.id === message.id ? { ...m, read: true } : m)
+        );
+      } catch (err) {
+        console.error('Ошибка при отметке сообщения:', err);
+      }
+    }
+    
+    // Открываем модалку диалога
+    setSelectedMessage(message);
+  };
+
+  const loadNotifications = useCallback(async (page: number = 1) => {
+    if (!user) return;
+    
+    setIsLoadingNotifications(true);
+    try {
+      const token = localStorage.getItem('samodelkin_auth_token');
+      
+      let url = `http://localhost:3001/api/notifications?page=${page}&limit=10`;
+      
+      if (notificationsFilter !== 'all' && notificationsFilter !== 'unread') {
+        const typeMap: Record<string, string> = {
+          'likes': 'LIKE',
+          'comments': 'COMMENT',
+          'messages': 'MESSAGE',
+          'system': 'SYSTEM'
+        };
+        
+        const dbType = typeMap[notificationsFilter];
+        if (dbType) {
+          url += `&type=${dbType}`;
+        }
+      }
+      
+      if (notificationsFilter === 'unread') {
+        url += `&read=false`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Ошибка загрузки: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        const { notifications: newNotifications, totalPages } = result.data;
+        setNotifications(newNotifications || []);
+        setTotalPages(totalPages || 1);
+        setCurrentPage(page);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки уведомлений:', error);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  }, [user, notificationsFilter]);
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      const token = localStorage.getItem('samodelkin_auth_token');
+      const response = await fetch('http://localhost:3001/api/notifications/read-all', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Ошибка: ${response.status}`);
+      }
+      
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (error) {
+      console.error('Ошибка при отметке всех уведомлений:', error);
+    }
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.read) {
+      try {
+        const token = localStorage.getItem('samodelkin_auth_token');
+        await fetch(`http://localhost:3001/api/notifications/${notification.id}/read`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        setNotifications(prev =>
+          prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
+        );
+      } catch (error) {
+        console.error('Ошибка при отметке уведомления:', error);
+      }
+    }
+    
+    if (notification.link) {
+      window.location.href = notification.link;
+    }
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch(type) {
+      case 'LIKE': return '❤️';
+      case 'COMMENT': return '💬';
+      case 'MESSAGE': return '📦';
+      case 'ACHIEVEMENT': return '🏆';
+      case 'SYSTEM': return '⚙️';
+      default: return '🔔';
+    }
+  };
+
+  const formatNotificationDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'только что';
+    if (diffMins < 60) return `${diffMins} мин назад`;
+    if (diffHours < 24) return `${diffHours} ч назад`;
+    if (diffDays === 1) return 'вчера';
+    if (diffDays < 7) return `${diffDays} дн назад`;
+    return date.toLocaleDateString('ru-RU');
+  };
+
+  const formatMessageDate = (dateString: string) => {
+    return formatNotificationDate(dateString);
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Не указано';
+    return new Date(dateString).toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const tabs = [
+    { id: 'profile' as TabType, label: 'Профиль', icon: '👤' },
+    { id: 'stats' as TabType, label: 'Статистика', icon: '📊' },
+    { id: 'notifications' as TabType, label: 'Уведомления', icon: '🔔' },
+    { id: 'messages' as TabType, label: 'Сообщения', icon: '✉️' },
+    { id: 'settings' as TabType, label: 'Настройки', icon: '⚙️' }
+  ];
 
   // Функция сжатия изображения
   const compressImage = (file: File, maxWidth: number = 400, maxHeight: number = 400): Promise<File> => {
@@ -175,12 +785,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     });
   };
 
-  // Обработчик клика по кнопке загрузки фото
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  // Обработчик выбора файла
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -201,10 +809,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
         const reader = new FileReader();
         reader.onload = (event) => {
           setAvatarPreview(event.target?.result as string);
+          setAvatarVersion(prev => prev + 1);
+          forceUpdate();
         };
         reader.readAsDataURL(compressedFile);
         
-        console.log(`✅ Изображение сжато: ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB`);
       } catch (error) {
         console.error('Ошибка при обработке изображения:', error);
         alert('Не удалось обработать изображение');
@@ -212,223 +821,86 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleSaveProfile = () => {
-    // Сохраняем аватар в localStorage (временное решение)
-    if (avatarPreview) {
-      localStorage.setItem(`avatar_${extendedUser.id}`, avatarPreview);
+  const handleSaveProfile = async () => {
+    if (!extendedUser) return;
+    
+    try {
+      setIsLoading(true);
+      
+      const updateData: { name?: string; avatar?: string } = {};
+      
+      if (editedName !== extendedUser.name) {
+        updateData.name = editedName;
+      }
+      
+      if (avatarPreview && avatarPreview !== extendedUser.avatar) {
+        updateData.avatar = avatarPreview;
+      }
+      
+      if (Object.keys(updateData).length > 0) {
+        const updatedUser = await userApi.updateProfile(updateData);
+        
+        if (updateData.avatar) {
+          localStorage.setItem(`avatar_${extendedUser.id}`, updateData.avatar);
+        }
+      }
+      
+      // Сохраняем настройки приватности
+      localStorage.setItem(`setting_showPhone_${extendedUser.id}`, JSON.stringify(showPhone));
+      localStorage.setItem(`setting_showEmail_${extendedUser.id}`, JSON.stringify(showEmail));
+      localStorage.setItem(`setting_showCity_${extendedUser.id}`, JSON.stringify(showCity));
+      
+      // Сохраняем настройки уведомлений
+      await saveNotificationSettingsWithValue({
+        siteMessages: notifyMessages,
+        siteLikes: notifyLikes,
+        siteComments: notifyComments
+      });
+      
+      // Сбрасываем флаг загрузки профиля
+      setProfileDataLoaded(false);
+      await loadUserProfile();
+      await loadDashboardStats();
+      
+      alert('Профиль успешно сохранён!');
+      setIsEditing(false);
+      setSettingsChanged(false);
+      forceUpdate();
+      
+    } catch (error) {
+      console.error('Ошибка сохранения профиля:', error);
+      alert('Не удалось сохранить профиль. Попробуйте ещё раз.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Сохраняем настройки
-    localStorage.setItem(`setting_showPhone_${extendedUser.id}`, JSON.stringify(showPhone));
-    localStorage.setItem(`setting_showEmail_${extendedUser.id}`, JSON.stringify(showEmail));
-    localStorage.setItem(`setting_showCity_${extendedUser.id}`, JSON.stringify(showCity));
-    
-    console.log('Сохраняем профиль:', { 
-      editedName, 
-      editedBio, 
-      editedLocation,
-      editedPhone,
-      avatarFile: avatarFile?.name,
-      settings: { showPhone, showEmail, showCity }
-    });
-    
-    alert('Профиль сохранён!');
-    setIsEditing(false);
   };
 
   const handleCancelEdit = () => {
+    if (!extendedUser) return;
+    
     setEditedName(extendedUser.name || extendedUser.login || '');
     setEditedBio(extendedUser.bio || '');
     setEditedLocation(extendedUser.location || '');
     setEditedPhone(extendedUser.phone || '');
     setAvatarFile(null);
     setAvatarPreview(extendedUser.avatar || null);
+    setAvatarVersion(prev => prev + 1);
     setIsEditing(false);
+    forceUpdate();
   };
 
-  // Загрузка уведомлений
-  const loadNotifications = useCallback(async (page: number = 1) => {
-    if (!user) return;
-    
-    setIsLoadingNotifications(true);
-    try {
-      // Здесь будет реальный запрос к API
-      // const response = await fetch(`/api/notifications?userId=${user.id}&page=${page}&limit=20&filter=${notificationsFilter}`);
-      // const data = await response.json();
-      
-      // Имитация загрузки
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Тестовые данные
-      const mockNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'LIKE',
-          title: 'Новый лайк!',
-          message: 'Иван оценил ваш проект "Скамейка из дерева"',
-          link: '/projects/1',
-          read: false,
-          createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-        },
-        {
-          id: '2',
-          type: 'COMMENT',
-          title: 'Новый комментарий',
-          message: 'Мария оставила комментарий к вашему проекту "Табурет в стиле лофт"',
-          link: '/projects/2',
-          read: false,
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-        },
-        {
-          id: '3',
-          type: 'MESSAGE',
-          title: 'Запрос по объявлению',
-          message: 'Пользователь хочет связаться по поводу "Дрель Makita"',
-          link: '/market/messages/3',
-          read: true,
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-        },
-        {
-          id: '4',
-          type: 'ACHIEVEMENT',
-          title: 'Новый уровень!',
-          message: 'Вы достигли уровня "Мастер"! Поздравляем!',
-          read: true,
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-        },
-        {
-          id: '5',
-          type: 'LIKE',
-          title: 'Новый лайк!',
-          message: 'Анна оценила ваш проект "Полка для инструментов"',
-          link: '/projects/5',
-          read: false,
-          createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-        },
-        {
-          id: '6',
-          type: 'COMMENT',
-          title: 'Новый комментарий',
-          message: 'Дмитрий спрашивает: "А какие размеры?"',
-          link: '/projects/2',
-          read: true,
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-        },
-      ];
-      
-      // Фильтрация
-      let filtered = mockNotifications;
-      if (notificationsFilter === 'unread') {
-        filtered = mockNotifications.filter(n => !n.read);
-      } else if (notificationsFilter === 'likes') {
-        filtered = mockNotifications.filter(n => n.type === 'LIKE');
-      } else if (notificationsFilter === 'comments') {
-        filtered = mockNotifications.filter(n => n.type === 'COMMENT');
-      } else if (notificationsFilter === 'messages') {
-        filtered = mockNotifications.filter(n => n.type === 'MESSAGE');
-      }
-      
-      setNotifications(filtered);
-      setTotalPages(3);
-      setTotalNotifications(25);
-      setCurrentPage(page);
-    } catch (error) {
-      console.error('Ошибка загрузки уведомлений:', error);
-    } finally {
-      setIsLoadingNotifications(false);
-    }
-  }, [user, notificationsFilter]);
-
-  // Отметить все как прочитанные
-  const handleMarkAllNotificationsRead = async () => {
-    try {
-      // Здесь будет запрос к API
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    } catch (error) {
-      console.error('Ошибка при отметке всех уведомлений:', error);
-    }
-  };
-
-  // Клик по уведомлению
-  const handleNotificationClick = (notification: Notification) => {
-    if (!notification.read) {
-      setNotifications(prev =>
-        prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
-      );
-    }
-    if (notification.link) {
-      window.location.href = notification.link;
-    }
-  };
-
-  // Получить иконку для типа уведомления
-  const getNotificationIcon = (type: string) => {
-    switch(type) {
-      case 'LIKE': return '❤️';
-      case 'COMMENT': return '💬';
-      case 'MESSAGE': return '📦';
-      case 'ACHIEVEMENT': return '🏆';
-      case 'SYSTEM': return '⚙️';
-      default: return '🔔';
-    }
-  };
-
-  // Форматирование даты
-  const formatNotificationDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'только что';
-    if (diffMins < 60) return `${diffMins} мин назад`;
-    if (diffHours < 24) return `${diffHours} ч назад`;
-    if (diffDays === 1) return 'вчера';
-    if (diffDays < 7) return `${diffDays} дн назад`;
-    return date.toLocaleDateString('ru-RU');
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Не указано';
-    return new Date(dateString).toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const tabs = [
-    { id: 'profile' as TabType, label: 'Профиль', icon: '👤' },
-    { id: 'stats' as TabType, label: 'Статистика', icon: '📊' },
-    { id: 'notifications' as TabType, label: 'Уведомления', icon: '🔔' },
-    { id: 'messages' as TabType, label: 'Сообщения', icon: '✉️' },
-    { id: 'settings' as TabType, label: 'Настройки', icon: '⚙️' }
-  ];
+  if (!isOpen || !extendedUser) return null;
 
   return (
     <div className="profile-modal-overlay" onClick={onClose}>
       <div className="profile-modal-container" onClick={e => e.stopPropagation()}>
-        {/* Шапка */}
         <div className="profile-modal-header">
           <h2>МОЙ ПРОФИЛЬ</h2>
           <button className="profile-modal-close" onClick={onClose}>✕</button>
         </div>
 
-        {/* Верхняя панель с аватаром и основной информацией */}
         <div className="profile-header-panel">
           <div className="profile-avatar-container">
-            {/* Скрытый input для загрузки файла */}
             <input
               type="file"
               ref={fileInputRef}
@@ -437,17 +909,19 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
               style={{ display: 'none' }}
             />
             
-            {/* Аватар */}
             <div className="profile-avatar">
               {avatarPreview ? (
-                <img src={avatarPreview} alt={extendedUser.login} />
+                <img 
+                  key={avatarVersion}
+                  src={avatarPreview} 
+                  alt={extendedUser.login} 
+                />
               ) : (
                 <span className="profile-avatar-initials">
                   {getInitials(extendedUser.name || extendedUser.login)}
                 </span>
               )}
               
-              {/* Кнопка загрузки фото (видна только в режиме редактирования) */}
               {isEditing && (
                 <button 
                   className="avatar-upload-button"
@@ -459,7 +933,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
               )}
             </div>
             
-            {/* Подсказка под аватаром */}
             {isEditing && (
               <div className="avatar-hint">
                 Нажмите на фото чтобы изменить
@@ -470,7 +943,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
           <div className="profile-header-info">
             <h3 className="profile-user-name">{extendedUser.name || extendedUser.login}</h3>
             
-            {userRating && (
+            {userRating ? (
               <div className="profile-rating-row">
                 <RatingBadge
                   rating={userRating.totalRating}
@@ -481,29 +954,35 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                   showOnlyIcon={false}
                 />
               </div>
+            ) : (
+              <div className="profile-rating-row">
+                <span style={{ color: '#999', fontSize: '14px' }}>
+                  Рейтинг загружается...
+                </span>
+              </div>
             )}
             
+            {/* Три верхних окошка статистики */}
             <div className="profile-quick-stats">
               <div className="quick-stat">
                 <span className="quick-stat-icon">📁</span>
-                <span className="quick-stat-value">{userRating?.stats.projectsCreated || 0}</span>
+                <span className="quick-stat-value">{dashboardStats?.stats?.projectsCreated || 0}</span>
                 <span className="quick-stat-label">проектов</span>
               </div>
               <div className="quick-stat">
                 <span className="quick-stat-icon">⭐</span>
-                <span className="quick-stat-value">{userRating?.stats.likesReceived || 0}</span>
+                <span className="quick-stat-value">{dashboardStats?.stats?.likesReceived || 0}</span>
                 <span className="quick-stat-label">лайков</span>
               </div>
               <div className="quick-stat">
                 <span className="quick-stat-icon">💬</span>
-                <span className="quick-stat-value">{userRating?.stats.commentsMade || 0}</span>
+                <span className="quick-stat-value">{dashboardStats?.stats?.commentsMade || 0}</span>
                 <span className="quick-stat-label">комментариев</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Табы */}
         <div className="profile-tabs">
           {tabs.map(tab => (
             <button
@@ -517,13 +996,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
           ))}
         </div>
 
-        {/* Контент табов */}
         <div className="profile-tab-content">
-          {/* Вкладка ПРОФИЛЬ */}
           {activeTab === 'profile' && (
             <div className="profile-info">
               {!isEditing ? (
-                // Режим просмотра
                 <>
                   <div className="profile-info-header">
                     <h3>Информация о мастере</h3>
@@ -580,7 +1056,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                   </div>
                 </>
               ) : (
-                // Режим редактирования
                 <>
                   <div className="profile-info-header">
                     <h3>Редактирование профиля</h3>
@@ -638,6 +1113,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                             onClick={() => {
                               setAvatarFile(null);
                               setAvatarPreview(null);
+                              forceUpdate();
                             }}
                           >
                             ✕ Удалить
@@ -661,12 +1137,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                       <button 
                         className="save-btn"
                         onClick={handleSaveProfile}
+                        disabled={isLoading}
                       >
-                        Сохранить
+                        {isLoading ? 'Сохранение...' : 'Сохранить'}
                       </button>
                       <button 
                         className="cancel-btn"
                         onClick={handleCancelEdit}
+                        disabled={isLoading}
                       >
                         Отмена
                       </button>
@@ -677,80 +1155,95 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Вкладка СТАТИСТИКА */}
-          {activeTab === 'stats' && userRating && (
+          {activeTab === 'stats' && (
             <div className="profile-stats">
               <h3>Статистика активности</h3>
               
-              <div className="stats-overview">
-                <div className="stat-card">
-                  <div className="stat-card-icon">🏆</div>
-                  <div className="stat-card-content">
-                    <div className="stat-card-value">{userRating.totalRating}</div>
-                    <div className="stat-card-label">Общий рейтинг</div>
-                  </div>
+              {isLoadingStats ? (
+                <div className="stats-loading">
+                  <div className="loading-spinner">📊</div>
+                  <p>Загрузка статистики...</p>
                 </div>
-                
-                <div className="stat-card">
-                  <div className="stat-card-icon">⚡</div>
-                  <div className="stat-card-content">
-                    <div className="stat-card-value">{userRating.totalActivity}</div>
-                    <div className="stat-card-label">Активность</div>
+              ) : dashboardStats ? (
+                <>
+                  <div className="stats-overview">
+                    <div className="stat-card">
+                      <div className="stat-card-icon">🏆</div>
+                      <div className="stat-card-content">
+                        <div className="stat-card-value">{dashboardStats.user?.rating ?? 0}</div>
+                        <div className="stat-card-label">Общий рейтинг</div>
+                      </div>
+                    </div>
+                    
+                    <div className="stat-card">
+                      <div className="stat-card-icon">⚡</div>
+                      <div className="stat-card-content">
+                        <div className="stat-card-value">{dashboardStats.user?.activityPoints ?? 0}</div>
+                        <div className="stat-card-label">Активность</div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <div className="stats-detailed">
-                <h4>Детальная статистика</h4>
-                
-                <div className="stats-grid">
-                  <div className="stat-item">
-                    <span className="stat-item-icon">📁</span>
-                    <span className="stat-item-label">Создано проектов:</span>
-                    <span className="stat-item-value">{userRating.stats.projectsCreated}</span>
+                  <div className="stats-detailed">
+                    <h4>Детальная статистика</h4>
+                    
+                    <div className="stats-grid">
+                      <div className="stat-item">
+                        <span className="stat-item-icon">📁</span>
+                        <span className="stat-item-label">Создано проектов:</span>
+                        <span className="stat-item-value">{dashboardStats.stats?.projectsCreated ?? 0}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-item-icon">📦</span>
+                        <span className="stat-item-label">Объявлений в маркете:</span>
+                        <span className="stat-item-value">{dashboardStats.stats?.mastersAdsCreated ?? 0}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-item-icon">❓</span>
+                        <span className="stat-item-label">Запросов помощи:</span>
+                        <span className="stat-item-value">{dashboardStats.stats?.helpRequestsCreated ?? 0}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-item-icon">📚</span>
+                        <span className="stat-item-label">Публикаций в библиотеке:</span>
+                        <span className="stat-item-value">{dashboardStats.stats?.libraryPostsCreated ?? 0}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-item-icon">❤️</span>
+                        <span className="stat-item-label">Лайков дано:</span>
+                        <span className="stat-item-value">{dashboardStats.stats?.likesGiven ?? 0}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-item-icon">⭐</span>
+                        <span className="stat-item-label">Лайков получено:</span>
+                        <span className="stat-item-value">{dashboardStats.stats?.likesReceived ?? 0}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-item-icon">💬</span>
+                        <span className="stat-item-label">Комментариев:</span>
+                        <span className="stat-item-value">{dashboardStats.stats?.commentsMade ?? 0}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-item-icon">👁️</span>
+                        <span className="stat-item-label">Просмотров проектов:</span>
+                        <span className="stat-item-value">{dashboardStats.stats?.totalViews ?? 0}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="stats-total">
+                      <span className="total-label">Всего публикаций:</span>
+                      <span className="total-value">{dashboardStats.totalContent ?? 0}</span>
+                    </div>
                   </div>
-                  
-                  <div className="stat-item">
-                    <span className="stat-item-icon">📦</span>
-                    <span className="stat-item-label">Объявлений в маркете:</span>
-                    <span className="stat-item-value">{userRating.stats.mastersAdsCreated}</span>
-                  </div>
-                  
-                  <div className="stat-item">
-                    <span className="stat-item-icon">❓</span>
-                    <span className="stat-item-label">Запросов помощи:</span>
-                    <span className="stat-item-value">{userRating.stats.helpRequestsCreated}</span>
-                  </div>
-                  
-                  <div className="stat-item">
-                    <span className="stat-item-icon">📚</span>
-                    <span className="stat-item-label">Публикаций в библиотеке:</span>
-                    <span className="stat-item-value">{userRating.stats.libraryPostsCreated}</span>
-                  </div>
-                  
-                  <div className="stat-item">
-                    <span className="stat-item-icon">❤️</span>
-                    <span className="stat-item-label">Лайков дано:</span>
-                    <span className="stat-item-value">{userRating.stats.likesGiven}</span>
-                  </div>
-                  
-                  <div className="stat-item">
-                    <span className="stat-item-icon">⭐</span>
-                    <span className="stat-item-label">Лайков получено:</span>
-                    <span className="stat-item-value">{userRating.stats.likesReceived}</span>
-                  </div>
-                  
-                  <div className="stat-item">
-                    <span className="stat-item-icon">💬</span>
-                    <span className="stat-item-label">Комментариев:</span>
-                    <span className="stat-item-value">{userRating.stats.commentsMade}</span>
-                  </div>
+                </>
+              ) : (
+                <div className="stats-error">
+                  <p>Не удалось загрузить статистику</p>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
-          {/* Вкладка УВЕДОМЛЕНИЯ */}
           {activeTab === 'notifications' && (
             <div className="profile-notifications">
               <div className="notifications-header">
@@ -765,7 +1258,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                 )}
               </div>
               
-              {/* Фильтры уведомлений */}
               <div className="notifications-filters">
                 <button 
                   className={`filter-btn ${notificationsFilter === 'all' ? 'active' : ''}`}
@@ -797,9 +1289,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                 >
                   📦 Сообщения
                 </button>
+                <button 
+                  className={`filter-btn ${notificationsFilter === 'system' ? 'active' : ''}`}
+                  onClick={() => setNotificationsFilter('system')}
+                >
+                  ⚙️ Системные
+                </button>
               </div>
 
-              {/* Список уведомлений */}
               <div className="notifications-list">
                 {isLoadingNotifications ? (
                   <div className="notifications-loading">
@@ -813,7 +1310,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     <p className="empty-note">
                       {notificationsFilter === 'all' 
                         ? 'У вас пока нет уведомлений' 
-                        : 'Нет непрочитанных уведомлений'}
+                        : notificationsFilter === 'unread'
+                        ? 'Нет непрочитанных уведомлений'
+                        : notificationsFilter === 'likes'
+                        ? 'Нет уведомлений о лайках'
+                        : notificationsFilter === 'comments'
+                        ? 'Нет уведомлений о комментариях'
+                        : notificationsFilter === 'messages'
+                        ? 'Нет сообщений из маркета'
+                        : 'Нет системных уведомлений'}
                     </p>
                   </div>
                 ) : (
@@ -848,7 +1353,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                       </div>
                     ))}
                     
-                    {/* Пагинация */}
                     {totalPages > 1 && (
                       <div className="notifications-pagination">
                         <button 
@@ -872,20 +1376,91 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Вкладка СООБЩЕНИЯ */}
           {activeTab === 'messages' && (
             <div className="profile-messages">
-              <h3>Сообщения по объявлениям</h3>
-              
-              <div className="messages-placeholder">
-                <span className="placeholder-icon">✉️</span>
-                <p>Здесь будут отображаться запросы от других пользователей по вашим объявлениям в маркете</p>
-                <p className="placeholder-note">Когда кто-то захочет связаться с вами по поводу продажи или покупки, сообщение появится здесь</p>
+              <div className="messages-header">
+                <h3>Сообщения по объявлениям</h3>
+                {messages.length > 0 && (
+                  <span className="messages-count">Всего: {messages.length}</span>
+                )}
               </div>
+
+              {isLoadingMessages ? (
+                <div className="messages-loading">
+                  <div className="loading-spinner">✉️</div>
+                  <p>Загрузка сообщений...</p>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="messages-empty">
+                  <span className="empty-icon">📭</span>
+                  <p>У вас пока нет сообщений</p>
+                  <p className="empty-note">
+                    Когда кто-то захочет связаться с вами по поводу продажи или покупки, 
+                    сообщение появится здесь
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="messages-hint">
+                    <span className="hint-icon">💡</span>
+                    <span className="hint-text">Кликните на сообщение чтобы открыть диалог и ответить</span>
+                  </div>
+                  
+                  <div className="messages-list">
+                    {messages.map((message) => {
+                      const isIncoming = message.toUserId === user?.id;
+                      const sender = isIncoming ? message.fromUser?.login : message.toUser?.login;
+                      
+                      return (
+                        <div
+                          key={message.id}
+                          className={`message-item ${!message.read && isIncoming ? 'unread' : 'read'} clickable`}
+                          onClick={() => handleMessageClick(message)}
+                        >
+                          <div className="message-icon">
+                            {isIncoming ? '📥' : '📤'}
+                          </div>
+                          
+                          <div className="message-content">
+                            <div className="message-header">
+                              <span className="message-sender">
+                                {sender || 'Пользователь'}
+                                {!isIncoming && <span className="message-direction"> (Вы)</span>}
+                              </span>
+                              <span className="message-time">
+                                {formatMessageDate(message.createdAt)}
+                              </span>
+                            </div>
+                            
+                            <div className="message-preview">
+                              {message.message.length > 100 
+                                ? `${message.message.substring(0, 100)}...` 
+                                : message.message}
+                            </div>
+                            
+                            {message.item && (
+                              <div className="message-item-info">
+                                По объявлению: <strong>"{message.item.title}"</strong>
+                              </div>
+                            )}
+                          </div>
+
+                          {!message.read && isIncoming && (
+                            <div className="message-unread-dot" title="Непрочитано"></div>
+                          )}
+                          
+                          <div className="message-click-hint" title="Кликните чтобы ответить">
+                            💬
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
-          {/* Вкладка НАСТРОЙКИ */}
           {activeTab === 'settings' && (
             <div className="profile-settings">
               <h3>Настройки мастерской</h3>
@@ -898,7 +1473,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     <input 
                       type="checkbox" 
                       checked={showPhone}
-                      onChange={(e) => setShowPhone(e.target.checked)}
+                      onChange={handleShowPhoneChange}
                     />
                     <span>Показывать телефон другим пользователям</span>
                   </div>
@@ -912,7 +1487,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     <input 
                       type="checkbox" 
                       checked={showEmail}
-                      onChange={(e) => setShowEmail(e.target.checked)}
+                      onChange={handleShowEmailChange}
                     />
                     <span>Показывать email в профиле</span>
                   </div>
@@ -926,7 +1501,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     <input 
                       type="checkbox" 
                       checked={showCity}
-                      onChange={(e) => setShowCity(e.target.checked)}
+                      onChange={handleShowCityChange}
                     />
                     <span>Показывать мой город</span>
                   </div>
@@ -944,7 +1519,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     <input 
                       type="checkbox" 
                       checked={notifyMessages}
-                      onChange={(e) => setNotifyMessages(e.target.checked)}
+                      onChange={(e) => handleNotificationChange('siteMessages', e.target.checked)}
                     />
                     <span>О новых сообщениях по объявлениям</span>
                   </div>
@@ -958,7 +1533,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     <input 
                       type="checkbox" 
                       checked={notifyLikes}
-                      onChange={(e) => setNotifyLikes(e.target.checked)}
+                      onChange={(e) => handleNotificationChange('siteLikes', e.target.checked)}
                     />
                     <span>О лайках к моим проектам</span>
                   </div>
@@ -972,7 +1547,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     <input 
                       type="checkbox" 
                       checked={notifyComments}
-                      onChange={(e) => setNotifyComments(e.target.checked)}
+                      onChange={(e) => handleNotificationChange('siteComments', e.target.checked)}
                     />
                     <span>О новых комментариях</span>
                   </div>
@@ -980,6 +1555,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     💭 Получайте уведомления об ответах на ваши проекты
                   </span>
                 </label>
+                
+                {isSavingSettings && (
+                  <div className="settings-saving">
+                    <span className="saving-spinner">⏳</span> Сохранение...
+                  </div>
+                )}
               </div>
 
               <div className="settings-section">
@@ -1005,6 +1586,88 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
           )}
         </div>
       </div>
+
+      {/* Модальное окно диалога */}
+      {selectedMessage && (
+        <div className="dialog-modal-overlay" onClick={() => setSelectedMessage(null)}>
+          <div className="dialog-modal" onClick={e => e.stopPropagation()}>
+            <div className="dialog-modal-header">
+              <h3>Диалог по объявлению</h3>
+              <button className="close-btn" onClick={() => setSelectedMessage(null)}>✕</button>
+            </div>
+            
+            {isLoadingThread ? (
+              <div className="dialog-loading">
+                <div className="loading-spinner">💬</div>
+                <p>Загрузка переписки...</p>
+              </div>
+            ) : messageThread ? (
+              <>
+                <div className="dialog-item-info">
+                  <strong>Объявление:</strong> {messageThread.item.title}
+                </div>
+                
+                <div className="dialog-messages">
+                  {messageThread.thread.map((msg, index) => {
+                    const isMyMessage = msg.fromUserId === user?.id;
+                    
+                    return (
+                      <div 
+                        key={index}
+                        className={`dialog-message ${isMyMessage ? 'sent' : 'received'}`}
+                      >
+                        <div className="message-sender">
+                          {isMyMessage ? 'Вы' : messageThread.otherUser.login}
+                        </div>
+                        <div className="message-text">{msg.message}</div>
+                        <div className="message-time">
+                          {formatMessageDate(msg.createdAt)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="dialog-contact-info">
+                  <h4>Контакты собеседника:</h4>
+                  {messageThread.otherUser.phone ? (
+                    <p>📞 Телефон: {messageThread.otherUser.phone}</p>
+                  ) : (
+                    <p>📞 Телефон не указан</p>
+                  )}
+                  {messageThread.otherUser.email ? (
+                    <p>✉️ Email: {messageThread.otherUser.email}</p>
+                  ) : (
+                    <p>✉️ Email не указан</p>
+                  )}
+                  <p className="contact-note">
+                    ⚠️ Контакты видны только если пользователь разрешил их показывать в настройках
+                  </p>
+                </div>
+                
+                <div className="dialog-reply">
+                  <textarea
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="Ваш ответ..."
+                    rows={3}
+                  />
+                  <button 
+                    onClick={handleSendReply}
+                    disabled={isSendingReply || !replyText.trim()}
+                  >
+                    {isSendingReply ? 'Отправка...' : 'Отправить ответ'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="dialog-error">
+                <p>Не удалось загрузить переписку</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

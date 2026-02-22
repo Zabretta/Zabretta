@@ -1,8 +1,10 @@
+// components/RatingContext.tsx
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { UserRating, RatingRecord, USER_LEVELS, ACTIVITY_LEVELS } from '@/types/admin';
 import { useAuth } from './useAuth';
+import { userApi } from '@/lib/api/user';
 
 interface RatingContextType {
   userRating: UserRating | null;
@@ -11,6 +13,7 @@ interface RatingContextType {
   getUserLevel: (rating: number) => { name: string; icon: string };
   getActivityLevel: (activity: number) => string;
   checkDailyLogin: () => void;
+  refreshRating: () => Promise<void>;
 }
 
 const RatingContext = createContext<RatingContextType>({
@@ -19,7 +22,8 @@ const RatingContext = createContext<RatingContextType>({
   getTopActiveUsers: () => [],
   getUserLevel: () => ({ name: "Загрузка...", icon: "?" }),
   getActivityLevel: () => "Загрузка...",
-  checkDailyLogin: () => {}
+  checkDailyLogin: () => {},
+  refreshRating: async () => {}
 });
 
 export const useRating = () => {
@@ -31,13 +35,14 @@ interface RatingProviderProps {
 }
 
 export const RatingProvider: React.FC<RatingProviderProps> = ({ children }) => {
-  console.log('🎯 RatingProvider: МОНТИРУЕТСЯ (ПОЛНАЯ ВЕРСИЯ)');
+  console.log('🎯 RatingProvider: МОНТИРУЕТСЯ (С ИНТЕГРАЦИЕЙ С БД)');
   
   const { user } = useAuth();
   const [userRating, setUserRating] = useState<UserRating | null>(null);
   const [allRatings, setAllRatings] = useState<UserRating[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Функции для UserProfileRating
+  // Функции для определения уровней
   const getUserLevel = (rating: number) => {
     const level = USER_LEVELS.find(l => rating >= l.min && rating <= l.max) || USER_LEVELS[0];
     return { name: level.name, icon: level.icon };
@@ -48,45 +53,90 @@ export const RatingProvider: React.FC<RatingProviderProps> = ({ children }) => {
     return level.name;
   };
 
-  const getTopActiveUsers = (limit: number = 30): UserRating[] => {
-    return [...allRatings]
-      .sort((a, b) => b.totalActivity - a.totalActivity)
-      .slice(0, limit);
-  };
-
-  const checkDailyLogin = () => {
-    console.log('checkDailyLogin вызвана');
-  };
-
-  // Инициализация при монтировании
-  useEffect(() => {
-    console.log('🔧 RatingProvider: эффект, user:', user?.id);
+  // Загрузка рейтинга из БД
+  const refreshRating = useCallback(async () => {
+    if (!user?.id) return;
     
-    if (user?.id) {
-      console.log('✅ Есть пользователь:', user.id);
+    setIsLoading(true);
+    try {
+      console.log('🔄 Загрузка рейтинга из БД для пользователя:', user.id);
       
-      const ratingKey = `rating_${user.id}`;
-      const saved = localStorage.getItem(ratingKey);
+      // Получаем статистику из API - используем any чтобы временно отключить проверку типов
+      const stats: any = await userApi.getDashboardStats();
       
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          console.log('📂 Рейтинг загружен:', parsed);
-          setUserRating(parsed);
-          setAllRatings(prev => [...prev, parsed]);
-        } catch (e) {
-          console.error('❌ Ошибка:', e);
-          createNewRating(user.id);
+      // 🔍 ДИАГНОСТИКА
+      console.log('📦 Ответ от API (полный):', stats);
+      console.log('🔍 Тип ответа:', typeof stats);
+      console.log('🔍 Ключи объекта:', Object.keys(stats));
+
+      // Извлекаем данные пользователя из ответа
+      const userData = stats.user || stats.data?.user || stats;
+      const statsData = stats.stats || stats.data?.stats || {};
+      
+      // Преобразуем в формат UserRating
+      const ratingFromDB: UserRating = {
+        userId: user.id,
+        totalRating: userData.rating ?? 15,
+        totalActivity: userData.activityPoints ?? 0,
+        ratingLevel: getUserLevel(userData.rating ?? 15).name,
+        activityLevel: getActivityLevel(userData.activityPoints ?? 0),
+        ratingIcon: "★",
+        stats: {
+          projectsCreated: statsData.projectsCreated ?? 0,
+          mastersAdsCreated: statsData.mastersAdsCreated ?? 0,
+          helpRequestsCreated: statsData.helpRequestsCreated ?? 0,
+          libraryPostsCreated: statsData.libraryPostsCreated ?? 0,
+          likesGiven: statsData.likesGiven ?? 0,
+          likesReceived: statsData.likesReceived ?? 0,
+          commentsMade: statsData.commentsMade ?? 0
         }
-      } else {
-        console.log('🆕 Создаем новый рейтинг');
-        createNewRating(user.id);
-      }
+      };
+      
+      console.log('✅ Рейтинг загружен из БД:', ratingFromDB);
+      setUserRating(ratingFromDB);
+      
+      // Обновляем общий список рейтингов
+      setAllRatings(prev => {
+        const filtered = prev.filter(r => r.userId !== user.id);
+        return [...filtered, ratingFromDB];
+      });
+      
+    } catch (error) {
+      console.error('❌ Ошибка загрузки рейтинга из БД:', error);
+      
+      // Временное решение - загружаем из localStorage
+      console.log('⚠️ Загружаем временный рейтинг из localStorage');
+      loadFromLocalStorage();
+    } finally {
+      setIsLoading(false);
     }
   }, [user]);
 
+  // Загрузка из localStorage (временное решение)
+  const loadFromLocalStorage = useCallback(() => {
+    if (!user?.id) return;
+    
+    const ratingKey = `rating_${user.id}`;
+    const saved = localStorage.getItem(ratingKey);
+    
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        console.log('📂 Рейтинг загружен из localStorage:', parsed);
+        setUserRating(parsed);
+        setAllRatings(prev => [...prev, parsed]);
+      } catch (e) {
+        console.error('❌ Ошибка парсинга:', e);
+        createNewRating(user.id);
+      }
+    } else {
+      createNewRating(user.id);
+    }
+  }, [user]);
+
+  // Создание нового рейтинга (временное)
   const createNewRating = (userId: string) => {
-    console.log('🚀 СОЗДАНИЕ рейтинга для:', userId);
+    console.log('🚀 СОЗДАНИЕ временного рейтинга для:', userId);
     
     const newRating: UserRating = {
       userId,
@@ -106,10 +156,27 @@ export const RatingProvider: React.FC<RatingProviderProps> = ({ children }) => {
       }
     };
     
-    console.log('💾 Сохраняем:', newRating);
+    console.log('💾 Сохраняем в localStorage:', newRating);
     localStorage.setItem(`rating_${userId}`, JSON.stringify(newRating));
     setUserRating(newRating);
     setAllRatings(prev => [...prev, newRating]);
+  };
+
+  // Загрузка при монтировании
+  useEffect(() => {
+    if (user?.id) {
+      refreshRating();
+    }
+  }, [user, refreshRating]);
+
+  const getTopActiveUsers = (limit: number = 30): UserRating[] => {
+    return [...allRatings]
+      .sort((a, b) => b.totalActivity - a.totalActivity)
+      .slice(0, limit);
+  };
+
+  const checkDailyLogin = () => {
+    console.log('checkDailyLogin вызвана');
   };
 
   const addRatingRecord = (recordData: Omit<RatingRecord, 'id' | 'timestamp'>) => {
@@ -120,58 +187,8 @@ export const RatingProvider: React.FC<RatingProviderProps> = ({ children }) => {
       return;
     }
 
-    // Если рейтинга нет - создаем
-    if (!userRating) {
-      console.log('⚠️ Создаем рейтинг...');
-      createNewRating(user.id);
-    }
-
-    // Получаем актуальный рейтинг
-    const ratingKey = `rating_${user.id}`;
-    const saved = localStorage.getItem(ratingKey);
-    
-    if (!saved) {
-      console.error('❌ Рейтинг не найден');
-      return;
-    }
-
-    try {
-      const current = JSON.parse(saved);
-      
-      // Обновляем статистику
-      const updatedStats = { ...current.stats };
-      
-      // ИСПРАВЛЕНО: Изменены строковые литералы на соответствие типам из admin.ts
-      if (recordData.section === 'PROJECTS' && recordData.action === 'LIKE_GIVEN') {
-        updatedStats.likesGiven = (updatedStats.likesGiven || 0) + 1;
-      }
-
-      const updatedRating: UserRating = {
-        ...current,
-        totalRating: (current.totalRating || 0) + (recordData.ratingPoints || 0),
-        totalActivity: (current.totalActivity || 0) + (recordData.activityPoints || 0),
-        ratingLevel: getUserLevel((current.totalRating || 0) + (recordData.ratingPoints || 0)).name,
-        activityLevel: getActivityLevel((current.totalActivity || 0) + (recordData.activityPoints || 0)),
-        ratingIcon: "★",
-        stats: updatedStats
-      };
-
-      console.log('📈 Обновленный рейтинг:', updatedRating);
-      
-      // Сохраняем
-      localStorage.setItem(ratingKey, JSON.stringify(updatedRating));
-      setUserRating(updatedRating);
-      
-      console.log('🎉 УСПЕХ: Рейтинг сохранен!');
-      
-      // Показываем все ключи
-      const keys = Object.keys(localStorage).filter(k => k.startsWith('rating_'));
-      console.log('🔑 Все ключи рейтинга:', keys);
-      console.log('📋 Содержимое:', localStorage.getItem(ratingKey));
-      
-    } catch (error) {
-      console.error('❌ Ошибка обновления рейтинга:', error);
-    }
+    alert('Функция добавления записи рейтинга будет реализована позже');
+    refreshRating();
   };
 
   const contextValue: RatingContextType = {
@@ -180,10 +197,11 @@ export const RatingProvider: React.FC<RatingProviderProps> = ({ children }) => {
     getTopActiveUsers,
     getUserLevel,
     getActivityLevel,
-    checkDailyLogin
+    checkDailyLogin,
+    refreshRating
   };
 
-  console.log('✅ RatingProvider: возвращаем контекст');
+  console.log('✅ RatingProvider: возвращаем контекст', userRating);
 
   return (
     <RatingContext.Provider value={contextValue}>

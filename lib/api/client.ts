@@ -86,4 +86,10 @@ class ApiClient {
   }
 }
 
+// Экспортируем экземпляр класса
 export const apiClient = new ApiClient();
+
+// Для совместимости с существующим кодом экспортируем также функцию fetchWithAuth
+export const fetchWithAuth = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+  return apiClient.request<T>(endpoint, options);
+};

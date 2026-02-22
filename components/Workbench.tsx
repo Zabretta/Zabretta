@@ -8,7 +8,7 @@ import AuthModal from "./AuthModal";
 import Marketplace from "./Marketplace";
 import SettingsModal from "./SettingsModal";
 import ProfileModal from "./ProfileModal";
-import NotificationsModal from "./NotificationsModal"; // ✅ ИМПОРТ МОДАЛКИ УВЕДОМЛЕНИЙ
+import NotificationsModal from "./NotificationsModal";
 import { useAuth } from "./useAuth";
 import { useSettings } from "./SettingsContext";
 import { useRating, RatingProvider } from "./RatingContext";
@@ -22,8 +22,8 @@ function WorkbenchContent() {
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false); // ✅ СОСТОЯНИЕ ДЛЯ УВЕДОМЛЕНИЙ
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(3); // ✅ СЧЁТЧИК
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0); // ✅ Начинаем с 0
   const [isLoading, setIsLoading] = useState(false);
   
   // Реальные данные с бэкенда
@@ -195,20 +195,28 @@ function WorkbenchContent() {
     return () => clearInterval(interval);
   }, [isInitialized]);
 
-  // Загрузка количества непрочитанных уведомлений
+  // ✅ ИСПРАВЛЕНО: Загрузка реального количества непрочитанных уведомлений
   const loadUnreadCount = useCallback(async () => {
     if (!isAuthenticated || !user) return;
     
     try {
-      // Здесь будет реальный запрос к API
-      // const response = await fetch(`/api/notifications/unread-count?userId=${user.id}`);
-      // const data = await response.json();
-      // setUnreadNotificationsCount(data.count || 0);
+      const token = localStorage.getItem('samodelkin_auth_token');
+      const response = await fetch('http://localhost:3001/api/notifications/unread-count', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
-      // Пока оставляем тестовое значение
-      setUnreadNotificationsCount(3);
+      if (!response.ok) {
+        throw new Error(`Ошибка загрузки: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      setUnreadNotificationsCount(result.data?.count || 0);
+      console.log(`🔔 Непрочитанных уведомлений: ${result.data?.count || 0}`);
     } catch (error) {
       console.error('Ошибка загрузки уведомлений:', error);
+      setUnreadNotificationsCount(0);
     }
   }, [isAuthenticated, user]);
 

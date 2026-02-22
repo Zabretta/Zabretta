@@ -1,3 +1,4 @@
+// backend/src/controllers/marketController.ts
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { MarketService } from '../services/marketService';
@@ -416,6 +417,205 @@ export class MarketController {
       }
       
       res.status(500).json(createErrorResponse('Ошибка при получении категорий'));
+    }
+  }
+
+  // ===== НОВЫЕ МЕТОДЫ ДЛЯ СООБЩЕНИЙ =====
+
+  /**
+   * GET /api/market/messages
+   * Получить сообщения текущего пользователя
+   */
+  static async getUserMessages(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      console.log('📥 GET /api/market/messages - Запрос получен');
+
+      if (!req.user) {
+        console.warn('⚠️ Попытка получения сообщений без авторизации');
+        res.status(401).json(createErrorResponse('Требуется авторизация'));
+        return;
+      }
+
+      const messages = await MarketService.getUserMessages(req.user.id);
+      
+      console.log(`✅ Загружено ${messages.length} сообщений`);
+      
+      res.json(createSuccessResponse(messages));
+    } catch (error) {
+      console.error('❌ Ошибка получения сообщений:', error);
+      if (error instanceof Error) {
+        console.error('📚 Stack:', error.stack);
+      }
+      
+      res.status(500).json(createErrorResponse('Ошибка при получении сообщений'));
+    }
+  }
+
+  /**
+   * GET /api/market/messages/:id/thread
+   * Получить переписку по сообщению
+   */
+  static async getMessageThread(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      console.log(`📥 GET /api/market/messages/${req.params.id}/thread - Запрос получен`);
+
+      if (!req.user) {
+        console.warn('⚠️ Попытка получения переписки без авторизации');
+        res.status(401).json(createErrorResponse('Требуется авторизация'));
+        return;
+      }
+
+      const { id } = req.params;
+
+      const thread = await MarketService.getMessageThread(id, req.user.id);
+      
+      console.log(`✅ Загружено ${thread.thread.length} сообщений в переписке`);
+      
+      res.json(createSuccessResponse(thread));
+    } catch (error: any) {
+      if (error.message === 'Сообщение не найдено') {
+        console.warn(`⚠️ Сообщение с ID ${req.params.id} не найдено`);
+        res.status(404).json(createErrorResponse('Сообщение не найдено'));
+        return;
+      }
+      if (error.message === 'Доступ запрещен') {
+        console.warn(`⚠️ Пользователь ${req.user?.id} пытался получить доступ к чужой переписке ${req.params.id}`);
+        res.status(403).json(createErrorResponse('Доступ запрещен'));
+        return;
+      }
+      if (error.message === 'Пользователь не найдено') {
+        console.warn(`⚠️ Пользователь не найден для переписки ${req.params.id}`);
+        res.status(404).json(createErrorResponse('Пользователь не найден'));
+        return;
+      }
+      
+      console.error('❌ Ошибка получения переписки:', error);
+      if (error instanceof Error) {
+        console.error('📚 Stack:', error.stack);
+      }
+      
+      res.status(500).json(createErrorResponse('Ошибка при получении переписки'));
+    }
+  }
+
+  /**
+   * POST /api/market/messages/:id/reply
+   * Отправить ответ на сообщение
+   */
+  static async sendReply(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      console.log(`📥 POST /api/market/messages/${req.params.id}/reply - Запрос получен`);
+
+      if (!req.user) {
+        console.warn('⚠️ Попытка отправки ответа без авторизации');
+        res.status(401).json(createErrorResponse('Требуется авторизация'));
+        return;
+      }
+
+      const { id } = req.params;
+      const { message } = req.body;
+
+      console.log('👤 Отправитель:', req.user.id, req.user.login);
+      console.log('📦 Данные ответа:', { messageId: id, message });
+
+      if (!message || message.length < 1) {
+        res.status(400).json(createErrorResponse('Сообщение не может быть пустым'));
+        return;
+      }
+
+      const result = await MarketService.sendReply({
+        messageId: id,
+        fromUserId: req.user.id,
+        text: message
+      });
+      
+      console.log(`✅ Ответ на сообщение ${id} успешно отправлен`);
+      
+      res.json(createSuccessResponse(result));
+    } catch (error: any) {
+      if (error.message === 'Исходное сообщение не найдено') {
+        console.warn(`⚠️ Исходное сообщение с ID ${req.params.id} не найдено`);
+        res.status(404).json(createErrorResponse('Исходное сообщение не найдено'));
+        return;
+      }
+      
+      console.error('❌ Ошибка отправки ответа:', error);
+      if (error instanceof Error) {
+        console.error('📚 Stack:', error.stack);
+      }
+      
+      res.status(500).json(createErrorResponse('Ошибка при отправке ответа'));
+    }
+  }
+
+  /**
+   * PUT /api/market/messages/:id/read
+   * Отметить сообщение как прочитанное
+   */
+  static async markMessageAsRead(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      console.log(`📥 PUT /api/market/messages/${req.params.id}/read - Запрос получен`);
+
+      if (!req.user) {
+        console.warn('⚠️ Попытка отметки сообщения без авторизации');
+        res.status(401).json(createErrorResponse('Требуется авторизация'));
+        return;
+      }
+
+      const { id } = req.params;
+
+      const result = await MarketService.markMessageAsRead(id, req.user.id);
+      
+      console.log(`✅ Сообщение ${id} отмечено как прочитанное`);
+      
+      res.json(createSuccessResponse(result));
+    } catch (error: any) {
+      if (error.message === 'Сообщение не найдено') {
+        console.warn(`⚠️ Сообщение с ID ${req.params.id} не найдено`);
+        res.status(404).json(createErrorResponse('Сообщение не найдено'));
+        return;
+      }
+      if (error.message === 'Нет прав на отметку этого сообщения') {
+        console.warn(`⚠️ Пользователь ${req.user?.id} пытался отметить чужое сообщение ${req.params.id}`);
+        res.status(403).json(createErrorResponse('Нет прав на отметку этого сообщения'));
+        return;
+      }
+      
+      console.error('❌ Ошибка отметки сообщения:', error);
+      if (error instanceof Error) {
+        console.error('📚 Stack:', error.stack);
+      }
+      
+      res.status(500).json(createErrorResponse('Ошибка при отметке сообщения'));
+    }
+  }
+
+  /**
+   * GET /api/market/messages/unread/count
+   * Получить количество непрочитанных сообщений
+   */
+  static async getUnreadCount(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      console.log('📥 GET /api/market/messages/unread/count - Запрос получен');
+
+      if (!req.user) {
+        console.warn('⚠️ Попытка получения количества сообщений без авторизации');
+        res.status(401).json(createErrorResponse('Требуется авторизация'));
+        return;
+      }
+
+      const count = await MarketService.getUnreadCount(req.user.id);
+      
+      console.log(`✅ Непрочитанных сообщений: ${count}`);
+      
+      res.json(createSuccessResponse({ count }));
+    } catch (error) {
+      console.error('❌ Ошибка получения количества непрочитанных:', error);
+      if (error instanceof Error) {
+        console.error('📚 Stack:', error.stack);
+      }
+      
+      res.status(500).json(createErrorResponse('Ошибка при получении количества непрочитанных'));
     }
   }
 }

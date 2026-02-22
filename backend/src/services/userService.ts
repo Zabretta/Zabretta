@@ -58,7 +58,7 @@ export class UserService {
     });
 
     if (!user) {
-      throw new Error('Пользователь не найден');
+      throw new Error('Пользователь не найдено');
     }
 
     // ИСПРАВЛЕНО: добавляем тип для item
@@ -226,7 +226,7 @@ export class UserService {
     ]);
 
     if (!user) {
-      throw new Error('Пользователь не найден');
+      throw new Error('Пользователь не найдено');
     }
 
     // ИСПРАВЛЕНО: добавляем типы для acc и item
@@ -322,6 +322,124 @@ export class UserService {
     return {
       emailExists: existingUser?.email === email,
       loginExists: existingUser?.login === login
+    };
+  }
+
+  // ===== НОВЫЙ МЕТОД =====
+
+  /**
+   * Получение полной статистики пользователя для личного кабинета
+   */
+  static async getUserDashboardStats(userId: string) {
+    // Получаем базовую информацию о пользователе
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        login: true,
+        name: true,
+        avatar: true,
+        rating: true,
+        activityPoints: true,
+        createdAt: true,
+        lastLogin: true
+      }
+    });
+
+    if (!user) {
+      throw new Error('Пользователь не найдено');
+    }
+
+    // Получаем статистику по контенту (разбивка по типам)
+    const contentByType = await prisma.content.groupBy({
+      by: ['type'],
+      _count: true,
+      where: { userId }
+    });
+
+    // Получаем статистику по лайкам
+    const [likesGiven, likesReceived] = await Promise.all([
+      // Лайки, которые поставил пользователь
+      prisma.like.count({
+        where: { userId }
+      }),
+      // Лайки, которые получили проекты пользователя
+      prisma.like.count({
+        where: {
+          content: {
+            userId: userId
+          }
+        }
+      })
+    ]);
+
+    // Получаем статистику по комментариям
+    const [commentsMade, commentsReceived] = await Promise.all([
+      // Комментарии, которые написал пользователь
+      prisma.comment.count({
+        where: { userId }
+      }),
+      // Комментарии к проектам пользователя
+      prisma.comment.count({
+        where: {
+          content: {
+            userId: userId
+          }
+        }
+      })
+    ]);
+
+    // Получаем общую статистику просмотров
+    const totalViews = await prisma.content.aggregate({
+      _sum: { views: true },
+      where: { userId }
+    });
+
+    // Формируем статистику по типам контента
+    const statsByType = {
+      projectsCreated: 0,
+      mastersAdsCreated: 0,
+      helpRequestsCreated: 0,
+      libraryPostsCreated: 0
+    };
+
+    contentByType.forEach(item => {
+      switch(item.type) {
+        case 'PROJECT':
+          statsByType.projectsCreated = item._count;
+          break;
+        case 'MARKET':
+          statsByType.mastersAdsCreated = item._count;
+          break;
+        case 'HELP':
+          statsByType.helpRequestsCreated = item._count;
+          break;
+        case 'LIBRARY':
+          statsByType.libraryPostsCreated = item._count;
+          break;
+      }
+    });
+
+    return {
+      user: {
+        id: user.id,
+        login: user.login,
+        name: user.name,
+        avatar: user.avatar,
+        rating: user.rating,
+        activityPoints: user.activityPoints,
+        registeredAt: user.createdAt.toISOString(),
+        lastLogin: user.lastLogin?.toISOString()
+      },
+      stats: {
+        ...statsByType,
+        likesGiven,
+        likesReceived,
+        commentsMade,
+        commentsReceived,
+        totalViews: totalViews._sum.views || 0
+      },
+      totalContent: contentByType.reduce((sum, item) => sum + item._count, 0)
     };
   }
 }

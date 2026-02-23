@@ -31,6 +31,9 @@ export interface UserProfile {
   login: string;
   name: string | null;
   avatar: string | null;
+  bio?: string | null;
+  location?: string | null;
+  phone?: string | null;
   rating: number;
   activityPoints: number;
   createdAt: string;
@@ -136,6 +139,14 @@ export interface PublicProfile {
   }>;
 }
 
+export interface UpdateProfileData {
+  name?: string;
+  avatar?: string;
+  bio?: string;
+  location?: string;
+  phone?: string;
+}
+
 export const userApi = {
   /**
    * Получить данные текущего пользователя
@@ -149,7 +160,7 @@ export const userApi = {
    * Обновить профиль пользователя
    * PUT /api/user/me
    */
-  async updateProfile(data: { name?: string; avatar?: string }): Promise<UserProfile> {
+  async updateProfile(data: UpdateProfileData): Promise<UserProfile> {
     return fetchWithAuth('/api/user/me', {
       method: 'PUT',
       body: JSON.stringify(data)
@@ -215,8 +226,6 @@ export const userApi = {
   async getUserStats(): Promise<UserStats> {
     return fetchWithAuth('/api/user/stats');
   },
-
-  // ===== НОВЫЙ МЕТОД =====
 
   /**
    * Получить полную статистику для личного кабинета

@@ -42,11 +42,14 @@ export class UserController {
         return;
       }
 
-      const { name, avatar } = req.body;
+      const { name, avatar, bio, location, phone } = req.body;
 
       const updatedUser = await UserService.updateOwnProfile(req.user.id, {
         name,
-        avatar
+        avatar,
+        bio,
+        location,
+        phone
       });
 
       res.json(createSuccessResponse(updatedUser));

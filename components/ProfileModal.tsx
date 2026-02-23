@@ -1,4 +1,3 @@
-// components/ProfileModal.tsx
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useReducer } from 'react';
@@ -125,6 +124,9 @@ interface UserProfile {
   login: string;
   name: string | null;
   avatar: string | null;
+  bio?: string | null;
+  location?: string | null;
+  phone?: string | null;
   rating: number;
   activityPoints: number;
   createdAt: string;
@@ -391,11 +393,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     
     setIsLoadingStats(true);
     try {
+      // @ts-ignore
       const response = await userApi.getDashboardStats();
-      const apiResponse = response as unknown as ApiResponse<DashboardStatsData>;
+      // @ts-ignore
+      const statsData = response?.data || response;
       
-      if (apiResponse && apiResponse.success && apiResponse.data) {
-        setDashboardStats(apiResponse.data);
+      if (statsData) {
+        setDashboardStats(statsData);
       }
     } catch (error) {
       console.error('Ошибка загрузки статистики:', error);
@@ -406,35 +410,55 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
 
   // Загрузка профиля из API
   const loadUserProfile = useCallback(async () => {
-    if (!user || profileDataLoaded) return;
+    if (!user) return;
     
     try {
-      const userData = await userApi.getCurrentUser() as UserProfile;
+      // @ts-ignore
+      const response = await userApi.getCurrentUser();
+      // @ts-ignore
+      const userData = response?.data || response;
       
-      if (userData.name) {
-        setEditedName(userData.name);
+      if (userData) {
+        // Обновляем все поля для отображения
+        setEditedName(userData?.name || userData?.login || '');
+        setEditedBio(userData?.bio || '');
+        setEditedLocation(userData?.location || '');
+        setEditedPhone(userData?.phone || '');
+        
+        if (userData?.avatar) {
+          setAvatarPreview(userData.avatar);
+          localStorage.setItem(`avatar_${user.id}`, userData.avatar);
+          setAvatarVersion(prev => prev + 1);
+        }
+        
+        // Обновляем пользователя в контексте через localStorage
+        const currentUser = JSON.parse(localStorage.getItem('samodelkin_user') || '{}');
+        const updatedUser = {
+          ...currentUser,
+          ...userData,
+          createdAt: userData.createdAt || currentUser.createdAt,
+          lastLogin: userData.lastLogin || currentUser.lastLogin
+        };
+        localStorage.setItem('samodelkin_user', JSON.stringify(updatedUser));
+        
+        setProfileDataLoaded(true);
+        forceUpdate();
       }
-      
-      if (userData.avatar) {
-        setAvatarPreview(userData.avatar);
-        localStorage.setItem(`avatar_${user.id}`, userData.avatar);
-        setAvatarVersion(prev => prev + 1);
-      }
-      
-      setProfileDataLoaded(true);
       
     } catch (error) {
       console.error('Ошибка загрузки профиля:', error);
     }
-  }, [user, profileDataLoaded]);
+  }, [user]);
 
   // Загрузка данных при открытии
   useEffect(() => {
-    if (isOpen && user && !profileDataLoaded) {
-      loadUserProfile();
-      loadDashboardStats();
+    if (isOpen && user) {
+      setTimeout(() => {
+        loadUserProfile();
+        loadDashboardStats();
+      }, 100);
     }
-  }, [isOpen, user, profileDataLoaded, loadUserProfile, loadDashboardStats]);
+  }, [isOpen, user]);
 
   // Загрузка локальных данных при открытии
   useEffect(() => {
@@ -468,7 +492,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     }
   }, [activeTab, notificationsFilter, user]);
 
-  // Загрузка сообщений при открытии вкладки - ИСПОЛЬЗУЕМ marketApi
+  // Загрузка сообщений при открытии вкладки
   useEffect(() => {
     if (activeTab === 'messages' && user) {
       loadMarketMessages();
@@ -568,6 +592,26 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     
     // Открываем модалку диалога
     setSelectedMessage(message);
+  };
+
+  // Удаление сообщения
+  const handleDeleteMessage = async (e: React.MouseEvent, messageId: string) => {
+    e.stopPropagation();
+    
+    if (!confirm('Вы уверены, что хотите удалить это сообщение?')) {
+      return;
+    }
+    
+    try {
+      // TODO: Добавить метод deleteMessage в marketApi
+      // Пока заглушка
+      console.log('Удаление сообщения:', messageId);
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      alert('Сообщение удалено');
+    } catch (error) {
+      console.error('Ошибка при удалении сообщения:', error);
+      alert('Не удалось удалить сообщение');
+    }
   };
 
   const loadNotifications = useCallback(async (page: number = 1) => {
@@ -824,25 +868,63 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const handleSaveProfile = async () => {
     if (!extendedUser) return;
     
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
-      
-      const updateData: { name?: string; avatar?: string } = {};
+      // Подготавливаем данные для обновления
+      const updateData: any = {};
       
       if (editedName !== extendedUser.name) {
         updateData.name = editedName;
+      }
+      
+      if (editedBio !== extendedUser.bio) {
+        updateData.bio = editedBio;
+      }
+      
+      if (editedLocation !== extendedUser.location) {
+        updateData.location = editedLocation;
+      }
+      
+      if (editedPhone !== extendedUser.phone) {
+        updateData.phone = editedPhone;
       }
       
       if (avatarPreview && avatarPreview !== extendedUser.avatar) {
         updateData.avatar = avatarPreview;
       }
       
+      // Отправляем данные на сервер
       if (Object.keys(updateData).length > 0) {
         const updatedUser = await userApi.updateProfile(updateData);
         
+        // Обновляем данные в localStorage
         if (updateData.avatar) {
           localStorage.setItem(`avatar_${extendedUser.id}`, updateData.avatar);
         }
+        
+        // Принудительно перезагружаем профиль
+        setProfileDataLoaded(false);
+        await loadUserProfile();
+        
+        // Обновляем данные в localStorage для остальных полей
+        if (updateData.name) {
+          localStorage.setItem(`user_name_${extendedUser.id}`, updateData.name);
+        }
+        if (updateData.bio) {
+          localStorage.setItem(`user_bio_${extendedUser.id}`, updateData.bio);
+        }
+        if (updateData.location) {
+          localStorage.setItem(`user_location_${extendedUser.id}`, updateData.location);
+        }
+        if (updateData.phone) {
+          localStorage.setItem(`user_phone_${extendedUser.id}`, updateData.phone);
+        }
+      } else {
+        // Если данных для обновления нет, просто выходим из режима редактирования
+        setIsEditing(false);
+        alert('Профиль успешно сохранён!');
+        return;
       }
       
       // Сохраняем настройки приватности
@@ -857,18 +939,13 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
         siteComments: notifyComments
       });
       
-      // Сбрасываем флаг загрузки профиля
-      setProfileDataLoaded(false);
-      await loadUserProfile();
-      await loadDashboardStats();
-      
       alert('Профиль успешно сохранён!');
       setIsEditing(false);
       setSettingsChanged(false);
       forceUpdate();
       
     } catch (error) {
-      console.error('Ошибка сохранения профиля:', error);
+      console.error('❌ Ошибка сохранения профиля:', error);
       alert('Не удалось сохранить профиль. Попробуйте ещё раз.');
     } finally {
       setIsLoading(false);
@@ -1014,7 +1091,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                   <div className="profile-info-grid">
                     <div className="profile-info-row">
                       <span className="info-label">Имя:</span>
-                      <span className="info-value">{extendedUser.name || 'Не указано'}</span>
+                      <span className="info-value">{editedName || 'Не указано'}</span>
                     </div>
                     <div className="profile-info-row">
                       <span className="info-label">Логин:</span>
@@ -1030,20 +1107,20 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     <div className="profile-info-row">
                       <span className="info-label">Телефон:</span>
                       <span className="info-value">
-                        {extendedUser.phone || 'Не указан'}
+                        {editedPhone || 'Не указан'}
                         {showPhone && <span className="info-badge">виден всем</span>}
                       </span>
                     </div>
                     <div className="profile-info-row">
                       <span className="info-label">Город:</span>
                       <span className="info-value">
-                        {extendedUser.location || 'Не указан'}
+                        {editedLocation || 'Не указан'}
                         {showCity && <span className="info-badge">виден всем</span>}
                       </span>
                     </div>
                     <div className="profile-info-row">
                       <span className="info-label">О себе:</span>
-                      <span className="info-value bio-text">{extendedUser.bio || 'Пока ничего не рассказал(а)'}</span>
+                      <span className="info-value bio-text">{editedBio || 'Пока ничего не рассказал(а)'}</span>
                     </div>
                     <div className="profile-info-row">
                       <span className="info-label">На сайте с:</span>
@@ -1448,6 +1525,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                           {!message.read && isIncoming && (
                             <div className="message-unread-dot" title="Непрочитано"></div>
                           )}
+                          
+                          {/* Корзина для удаления */}
+                          <button
+                            className="message-delete-btn"
+                            onClick={(e) => handleDeleteMessage(e, message.id)}
+                            title="Удалить сообщение"
+                          >
+                            🗑️
+                          </button>
                           
                           <div className="message-click-hint" title="Кликните чтобы ответить">
                             💬

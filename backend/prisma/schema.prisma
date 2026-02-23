@@ -267,6 +267,10 @@ model users {
   email              String               @unique
   name               String?
   avatar             String?
+  // ДОБАВЛЕННЫЕ ПОЛЯ ДЛЯ ПРОФИЛЯ
+  bio                String?               // Информация о себе
+  location           String?               // Город/местоположение
+  phone              String?               // Номер телефона
   role               UserRole             @default(USER)
   isActive           Boolean              @default(true)
   rating             Int                  @default(0)

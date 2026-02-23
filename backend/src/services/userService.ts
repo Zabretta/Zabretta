@@ -28,7 +28,6 @@ export class UserService {
    * Получение публичного профиля пользователя по ID
    */
   static async getUserProfile(userId: string) {
-    // ИСПРАВЛЕНО: user → users
     const user = await prisma.users.findUnique({
       where: { id: userId },
       select: {
@@ -36,6 +35,9 @@ export class UserService {
         login: true,
         name: true,
         avatar: true,
+        bio: true,
+        location: true,
+        phone: true,
         rating: true,
         activityPoints: true,
         createdAt: true,
@@ -61,7 +63,6 @@ export class UserService {
       throw new Error('Пользователь не найдено');
     }
 
-    // ИСПРАВЛЕНО: добавляем тип для item
     return {
       ...user,
       createdAt: user.createdAt.toISOString(),
@@ -116,7 +117,6 @@ export class UserService {
         break;
     }
 
-    // ИСПРАВЛЕНО: user → users
     const [users, total] = await Promise.all([
       prisma.users.findMany({
         where,
@@ -143,7 +143,6 @@ export class UserService {
       prisma.users.count({ where })
     ]);
 
-    // ИСПРАВЛЕНО: добавляем тип для user
     return {
       users: users.map((user: any) => ({
         ...user,
@@ -163,8 +162,10 @@ export class UserService {
   static async updateOwnProfile(userId: string, data: {
     name?: string;
     avatar?: string;
+    bio?: string;
+    location?: string;
+    phone?: string;
   }) {
-    // ИСПРАВЛЕНО: user → users
     const user = await prisma.users.update({
       where: { id: userId },
       data,
@@ -174,6 +175,9 @@ export class UserService {
         email: true,
         name: true,
         avatar: true,
+        bio: true,
+        location: true,
+        phone: true,
         role: true,
         rating: true,
         activityPoints: true,
@@ -191,7 +195,6 @@ export class UserService {
    * Получение статистики пользователя
    */
   static async getUserStats(userId: string) {
-    // ИСПРАВЛЕНО: user → users, ratingAdjustment → rating_adjustments
     const [user, contentStats, ratingHistory] = await Promise.all([
       prisma.users.findUnique({
         where: { id: userId },
@@ -229,18 +232,15 @@ export class UserService {
       throw new Error('Пользователь не найдено');
     }
 
-    // ИСПРАВЛЕНО: добавляем типы для acc и item
     const statsByType = (contentStats || []).reduce((acc: Record<string, number>, item: any) => {
       acc[item.type] = item._count;
       return acc;
     }, {} as Record<string, number>);
 
-    // Получаем имена админов отдельным запросом
     const adminIds = (ratingHistory || [])
       .map((adj: any) => adj.adminId)
       .filter((id: string | null): id is string => id !== null);
 
-    // ИСПРАВЛЕНО: users вместо user
     const admins = adminIds.length > 0
       ? await prisma.users.findMany({
           where: { id: { in: adminIds } },
@@ -252,13 +252,11 @@ export class UserService {
         })
       : [];
 
-    // ИСПРАВЛЕНО: добавляем типы для acc и admin
     const adminMap = admins.reduce((acc: Record<string, any>, admin: any) => {
       acc[admin.id] = admin;
       return acc;
     }, {} as Record<string, any>);
 
-    // ИСПРАВЛЕНО: добавляем типы для sum и count
     return {
       user: {
         ...user,
@@ -279,7 +277,6 @@ export class UserService {
    * Поиск пользователей по логину или имени (для упрощенного поиска)
    */
   static async searchUsers(query: string, limit: number = 10) {
-    // ИСПРАВЛЕНО: user → users
     const users = await prisma.users.findMany({
       where: {
         OR: [
@@ -305,7 +302,6 @@ export class UserService {
    * Проверка существования пользователя по email или логину
    */
   static async checkUserExists(email: string, login: string) {
-    // ИСПРАВЛЕНО: user → users
     const existingUser = await prisma.users.findFirst({
       where: {
         OR: [

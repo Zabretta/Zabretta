@@ -4,11 +4,12 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { authAPI } from '@/lib/api/auth';
 import type { User as ApiUser } from '@/lib/api/auth';
 
-interface User {
-  id: string;
-  login: string;
-  email: string;
-  role?: string;
+// Расширяем тип User, добавляя поля для профиля
+interface ExtendedUser extends ApiUser {
+  bio?: string | null;
+  location?: string | null;
+  phone?: string | null;
+  lastLogin?: string | null;
 }
 
 interface RegisterData {
@@ -19,7 +20,7 @@ interface RegisterData {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: ExtendedUser | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
@@ -28,6 +29,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   authModalOpen: boolean;
   setAuthModalOpen: (open: boolean) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,11 +39,40 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<ExtendedUser | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Проверка сессии при загрузке - ТОЛЬКО ИЗ LOCALSTORAGE!
+  // Функция для загрузки полных данных пользователя
+  const refreshUser = async () => {
+    try {
+      const token = localStorage.getItem('samodelkin_auth_token');
+      if (!token) return;
+
+      const response = await fetch('/api/user/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        // Извлекаем данные (могут быть в result.data или в самом result)
+        const userData = result.data || result;
+        
+        if (userData) {
+          // Объединяем с существующим пользователем
+          setUser(prev => prev ? { ...prev, ...userData } : userData);
+          localStorage.setItem('samodelkin_user', JSON.stringify(userData));
+          console.log('✅ useAuth: пользователь обновлен', userData);
+        }
+      }
+    } catch (error) {
+      console.error('❌ useAuth: ошибка обновления пользователя:', error);
+    }
+  };
+
+  // Проверка сессии при загрузке
   useEffect(() => {
     console.log('🔍 useAuth: проверка сохраненной сессии');
     
@@ -51,8 +82,11 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     if (token && savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
-        console.log('✅ useAuth: пользователь восстановлен из localStorage:', parsedUser.id, 'роль:', parsedUser.role);
+        console.log('✅ useAuth: пользователь восстановлен из localStorage:', parsedUser.id);
         setUser(parsedUser);
+        
+        // В фоне загружаем актуальные данные
+        refreshUser();
       } catch (error) {
         console.error('❌ useAuth: ошибка загрузки пользователя:', error);
         localStorage.removeItem('samodelkin_auth_token');
@@ -72,20 +106,17 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       const response = await authAPI.login({ login, password });
       
       if (response.success && response.data) {
-        const apiUser = response.data.user;
-        const userData: User = {
-          id: apiUser.id,
-          login: apiUser.login,
-          email: apiUser.email,
-          role: apiUser.role
-        };
+        const userData = response.data.user;
         
         localStorage.setItem('samodelkin_auth_token', response.data.token);
         localStorage.setItem('samodelkin_user', JSON.stringify(userData));
         setUser(userData);
         setAuthModalOpen(false);
         
-        console.log('✅ useAuth: успешный вход, роль:', apiUser.role);
+        console.log('✅ useAuth: успешный вход, роль:', userData.role);
+        
+        // После входа загружаем полные данные
+        refreshUser();
         return true;
       } else {
         console.error('❌ useAuth: ошибка входа', response.error);
@@ -106,20 +137,17 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       const response = await authAPI.register(data);
       
       if (response.success && response.data) {
-        const apiUser = response.data.user;
-        const userData: User = {
-          id: apiUser.id,
-          login: apiUser.login,
-          email: apiUser.email,
-          role: apiUser.role
-        };
+        const userData = response.data.user;
         
         localStorage.setItem('samodelkin_auth_token', response.data.token);
         localStorage.setItem('samodelkin_user', JSON.stringify(userData));
         setUser(userData);
         setAuthModalOpen(false);
         
-        console.log('✅ useAuth: успешная регистрация, роль:', apiUser.role);
+        console.log('✅ useAuth: успешная регистрация, роль:', userData.role);
+        
+        // После регистрации загружаем полные данные
+        refreshUser();
         return true;
       } else {
         console.error('❌ useAuth: ошибка регистрации', response.error);
@@ -150,7 +178,6 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   };
 
   const isAuthenticated = !!user;
-  // ИСПРАВЛЕНО: сравниваем в нижнем регистре
   const isAdmin = user?.role?.toLowerCase() === 'admin';
 
   console.log('🔄 useAuth: рендер, isAuthenticated:', isAuthenticated, 'isAdmin:', isAdmin, 'роль:', user?.role);
@@ -165,7 +192,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       register,
       logout,
       authModalOpen,
-      setAuthModalOpen
+      setAuthModalOpen,
+      refreshUser
     }}>
       {children}
     </AuthContext.Provider>

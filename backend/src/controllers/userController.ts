@@ -1,4 +1,3 @@
-// backend/src/controllers/userController.ts
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { UserService } from '../services/userService';
@@ -42,14 +41,26 @@ export class UserController {
         return;
       }
 
-      const { name, avatar, bio, location, phone } = req.body;
+      const { 
+        name, 
+        avatar, 
+        bio, 
+        location, 
+        phone,
+        showPhone,
+        showEmail,
+        showCity 
+      } = req.body;
 
       const updatedUser = await UserService.updateOwnProfile(req.user.id, {
         name,
         avatar,
         bio,
         location,
-        phone
+        phone,
+        showPhone,
+        showEmail,
+        showCity
       });
 
       res.json(createSuccessResponse(updatedUser));
@@ -373,6 +384,9 @@ export class UserController {
         activityPoints: userProfile.activityPoints,
         createdAt: userProfile.createdAt,
         lastLogin: userProfile.lastLogin,
+        showPhone: userProfile.showPhone,
+        showEmail: userProfile.showEmail,
+        showCity: userProfile.showCity,
         content: userProfile.content
       };
 

@@ -1,4 +1,3 @@
-// backend/src/services/marketService.ts
 import { prisma } from '../config/database';
 import { ItemType, DurationType, ItemCategory } from '@prisma/client';
 
@@ -47,6 +46,8 @@ export interface MessageThreadResponse {
     avatar: string | null;
     phone?: string | null;
     email?: string | null;
+    showPhone?: boolean;
+    showEmail?: boolean;
   };
   item: {
     id: string;
@@ -428,7 +429,11 @@ export class MarketService {
               id: true,
               login: true,
               name: true,
-              avatar: true
+              avatar: true,
+              phone: true,
+              email: true,
+              showPhone: true,
+              showEmail: true
             }
           },
           toUser: {
@@ -436,7 +441,11 @@ export class MarketService {
               id: true,
               login: true,
               name: true,
-              avatar: true
+              avatar: true,
+              phone: true,
+              email: true,
+              showPhone: true,
+              showEmail: true
             }
           },
           item: {
@@ -544,14 +553,18 @@ export class MarketService {
         ? originalMessage.toUserId 
         : originalMessage.fromUserId;
 
-      // Получаем данные собеседника без поля phone (показываем только login)
+      // Получаем данные собеседника с полями приватности
       const otherUser = await prisma.users.findUnique({
         where: { id: otherUserId },
         select: {
           id: true,
           login: true,
           name: true,
-          avatar: true
+          avatar: true,
+          phone: true,
+          email: true,
+          showPhone: true,
+          showEmail: true
         }
       });
 
@@ -566,8 +579,10 @@ export class MarketService {
           login: otherUser.login,
           name: otherUser.name,
           avatar: otherUser.avatar,
-          phone: null,
-          email: null
+          phone: otherUser.phone,
+          email: otherUser.email,
+          showPhone: otherUser.showPhone || false,
+          showEmail: otherUser.showEmail || false
         },
         item: {
           id: originalMessage.item.id,

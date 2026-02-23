@@ -21,10 +21,50 @@ export interface AdminNotification {
   link?: string;
   read: boolean;
   createdAt: string;
+  title?: string;
   user?: {
     login: string;
     name?: string;
   };
+}
+
+// ===== НОВЫЕ ТИПЫ ДЛЯ АДМИНСКОЙ ОТПРАВКИ =====
+
+/**
+ * Данные для отправки уведомления от администратора
+ */
+export interface AdminSendNotificationData {
+  /** Тип уведомления (всегда SYSTEM для админских) */
+  type: 'SYSTEM';
+  /** Заголовок уведомления */
+  title: string;
+  /** Текст сообщения */
+  message: string;
+  /** Опциональная ссылка */
+  link?: string;
+  /** ID конкретного пользователя (если адресная отправка) */
+  userId?: string;
+  /** Логин пользователя (альтернативный способ) */
+  userLogin?: string;
+}
+
+/**
+ * Результат отправки уведомления
+ */
+export interface AdminSendNotificationResult {
+  success: boolean;
+  recipientCount: number;
+  message: string;
+}
+
+/**
+ * Пользователь для поиска при адресной отправке
+ */
+export interface AdminUserSearchResult {
+  id: string;
+  login: string;
+  name: string | null;
+  avatar?: string | null;
 }
 
 // Типы для настроек уведомлений
@@ -161,6 +201,35 @@ export const notificationsApi = {
       console.error('Ошибка при получении количества уведомлений:', error);
       return 0;
     }
+  },
+
+  // ===== НОВЫЕ МЕТОДЫ ДЛЯ ОТПРАВКИ СООБЩЕНИЙ =====
+
+  /**
+   * Отправить сообщение пользователю (адресно)
+   */
+  async sendToUser(data: AdminSendNotificationData): Promise<AdminSendNotificationResult> {
+    return fetchWithAuth('/api/admin/notifications/send', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  /**
+   * Отправить рассылку всем пользователям
+   */
+  async sendToAll(data: Omit<AdminSendNotificationData, 'userId' | 'userLogin'>): Promise<AdminSendNotificationResult> {
+    return fetchWithAuth('/api/admin/notifications/broadcast', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  /**
+   * Поиск пользователей для адресной отправки
+   */
+  async searchUsers(query: string, limit: number = 5): Promise<AdminUserSearchResult[]> {
+    return fetchWithAuth(`/api/admin/users/search?q=${encodeURIComponent(query)}&limit=${limit}`);
   },
 
   // ===== МЕТОДЫ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ =====

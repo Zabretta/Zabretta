@@ -1,4 +1,3 @@
-// backend/src/services/userService.ts
 import { prisma } from '../config/database';
 import { UserRole } from '@prisma/client';
 
@@ -42,6 +41,9 @@ export class UserService {
         activityPoints: true,
         createdAt: true,
         lastLogin: true,
+        showPhone: true,
+        showEmail: true,
+        showCity: true,
         content: {
           where: { status: 'ACTIVE' },
           orderBy: { createdAt: 'desc' },
@@ -158,6 +160,7 @@ export class UserService {
 
   /**
    * Обновление профиля пользователя (для самого пользователя)
+   * ИСПРАВЛЕНО: добавлены поля showPhone, showEmail, showCity
    */
   static async updateOwnProfile(userId: string, data: {
     name?: string;
@@ -165,6 +168,9 @@ export class UserService {
     bio?: string;
     location?: string;
     phone?: string;
+    showPhone?: boolean;
+    showEmail?: boolean;
+    showCity?: boolean;
   }) {
     const user = await prisma.users.update({
       where: { id: userId },
@@ -178,6 +184,9 @@ export class UserService {
         bio: true,
         location: true,
         phone: true,
+        showPhone: true,
+        showEmail: true,
+        showCity: true,
         role: true,
         rating: true,
         activityPoints: true,

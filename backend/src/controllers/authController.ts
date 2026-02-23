@@ -6,6 +6,7 @@ import { prisma } from '../config/database';
 import { JWT_CONFIG } from '../config/auth';
 import { createSuccessResponse, createErrorResponse } from '../utils/response';
 import { AuthRequest } from '../middleware/auth';
+import { RatingService } from '../services/ratingService'; // 👈 ИМПОРТ
 
 interface RegisterRequest {
   login: string;
@@ -74,6 +75,15 @@ export class AuthController {
         }
       });
 
+      // 👇 СОЗДАЕМ ЗАПИСЬ В ИСТОРИИ О РЕГИСТРАЦИИ
+      try {
+        await RatingService.awardPoints(user.id, 'registration');
+        console.log(`[Auth] Бонус за регистрацию начислен пользователю ${user.id}`);
+      } catch (ratingError) {
+        console.error('[Auth] Ошибка при начислении бонуса за регистрацию:', ratingError);
+        // Не блокируем регистрацию из-за ошибки начисления
+      }
+
       // Генерация токенов
       const token = jwt.sign(
         { userId: user.id, role: user.role },
@@ -141,6 +151,22 @@ export class AuthController {
         return;
       }
 
+      // 👇 ПРОВЕРЯЕМ И НАЧИСЛЯЕМ БОНУС ЗА ЕЖЕДНЕВНЫЙ ВХОД
+      let dailyLoginBonus = null;
+      try {
+        const bonusResult = await RatingService.checkAndAwardDailyLogin(user.id);
+        if (bonusResult.awarded) {
+          dailyLoginBonus = {
+            awarded: true,
+            message: bonusResult.message
+          };
+          console.log(`[Auth] Бонус за вход начислен пользователю ${user.id}`);
+        }
+      } catch (ratingError) {
+        console.error('[Auth] Ошибка при начислении бонуса за вход:', ratingError);
+        // Не блокируем вход из-за ошибки начисления
+      }
+
       // Генерация токенов
       const token = jwt.sign(
         { userId: user.id, role: user.role },
@@ -176,10 +202,12 @@ export class AuthController {
         violations: user.violations
       };
 
+      // 👇 ДОБАВЛЯЕМ ИНФОРМАЦИЮ О БОНУСЕ В ОТВЕТ
       res.json(createSuccessResponse({
         token,
         refreshToken,
-        user: userData
+        user: userData,
+        bonus: dailyLoginBonus // Будет null если бонус не начислен
       }));
 
     } catch (error) {

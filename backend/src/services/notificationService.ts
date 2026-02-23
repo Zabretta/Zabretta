@@ -1,4 +1,3 @@
-// backend/src/services/notificationService.ts
 import { prisma } from '../config/database';
 import { NotificationType } from '@prisma/client';
 
@@ -19,6 +18,29 @@ export interface BulkNotificationData {
   title: string;
   message: string;
   link?: string;
+}
+
+// ===== НОВЫЕ ТИПЫ ДЛЯ АДМИНСКОЙ ОТПРАВКИ =====
+
+/**
+ * Данные для отправки сообщения от администратора
+ */
+export interface AdminSendMessageData {
+  type: 'SYSTEM';
+  title: string;
+  message: string;
+  link?: string;
+  userId?: string;      // для адресной отправки
+  userLogin?: string;   // альтернативный способ
+}
+
+/**
+ * Результат отправки сообщения
+ */
+export interface AdminSendMessageResult {
+  success: boolean;
+  recipientCount: number;
+  message: string;
 }
 
 // Фильтры для получения уведомлений
@@ -89,6 +111,149 @@ export class NotificationService {
     return { count: result.count };
   }
 
+  // ===== НОВЫЕ МЕТОДЫ ДЛЯ АДМИНСКОЙ ОТПРАВКИ =====
+
+  /**
+   * Отправить сообщение конкретному пользователю (по ID или логину)
+   * @param data - данные сообщения
+   * @param adminId - ID администратора (для создания уведомления админу)
+   */
+  static async sendToUser(data: AdminSendMessageData, adminId: string): Promise<AdminSendMessageResult> {
+    let userId = data.userId;
+
+    // Если указан логин, ищем пользователя по логину
+    if (!userId && data.userLogin) {
+      const user = await prisma.users.findUnique({
+        where: { login: data.userLogin },
+        select: { id: true }
+      });
+
+      if (!user) {
+        throw new Error(`Пользователь с логином "${data.userLogin}" не найден`);
+      }
+      userId = user.id;
+    }
+
+    if (!userId) {
+      throw new Error('Не указан получатель (userId или userLogin)');
+    }
+
+    // Проверяем, что пользователь существует
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      select: { id: true, login: true }
+    });
+
+    if (!user) {
+      throw new Error(`Пользователь с ID "${userId}" не найден`);
+    }
+
+    // Создаем уведомление для получателя
+    await prisma.userNotification.create({
+      data: {
+        userId,
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        link: data.link
+      }
+    });
+
+    // ✅ СОЗДАЕМ ОТДЕЛЬНОЕ УВЕДОМЛЕНИЕ ДЛЯ АДМИНА
+    await prisma.userNotification.create({
+      data: {
+        userId: adminId,
+        type: 'SYSTEM',
+        title: '📨 Сообщение отправлено',
+        message: `Вы отправили сообщение "${data.title}" пользователю ${user.login}`,
+        link: '/admin/notifications'
+      }
+    });
+
+    return {
+      success: true,
+      recipientCount: 1,
+      message: `Сообщение отправлено пользователю ${user.login}`
+    };
+  }
+
+  /**
+   * Отправить сообщение всем пользователям (рассылка)
+   * @param data - данные сообщения
+   * @param adminId - ID администратора (для создания уведомления админу)
+   */
+  static async sendToAll(data: Omit<AdminSendMessageData, 'userId' | 'userLogin'>, adminId: string): Promise<AdminSendMessageResult> {
+    // Получаем всех активных пользователей
+    const users = await prisma.users.findMany({
+      where: { isActive: true },
+      select: { id: true }
+    });
+
+    if (users.length === 0) {
+      return {
+        success: true,
+        recipientCount: 0,
+        message: 'Нет активных пользователей для рассылки'
+      };
+    }
+
+    // Создаем уведомления для всех пользователей
+    const notifications = users.map(user => ({
+      userId: user.id,
+      type: data.type,
+      title: data.title,
+      message: data.message,
+      link: data.link
+    }));
+
+    await prisma.userNotification.createMany({
+      data: notifications
+    });
+
+    // ✅ СОЗДАЕМ ОТДЕЛЬНОЕ УВЕДОМЛЕНИЕ ДЛЯ АДМИНА
+    await prisma.userNotification.create({
+      data: {
+        userId: adminId,
+        type: 'SYSTEM',
+        title: '📢 Рассылка выполнена',
+        message: `Вы отправили сообщение "${data.title}" ${users.length} пользователям`,
+        link: '/admin/notifications'
+      }
+    });
+
+    return {
+      success: true,
+      recipientCount: users.length,
+      message: `Рассылка отправлена ${users.length} пользователям`
+    };
+  }
+
+  /**
+   * Поиск пользователей для адресной отправки
+   */
+  static async searchUsers(query: string, limit: number = 5) {
+    return prisma.users.findMany({
+      where: {
+        OR: [
+          { login: { contains: query, mode: 'insensitive' } },
+          { name: { contains: query, mode: 'insensitive' } },
+          { email: { contains: query, mode: 'insensitive' } }
+        ],
+        isActive: true
+      },
+      select: {
+        id: true,
+        login: true,
+        name: true,
+        avatar: true
+      },
+      take: limit,
+      orderBy: { login: 'asc' }
+    });
+  }
+
+  // ===== МЕТОДЫ ДЛЯ ПОЛУЧЕНИЯ УВЕДОМЛЕНИЙ =====
+
   /**
    * Получить уведомления с фильтрацией
    */
@@ -154,6 +319,8 @@ export class NotificationService {
       where: { userId, read: false }
     });
   }
+
+  // ===== МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ УВЕДОМЛЕНИЯМИ =====
 
   /**
    * Отметить уведомление как прочитанное
@@ -239,6 +406,25 @@ export class NotificationService {
   }
 
   // ===== МЕТОДЫ ДЛЯ АДМИНКИ (СТАТИСТИКА) =====
+
+  /**
+   * Получить все уведомления (для админки) - УСТАРЕЛО, используйте getNotifications с userId
+   * @deprecated
+   */
+  static async getAllNotifications() {
+    return prisma.userNotification.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            login: true,
+            name: true
+          }
+        }
+      },
+      take: 100 // Ограничиваем до 100 последних
+    });
+  }
 
   /**
    * Получить статистику по уведомлениям

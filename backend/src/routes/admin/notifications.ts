@@ -1,4 +1,3 @@
-// backend/src/routes/admin/notifications.ts
 import express from 'express';
 import { NotificationController } from '../../controllers/notificationController';
 import { authenticate, requireAdmin } from '../../middleware/auth';
@@ -15,7 +14,12 @@ router.post('/', NotificationController.createNotification);
 router.post('/bulk', NotificationController.sendBulkNotification);
 router.get('/stats', NotificationController.getStats);
 
-// ✅ ДОБАВЛЕНО: Маршруты для отметки прочитанных уведомлений
+// ✅ НОВЫЕ МАРШРУТЫ ДЛЯ ОТПРАВКИ СООБЩЕНИЙ
+router.post('/send', NotificationController.sendToUser);        // адресная отправка
+router.post('/broadcast', NotificationController.sendToAll);    // рассылка всем
+router.get('/users/search', NotificationController.searchUsers); // поиск пользователей
+
+// ✅ МАРШРУТЫ ДЛЯ ОТМЕТКИ ПРОЧИТАННЫХ УВЕДОМЛЕНИЙ
 router.post('/:id/read', NotificationController.markAdminAsRead);
 router.post('/read-all', NotificationController.markAdminAllAsRead);
 

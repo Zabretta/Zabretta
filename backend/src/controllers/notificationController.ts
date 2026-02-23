@@ -1,9 +1,8 @@
-// backend/src/controllers/notificationController.ts
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { NotificationService } from '../services/notificationService';
 import { createSuccessResponse, createErrorResponse } from '../utils/response';
-import { prisma } from '../config/database'; // ✅ ДОБАВЛЕН ИМПОРТ
+import { prisma } from '../config/database';
 
 export class NotificationController {
   
@@ -164,7 +163,7 @@ export class NotificationController {
 
   /**
    * GET /api/admin/notifications
-   * Получить все уведомления (с фильтрацией)
+   * Получить уведомления для админа (только свои)
    */
   static async getAllNotifications(req: AuthRequest, res: Response) {
     try {
@@ -172,14 +171,15 @@ export class NotificationController {
         return res.status(403).json(createErrorResponse('Доступ запрещён'));
       }
 
-      const { userId, type, read, page, limit, startDate, endDate } = req.query;
+      const { type, read, page, limit, startDate, endDate } = req.query;
       
       const typeArray = type 
         ? (type as string).split(',').map(t => t.toUpperCase()) as any
         : undefined;
 
+      // ВАЖНО: Фильтруем только уведомления для этого админа
       const filters = {
-        userId: userId as string,
+        userId: req.user.id,  // <- ТОЛЬКО УВЕДОМЛЕНИЯ АДМИНА
         type: typeArray,
         read: read !== undefined ? read === 'true' : undefined,
         page: page ? Number(page) : 1,
@@ -264,6 +264,106 @@ export class NotificationController {
     }
   }
 
+  // ===== НОВЫЕ МЕТОДЫ ДЛЯ АДМИНСКОЙ ОТПРАВКИ СООБЩЕНИЙ =====
+
+  /**
+   * POST /api/admin/notifications/send
+   * Отправить сообщение конкретному пользователю (по ID или логину)
+   */
+  static async sendToUser(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'ADMIN') {
+        return res.status(403).json(createErrorResponse('Доступ запрещён'));
+      }
+
+      const { type, title, message, link, userId, userLogin } = req.body;
+
+      if (!type || !title || !message) {
+        return res.status(400).json(createErrorResponse('Не все обязательные поля заполнены'));
+      }
+
+      if (!userId && !userLogin) {
+        return res.status(400).json(createErrorResponse('Укажите userId или userLogin получателя'));
+      }
+
+      // Передаем adminId в сервис
+      const result = await NotificationService.sendToUser({
+        type,
+        title,
+        message,
+        link,
+        userId,
+        userLogin
+      }, req.user.id);  // <- Передаем ID админа
+      
+      res.json(createSuccessResponse(result));
+    } catch (error: any) {
+      console.error('Ошибка отправки сообщения пользователю:', error);
+      
+      if (error.message.includes('не найден')) {
+        return res.status(404).json(createErrorResponse(error.message));
+      }
+      
+      res.status(500).json(createErrorResponse('Ошибка при отправке сообщения'));
+    }
+  }
+
+  /**
+   * POST /api/admin/notifications/broadcast
+   * Отправить сообщение всем пользователям (рассылка)
+   */
+  static async sendToAll(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'ADMIN') {
+        return res.status(403).json(createErrorResponse('Доступ запрещён'));
+      }
+
+      const { type, title, message, link } = req.body;
+
+      if (!type || !title || !message) {
+        return res.status(400).json(createErrorResponse('Не все обязательные поля заполнены'));
+      }
+
+      // Передаем adminId в сервис
+      const result = await NotificationService.sendToAll({
+        type,
+        title,
+        message,
+        link
+      }, req.user.id);  // <- Передаем ID админа
+      
+      res.json(createSuccessResponse(result));
+    } catch (error) {
+      console.error('Ошибка массовой рассылки:', error);
+      res.status(500).json(createErrorResponse('Ошибка при массовой рассылке'));
+    }
+  }
+
+  /**
+   * GET /api/admin/users/search
+   * Поиск пользователей для адресной отправки
+   */
+  static async searchUsers(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user || req.user.role !== 'ADMIN') {
+        return res.status(403).json(createErrorResponse('Доступ запрещён'));
+      }
+
+      const { q, limit = 5 } = req.query;
+
+      if (!q || typeof q !== 'string' || q.length < 2) {
+        return res.json(createSuccessResponse([]));
+      }
+
+      const users = await NotificationService.searchUsers(q, Number(limit));
+      
+      res.json(createSuccessResponse(users));
+    } catch (error) {
+      console.error('Ошибка поиска пользователей:', error);
+      res.status(500).json(createErrorResponse('Ошибка при поиске пользователей'));
+    }
+  }
+
   /**
    * GET /api/admin/notifications/stats
    * Получить статистику по уведомлениям
@@ -304,8 +404,6 @@ export class NotificationController {
     }
   }
 
-  // ===== ДОБАВЛЕННЫЕ МЕТОДЫ ДЛЯ АДМИНКИ =====
-  
   /**
    * POST /api/admin/notifications/:id/read
    * Отметить уведомление как прочитанное (админский метод)

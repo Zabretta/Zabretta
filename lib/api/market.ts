@@ -73,12 +73,20 @@ export interface MarketMessage {
     login: string;
     name: string | null;
     avatar: string | null;
+    phone?: string | null;        // Добавлено для контактов
+    email?: string | null;        // Добавлено для контактов
+    showPhone?: boolean;           // Добавлено для приватности
+    showEmail?: boolean;           // Добавлено для приватности
   };
   toUser?: {
     id: string;
     login: string;
     name: string | null;
     avatar: string | null;
+    phone?: string | null;        // Добавлено для контактов
+    email?: string | null;        // Добавлено для контактов
+    showPhone?: boolean;           // Добавлено для приватности
+    showEmail?: boolean;           // Добавлено для приватности
   };
   item?: {
     id: string;
@@ -97,6 +105,8 @@ export interface MessageThread {
     avatar: string | null;
     phone: string | null;
     email: string | null;
+    showPhone: boolean;            // Добавлено обязательно
+    showEmail: boolean;            // Добавлено обязательно
   };
   item: {
     id: string;
@@ -233,7 +243,39 @@ export const marketApi = {
    * GET /api/market/messages/:id/thread
    */
   getMessageThread: async (messageId: string): Promise<MessageThread> => {
-    return fetchWithAuth(`/market/messages/${messageId}/thread`);
+    try {
+      const response = await fetchWithAuth(`/market/messages/${messageId}/thread`);
+      
+      // Проверяем структуру ответа и добавляем поля showPhone/showEmail если их нет
+      if (response && response.otherUser) {
+        return {
+          ...response,
+          otherUser: {
+            id: response.otherUser.id || '',
+            login: response.otherUser.login || 'Пользователь',
+            name: response.otherUser.name || null,
+            avatar: response.otherUser.avatar || null,
+            phone: response.otherUser.phone || null,
+            email: response.otherUser.email || null,
+            // Гарантируем наличие полей приватности с значениями по умолчанию false
+            showPhone: response.otherUser.showPhone === true ? true : false,
+            showEmail: response.otherUser.showEmail === true ? true : false,
+          },
+          thread: response.thread || [],
+          item: response.item || {
+            id: '',
+            title: 'Объявление',
+            price: '',
+            imageUrl: null
+          }
+        };
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('Ошибка в getMessageThread:', error);
+      throw error;
+    }
   },
 
   /**

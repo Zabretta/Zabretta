@@ -88,51 +88,6 @@ export default function AdminUsersPage() {
     checkBackend();
   }, []);
 
-  // Загрузка пользователей
-  const loadUsers = async () => {
-    if (!isAuthorized) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      if (!isBackendAvailable) {
-        // Демо-данные для работы без бэкенда
-        const demoUsers = getDemoUsers();
-        setUsers(demoUsers);
-        setTotalUsers(demoUsers.length);
-        updateDistributionData(demoUsers);
-        setFilteredUsers(demoUsers);
-        return;
-      }
-
-      // Реальный запрос к бэкенду
-      const response = await adminApi.getUsers({
-        page: currentPage,
-        limit: usersPerPage,
-        role: filterRole !== 'all' ? filterRole : undefined,
-        search: search || undefined,
-        sortBy: 'createdAt_desc'
-      });
-      
-      setUsers(response.users || []);
-      setTotalUsers(response.total || 0);
-      updateDistributionData(response.users || []);
-      
-    } catch (err: any) {
-      console.error('Ошибка загрузки пользователей:', err);
-      setError(err.message || 'Ошибка при загрузке данных');
-      
-      // При ошибке показываем демо-данные
-      const demoUsers = getDemoUsers();
-      setUsers(demoUsers);
-      setTotalUsers(demoUsers.length);
-      updateDistributionData(demoUsers);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Демо-данные для разработки
   const getDemoUsers = (): AdminUser[] => {
     return [
@@ -193,6 +148,104 @@ export default function AdminUsersPage() {
         lastLogin: new Date(Date.now() - 15 * 86400000).toISOString(),
       },
     ];
+  };
+
+  // ===== ИСПРАВЛЕННЫЙ ЭФФЕКТ: Открытие профиля из уведомления =====
+  useEffect(() => {
+    // Проверяем, есть ли сохраненный ID для открытия
+    const userIdToOpen = sessionStorage.getItem('openUserModalId');
+    
+    if (userIdToOpen) {
+      // Очищаем storage сразу, чтобы не открывалось снова при обновлении
+      sessionStorage.removeItem('openUserModalId');
+      
+      // Ищем пользователя в уже загруженном списке
+      const user = users.find((u: AdminUser) => u.id === userIdToOpen);
+      
+      if (user) {
+        // Если нашли - открываем модалку
+        setSelectedUser(user);
+        setIsProfileModalOpen(true);
+      } else {
+        // Если не нашли в списке - пробуем найти через поиск по всем пользователям
+        const fetchUserById = async () => {
+          try {
+            if (isBackendAvailable) {
+              // Загружаем пользователей с поиском по ID (логин или email могут содержать ID)
+              const response = await adminApi.getUsers({
+                page: 1,
+                limit: 100, // Увеличиваем лимит, чтобы охватить больше пользователей
+                search: userIdToOpen,
+              });
+              
+              // Ищем пользователя с точным совпадением ID
+              const foundUser = response.users?.find((u: AdminUser) => u.id === userIdToOpen);
+              
+              if (foundUser) {
+                setSelectedUser(foundUser);
+                setIsProfileModalOpen(true);
+              }
+            } else {
+              // В демо-режиме ищем в демо-данных
+              const demoUsers = getDemoUsers();
+              const foundUser = demoUsers.find((u: AdminUser) => u.id === userIdToOpen);
+              if (foundUser) {
+                setSelectedUser(foundUser);
+                setIsProfileModalOpen(true);
+              }
+            }
+          } catch (error) {
+            console.error('Ошибка загрузки пользователя из уведомления:', error);
+          }
+        };
+        fetchUserById();
+      }
+    }
+  }, [users, isBackendAvailable]);
+
+  // Загрузка пользователей
+  const loadUsers = async () => {
+    if (!isAuthorized) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      if (!isBackendAvailable) {
+        // Демо-данные для работы без бэкенда
+        const demoUsers = getDemoUsers();
+        setUsers(demoUsers);
+        setTotalUsers(demoUsers.length);
+        updateDistributionData(demoUsers);
+        setFilteredUsers(demoUsers);
+        return;
+      }
+
+      // Реальный запрос к бэкенду
+      const response = await adminApi.getUsers({
+        page: currentPage,
+        limit: usersPerPage,
+        role: filterRole !== 'all' ? filterRole : undefined,
+        search: search || undefined,
+        sortBy: 'createdAt_desc'
+      });
+      
+      setUsers(response.users || []);
+      setTotalUsers(response.total || 0);
+      updateDistributionData(response.users || []);
+      
+    } catch (err: any) {
+      console.error('Ошибка загрузки пользователей:', err);
+      setError(err.message || 'Ошибка при загрузке данных');
+      
+      // При ошибке показываем демо-данные
+      const demoUsers = getDemoUsers();
+      setUsers(demoUsers);
+      setTotalUsers(demoUsers.length);
+      updateDistributionData(demoUsers);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Фильтрация пользователей

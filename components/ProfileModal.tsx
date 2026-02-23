@@ -5,7 +5,7 @@ import { useRating } from './RatingContext';
 import { useAuth } from './useAuth';
 import { userApi } from '@/lib/api/user';
 import { notificationsApi } from '@/lib/api/notifications';
-import { marketApi } from '@/lib/api/market';
+import { marketApi, MarketMessage, MessageThread } from '@/lib/api/market';
 import RatingBadge from './RatingBadge';
 import './ProfileModal.css';
 
@@ -29,6 +29,9 @@ interface ExtendedUser {
   role?: string;
   createdAt?: string;
   lastLogin?: string;
+  showPhone?: boolean;
+  showEmail?: boolean;
+  showCity?: boolean;
 }
 
 // Тип для уведомления
@@ -40,49 +43,6 @@ interface Notification {
   link?: string;
   read: boolean;
   createdAt: string;
-}
-
-// Тип для сообщения из маркета
-interface MarketMessage {
-  id: string;
-  itemId: string;
-  fromUserId: string;
-  toUserId: string;
-  message: string;
-  read: boolean;
-  contactMethod: string;
-  createdAt: string;
-  fromUser?: {
-    id: string;
-    login: string;
-    phone?: string;
-    email?: string;
-  };
-  toUser?: {
-    id: string;
-    login: string;
-    phone?: string;
-    email?: string;
-  };
-  item?: {
-    id: string;
-    title: string;
-  };
-}
-
-// Тип для переписки
-interface MessageThread {
-  thread: MarketMessage[];
-  otherUser: {
-    id: string;
-    login: string;
-    phone: string | null;
-    email: string | null;
-  };
-  item: {
-    id: string;
-    title: string;
-  };
 }
 
 // Тип для ответа от API
@@ -132,6 +92,9 @@ interface UserProfile {
   createdAt: string;
   lastLogin: string | null;
   content: any[];
+  showPhone?: boolean;
+  showEmail?: boolean;
+  showCity?: boolean;
 }
 
 // Тип для настроек уведомлений
@@ -183,7 +146,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   // Флаги инициализации и изменений
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [profileDataLoaded, setProfileDataLoaded] = useState(false);
-  const [settingsChanged, setSettingsChanged] = useState(false);
+  
+  // РАЗДЕЛЬНЫЕ ФЛАГИ ДЛЯ ИЗМЕНЕНИЙ
+  const [privacyChanged, setPrivacyChanged] = useState(false);
+  const [notifySettingsChanged, setNotifySettingsChanged] = useState(false);
   
   // Состояния для уведомлений
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -191,6 +157,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [notificationsFilter, setNotificationsFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [isDeletingNotification, setIsDeletingNotification] = useState<string | null>(null); // Для отслеживания удаления
   
   // Состояния для сообщений из маркета
   const [messages, setMessages] = useState<MarketMessage[]>([]);
@@ -234,7 +201,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       localStorage.setItem(`notifyLikes_${user.id}`, JSON.stringify(settingsToSend.siteLikes));
       localStorage.setItem(`notifyComments_${user.id}`, JSON.stringify(settingsToSend.siteComments));
       
-      setSettingsChanged(false);
+      setNotifySettingsChanged(false);
       forceUpdate();
       
     } catch (error) {
@@ -258,7 +225,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       setNotifyComments(newValue);
     }
     
-    setSettingsChanged(true);
+    setNotifySettingsChanged(true);
     
     // Формируем объект для отправки
     const settingsToSend = {
@@ -270,41 +237,95 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     await saveNotificationSettingsWithValue(settingsToSend);
   };
 
-  // Обработчики изменений чекбоксов приватности
-  const handleShowPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setShowPhone(e.target.checked);
-    setSettingsChanged(true);
+  // ===== ИСПРАВЛЕННЫЕ ОБРАБОТЧИКИ ДЛЯ ПРИВАТНОСТИ =====
+  
+  const handleShowPhoneChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.checked;
+    setShowPhone(newValue);
+    setPrivacyChanged(true);
     forceUpdate();
+    
+    // Сохраняем на сервере
+    if (user) {
+      try {
+        await userApi.updateProfile({ showPhone: newValue });
+        console.log('✅ Настройка showPhone сохранена:', newValue);
+        
+        // Обновляем localStorage
+        localStorage.setItem(`setting_showPhone_${user.id}`, JSON.stringify(newValue));
+        setPrivacyChanged(false);
+      } catch (error) {
+        console.error('❌ Ошибка сохранения showPhone:', error);
+        // Возвращаем старое значение в случае ошибки
+        setShowPhone(!newValue);
+      }
+    }
   };
 
-  const handleShowEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setShowEmail(e.target.checked);
-    setSettingsChanged(true);
+  const handleShowEmailChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.checked;
+    setShowEmail(newValue);
+    setPrivacyChanged(true);
     forceUpdate();
+    
+    // Сохраняем на сервере
+    if (user) {
+      try {
+        await userApi.updateProfile({ showEmail: newValue });
+        console.log('✅ Настройка showEmail сохранена:', newValue);
+        
+        // Обновляем localStorage
+        localStorage.setItem(`setting_showEmail_${user.id}`, JSON.stringify(newValue));
+        setPrivacyChanged(false);
+      } catch (error) {
+        console.error('❌ Ошибка сохранения showEmail:', error);
+        setShowEmail(!newValue);
+      }
+    }
   };
 
-  const handleShowCityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setShowCity(e.target.checked);
-    setSettingsChanged(true);
+  const handleShowCityChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.checked;
+    setShowCity(newValue);
+    setPrivacyChanged(true);
     forceUpdate();
+    
+    // Сохраняем на сервере
+    if (user) {
+      try {
+        await userApi.updateProfile({ showCity: newValue });
+        console.log('✅ Настройка showCity сохранена:', newValue);
+        
+        // Обновляем localStorage
+        localStorage.setItem(`setting_showCity_${user.id}`, JSON.stringify(newValue));
+        setPrivacyChanged(false);
+      } catch (error) {
+        console.error('❌ Ошибка сохранения showCity:', error);
+        setShowCity(!newValue);
+      }
+    }
   };
 
   // Функция сохранения всех настроек при выходе
   const saveAllSettingsOnExit = useCallback(async () => {
-    if (!user || !settingsChanged) return;
+    if (!user) return;
     
-    // Сохраняем настройки приватности в localStorage
-    localStorage.setItem(`setting_showPhone_${user.id}`, JSON.stringify(showPhone));
-    localStorage.setItem(`setting_showEmail_${user.id}`, JSON.stringify(showEmail));
-    localStorage.setItem(`setting_showCity_${user.id}`, JSON.stringify(showCity));
+    // Сохраняем настройки приватности в localStorage, если они изменились
+    if (privacyChanged) {
+      localStorage.setItem(`setting_showPhone_${user.id}`, JSON.stringify(showPhone));
+      localStorage.setItem(`setting_showEmail_${user.id}`, JSON.stringify(showEmail));
+      localStorage.setItem(`setting_showCity_${user.id}`, JSON.stringify(showCity));
+    }
     
-    // Сохраняем настройки уведомлений
-    await saveNotificationSettingsWithValue({
-      siteMessages: notifyMessages,
-      siteLikes: notifyLikes,
-      siteComments: notifyComments
-    });
-  }, [user, settingsChanged, showPhone, showEmail, showCity, notifyMessages, notifyLikes, notifyComments, saveNotificationSettingsWithValue]);
+    // Сохраняем настройки уведомлений, если они изменились
+    if (notifySettingsChanged) {
+      await saveNotificationSettingsWithValue({
+        siteMessages: notifyMessages,
+        siteLikes: notifyLikes,
+        siteComments: notifyComments
+      });
+    }
+  }, [user, privacyChanged, notifySettingsChanged, showPhone, showEmail, showCity, notifyMessages, notifyLikes, notifyComments, saveNotificationSettingsWithValue]);
 
   // Загрузка настроек уведомлений из API
   const loadNotificationSettings = useCallback(async () => {
@@ -324,7 +345,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
         localStorage.setItem(`notifyComments_${user.id}`, JSON.stringify(settings.siteComments ?? false));
         
         setSettingsInitialized(true);
-        setSettingsChanged(false);
+        setNotifySettingsChanged(false);
         forceUpdate();
       }
       
@@ -347,23 +368,23 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     setNotifyComments(savedComments ? JSON.parse(savedComments) : false);
     
     setSettingsInitialized(true);
-    setSettingsChanged(false);
+    setNotifySettingsChanged(false);
     forceUpdate();
   }, [user]);
 
   // Сохранение при закрытии модалки
   useEffect(() => {
-    if (!isOpen && settingsChanged) {
+    if (!isOpen && (privacyChanged || notifySettingsChanged)) {
       saveAllSettingsOnExit();
     }
-  }, [isOpen, settingsChanged, saveAllSettingsOnExit]);
+  }, [isOpen, privacyChanged, notifySettingsChanged, saveAllSettingsOnExit]);
 
   // Сохранение при смене пользователя
   useEffect(() => {
-    if (settingsChanged) {
+    if (privacyChanged || notifySettingsChanged) {
       saveAllSettingsOnExit();
     }
-  }, [user, settingsChanged, saveAllSettingsOnExit]);
+  }, [user, privacyChanged, notifySettingsChanged, saveAllSettingsOnExit]);
 
   // Загрузка настроек при открытии вкладки
   useEffect(() => {
@@ -376,7 +397,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     setSettingsInitialized(false);
     setProfileDataLoaded(false);
-    setSettingsChanged(false);
+    setPrivacyChanged(false);
+    setNotifySettingsChanged(false);
   }, [user]);
 
   // Сброс флагов при закрытии модалки
@@ -384,6 +406,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     if (!isOpen) {
       setSettingsInitialized(false);
       setProfileDataLoaded(false);
+      setPrivacyChanged(false);
+      setNotifySettingsChanged(false);
     }
   }, [isOpen]);
 
@@ -431,13 +455,21 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
           setAvatarVersion(prev => prev + 1);
         }
         
+        // Обновляем настройки приватности
+        if (userData?.showPhone !== undefined) setShowPhone(userData.showPhone);
+        if (userData?.showEmail !== undefined) setShowEmail(userData.showEmail);
+        if (userData?.showCity !== undefined) setShowCity(userData.showCity);
+        
         // Обновляем пользователя в контексте через localStorage
         const currentUser = JSON.parse(localStorage.getItem('samodelkin_user') || '{}');
         const updatedUser = {
           ...currentUser,
           ...userData,
           createdAt: userData.createdAt || currentUser.createdAt,
-          lastLogin: userData.lastLogin || currentUser.lastLogin
+          lastLogin: userData.lastLogin || currentUser.lastLogin,
+          showPhone: userData.showPhone ?? currentUser.showPhone,
+          showEmail: userData.showEmail ?? currentUser.showEmail,
+          showCity: userData.showCity ?? currentUser.showCity
         };
         localStorage.setItem('samodelkin_user', JSON.stringify(updatedUser));
         
@@ -473,9 +505,9 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       const savedShowEmail = localStorage.getItem(`setting_showEmail_${extendedUser.id}`);
       const savedShowCity = localStorage.getItem(`setting_showCity_${extendedUser.id}`);
       
-      setShowPhone(savedShowPhone ? JSON.parse(savedShowPhone) : false);
-      setShowEmail(savedShowEmail ? JSON.parse(savedShowEmail) : false);
-      setShowCity(savedShowCity ? JSON.parse(savedShowCity) : false);
+      setShowPhone(savedShowPhone ? JSON.parse(savedShowPhone) : (extendedUser.showPhone || false));
+      setShowEmail(savedShowEmail ? JSON.parse(savedShowEmail) : (extendedUser.showEmail || false));
+      setShowCity(savedShowCity ? JSON.parse(savedShowCity) : (extendedUser.showCity || false));
       
       // Загружаем аватар из localStorage
       const savedAvatar = localStorage.getItem(`avatar_${extendedUser.id}`);
@@ -594,7 +626,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     setSelectedMessage(message);
   };
 
-  // Удаление сообщения
+  // Удаление сообщения из маркета
   const handleDeleteMessage = async (e: React.MouseEvent, messageId: string) => {
     e.stopPropagation();
     
@@ -611,6 +643,70 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     } catch (error) {
       console.error('Ошибка при удалении сообщения:', error);
       alert('Не удалось удалить сообщение');
+    }
+  };
+
+  // ===== НОВАЯ ФУНКЦИЯ: Удаление уведомления в личном кабинете =====
+  const handleDeleteNotification = async (e: React.MouseEvent, notificationId: string) => {
+    e.stopPropagation(); // Предотвращаем всплытие клика на само уведомление
+    
+    if (!confirm('Вы уверены, что хотите удалить это уведомление?')) {
+      return;
+    }
+    
+    setIsDeletingNotification(notificationId);
+    
+    try {
+      const token = localStorage.getItem('samodelkin_auth_token');
+      const response = await fetch(`http://localhost:3001/api/notifications/${notificationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Ошибка удаления');
+      }
+      
+      // Удаляем уведомление из локального состояния
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      
+      console.log('✅ Уведомление удалено');
+      
+    } catch (error: any) {
+      console.error('Ошибка удаления уведомления:', error);
+      alert(`❌ Ошибка: ${error.message}`);
+    } finally {
+      setIsDeletingNotification(null);
+    }
+  };
+
+  // ===== ИСПРАВЛЕННАЯ ФУНКЦИЯ: Клик по уведомлению (только отметить прочитанным) =====
+  const handleNotificationClick = async (notification: Notification) => {
+    // Если уже прочитано - ничего не делаем
+    if (notification.read) return;
+    
+    try {
+      const token = localStorage.getItem('samodelkin_auth_token');
+      await fetch(`http://localhost:3001/api/notifications/${notification.id}/read`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      // Обновляем локальное состояние
+      setNotifications(prev =>
+        prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
+      );
+      
+      console.log(`✅ Уведомление ${notification.id} отмечено как прочитанное`);
+    } catch (error) {
+      console.error('Ошибка при отметке уведомления:', error);
     }
   };
 
@@ -684,31 +780,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
       console.error('Ошибка при отметке всех уведомлений:', error);
-    }
-  };
-
-  const handleNotificationClick = async (notification: Notification) => {
-    if (!notification.read) {
-      try {
-        const token = localStorage.getItem('samodelkin_auth_token');
-        await fetch(`http://localhost:3001/api/notifications/${notification.id}/read`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        setNotifications(prev =>
-          prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
-        );
-      } catch (error) {
-        console.error('Ошибка при отметке уведомления:', error);
-      }
-    }
-    
-    if (notification.link) {
-      window.location.href = notification.link;
     }
   };
 
@@ -894,6 +965,17 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
         updateData.avatar = avatarPreview;
       }
       
+      // Добавляем настройки приватности в данные для обновления
+      if (showPhone !== extendedUser.showPhone) {
+        updateData.showPhone = showPhone;
+      }
+      if (showEmail !== extendedUser.showEmail) {
+        updateData.showEmail = showEmail;
+      }
+      if (showCity !== extendedUser.showCity) {
+        updateData.showCity = showCity;
+      }
+      
       // Отправляем данные на сервер
       if (Object.keys(updateData).length > 0) {
         const updatedUser = await userApi.updateProfile(updateData);
@@ -927,7 +1009,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
         return;
       }
       
-      // Сохраняем настройки приватности
+      // Сохраняем настройки приватности в localStorage
       localStorage.setItem(`setting_showPhone_${extendedUser.id}`, JSON.stringify(showPhone));
       localStorage.setItem(`setting_showEmail_${extendedUser.id}`, JSON.stringify(showEmail));
       localStorage.setItem(`setting_showCity_${extendedUser.id}`, JSON.stringify(showCity));
@@ -941,7 +1023,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       
       alert('Профиль успешно сохранён!');
       setIsEditing(false);
-      setSettingsChanged(false);
+      setPrivacyChanged(false);
+      setNotifySettingsChanged(false);
       forceUpdate();
       
     } catch (error) {
@@ -1400,35 +1483,47 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                   </div>
                 ) : (
                   <>
-                    {notifications.map(notification => (
-                      <div
-                        key={notification.id}
-                        className={`notification-item ${notification.read ? 'read' : 'unread'}`}
-                        onClick={() => handleNotificationClick(notification)}
-                      >
-                        <div className="notification-icon-wrapper">
-                          <div className="notification-icon">
-                            {getNotificationIcon(notification.type)}
-                          </div>
-                          {!notification.read && (
-                            <div className="notification-unread-dot"></div>
-                          )}
-                        </div>
-                        
-                        <div className="notification-content">
-                          <h4 className="notification-title">{notification.title}</h4>
-                          <p className="notification-message">{notification.message}</p>
-                          <div className="notification-meta">
-                            <span className="notification-time">
-                              {formatNotificationDate(notification.createdAt)}
-                            </span>
-                            {notification.link && (
-                              <span className="notification-link">Перейти →</span>
+                    {notifications.map(notification => {
+                      const isDeletingThis = isDeletingNotification === notification.id;
+                      
+                      return (
+                        <div
+                          key={notification.id}
+                          className={`notification-item ${notification.read ? 'read' : 'unread'} ${isDeletingThis ? 'deleting' : ''}`}
+                          onClick={() => !isDeletingThis && handleNotificationClick(notification)}
+                          style={isDeletingThis ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                        >
+                          <div className="notification-icon-wrapper">
+                            <div className="notification-icon">
+                              {getNotificationIcon(notification.type)}
+                            </div>
+                            {!notification.read && (
+                              <div className="notification-unread-dot"></div>
                             )}
                           </div>
+                          
+                          <div className="notification-content">
+                            <h4 className="notification-title">{notification.title}</h4>
+                            <p className="notification-message">{notification.message}</p>
+                            <div className="notification-meta">
+                              <span className="notification-time">
+                                {formatNotificationDate(notification.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Кнопка удаления уведомления - в правом нижнем углу */}
+                          <button
+                            className="notification-delete-btn"
+                            onClick={(e) => handleDeleteNotification(e, notification.id)}
+                            disabled={isDeletingThis}
+                            title="Удалить уведомление"
+                          >
+                            {isDeletingThis ? '⏳' : '🗑️'}
+                          </button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     
                     {totalPages > 1 && (
                       <div className="notifications-pagination">
@@ -1526,7 +1621,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                             <div className="message-unread-dot" title="Непрочитано"></div>
                           )}
                           
-                          {/* Корзина для удаления */}
+                          {/* Корзина для удаления сообщений из маркета */}
                           <button
                             className="message-delete-btn"
                             onClick={(e) => handleDeleteMessage(e, message.id)}
@@ -1716,15 +1811,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                 
                 <div className="dialog-contact-info">
                   <h4>Контакты собеседника:</h4>
-                  {messageThread.otherUser.phone ? (
+                  {messageThread.otherUser.phone && messageThread.otherUser.showPhone ? (
                     <p>📞 Телефон: {messageThread.otherUser.phone}</p>
                   ) : (
-                    <p>📞 Телефон не указан</p>
+                    <p>📞 Телефон скрыт</p>
                   )}
-                  {messageThread.otherUser.email ? (
+                  {messageThread.otherUser.email && messageThread.otherUser.showEmail ? (
                     <p>✉️ Email: {messageThread.otherUser.email}</p>
                   ) : (
-                    <p>✉️ Email не указан</p>
+                    <p>✉️ Email скрыт</p>
                   )}
                   <p className="contact-note">
                     ⚠️ Контакты видны только если пользователь разрешил их показывать в настройках

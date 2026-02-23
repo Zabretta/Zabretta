@@ -2,7 +2,7 @@
 /* Базовые стили для модального окна уведомлений */
 
 .notifications-modal {
-  max-width: 500px;
+  max-width: 600px; /* Увеличено для новой формы */
 }
 
 /* Шапка с уведомлениями */
@@ -72,64 +72,451 @@
   white-space: nowrap;
 }
 
-/* Форма добавления уведомления */
-.add-notification-form {
+/* ===== НОВЫЕ СТИЛИ ДЛЯ ФОРМЫ ОТПРАВКИ СООБЩЕНИЙ ===== */
+
+/* Секция отправки сообщений */
+.send-message-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: rgba(139, 69, 19, 0.15);
+  border-radius: 12px;
+  border: 2px solid rgba(139, 69, 19, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.send-message-section h3 {
+  color: #FFD700;
+  font-size: 18px;
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 2px solid rgba(210, 105, 30, 0.3);
+  padding-bottom: 12px;
+}
+
+.send-message-section h3::before {
+  content: "📨";
+  font-size: 22px;
+}
+
+/* Группы полей формы */
+.form-group {
   margin-bottom: 20px;
-  padding: 15px;
-  background: rgba(139, 69, 19, 0.1);
-  border-radius: 10px;
-  border: 1px solid rgba(139, 69, 19, 0.3);
 }
 
-.add-notification-form .form-group {
-  margin-bottom: 0;
-}
-
-.add-notification-form label {
+.form-group label {
   display: block;
   color: #D2B48C;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.notification-textarea {
+.message-input {
   width: 100%;
-  padding: 12px;
+  padding: 12px 16px;
   background: rgba(0, 0, 0, 0.5);
   border: 2px solid #8B4513;
   border-radius: 8px;
   color: #F5DEB3;
-  font-size: 14px;
-  font-family: inherit;
-  resize: vertical;
-  min-height: 60px;
+  font-size: 15px;
   transition: all 0.3s ease;
 }
 
-.notification-textarea:focus {
+.message-input:focus {
   outline: none;
   border-color: #D2691E;
   box-shadow: 0 0 0 3px rgba(210, 105, 30, 0.2);
 }
 
-.notification-textarea::placeholder {
+.message-input::placeholder {
   color: #A0522D;
   opacity: 0.7;
 }
 
-.notification-textarea:disabled {
+.message-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   background: rgba(0, 0, 0, 0.3);
 }
 
-/* Обновим стили кнопки "Добавить уведомление" */
-.action-btn.text-notification:disabled {
+.message-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid #8B4513;
+  border-radius: 8px;
+  color: #F5DEB3;
+  font-size: 15px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  transition: all 0.3s ease;
+}
+
+.message-textarea:focus {
+  outline: none;
+  border-color: #D2691E;
+  box-shadow: 0 0 0 3px rgba(210, 105, 30, 0.2);
+}
+
+.message-textarea::placeholder {
+  color: #A0522D;
+  opacity: 0.7;
+}
+
+.message-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.input-hint {
+  display: block;
+  color: #A0522D;
+  font-size: 12px;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* Радио-кнопки для выбора типа отправки */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  color: #D2B48C;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.radio-label:hover {
+  background: rgba(139, 69, 19, 0.2);
+  color: #F5DEB3;
+}
+
+.radio-label input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #D2691E;
+  cursor: pointer;
+}
+
+.radio-label input[type="radio"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none !important;
 }
+
+.radio-label span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Стили для поиска получателя */
+.recipient-search {
+  position: relative;
+}
+
+.selected-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(46, 139, 87, 0.15);
+  border: 2px solid #2E8B57;
+  border-radius: 8px;
+  color: #98FB98;
+  font-size: 15px;
+}
+
+.selected-user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.selected-user-info strong {
+  color: #FFD700;
+}
+
+.clear-user-btn {
+  width: 28px;
+  height: 28px;
+  background: rgba(139, 0, 0, 0.3);
+  border: 2px solid #8B0000;
+  border-radius: 50%;
+  color: #CD5C5C;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.clear-user-btn:hover:not(:disabled) {
+  background: rgba(255, 0, 0, 0.3);
+  border-color: #FF0000;
+  color: #FFA07A;
+  transform: scale(1.1);
+}
+
+.clear-user-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Результаты поиска */
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 250px;
+  overflow-y: auto;
+  background: #1A0F0A;
+  border: 2px solid #8B4513;
+  border-radius: 8px;
+  margin-top: 4px;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(139, 69, 19, 0.3);
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover {
+  background: rgba(210, 105, 30, 0.2);
+}
+
+.result-avatar {
+  width: 32px;
+  height: 32px;
+  background: rgba(139, 69, 19, 0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.result-login {
+  color: #FFD700;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.result-name {
+  color: #D2B48C;
+  font-size: 13px;
+  margin-left: 4px;
+}
+
+.result-id {
+  color: #A0522D;
+  font-size: 11px;
+  margin-left: auto;
+  font-family: monospace;
+}
+
+.search-spinner {
+  display: block;
+  color: #D2691E;
+  font-size: 13px;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.no-results {
+  padding: 12px 16px;
+  color: #A0522D;
+  font-size: 13px;
+  text-align: center;
+  font-style: italic;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+/* Кнопка отправки сообщения */
+.send-notification-btn {
+  width: 100%;
+  padding: 14px !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  background: linear-gradient(135deg, #8B4513, #D2691E) !important;
+  border: none !important;
+  color: #FFF8DC !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 16px;
+  box-shadow: 0 4px 12px rgba(139, 69, 19, 0.4);
+}
+
+.send-notification-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9C5518, #E07A2E) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(218, 165, 32, 0.5) !important;
+}
+
+.send-notification-btn:active:not(:disabled) {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.4) !important;
+}
+
+.send-notification-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, #5A3A2A, #8B5A3A) !important;
+}
+
+/* Разделитель между формой и историей */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 24px 0 16px;
+  color: #D2B48C;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.section-divider::before,
+.section-divider::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #8B4513, transparent);
+}
+
+/* Дополнительная информация в уведомлениях */
+.notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.notification-title {
+  color: #FFD700;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.notification-recipient {
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(70, 130, 180, 0.15);
+  border: 1px solid #4682B4;
+  border-radius: 16px;
+  color: #87CEEB;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* Обновим стили существующих элементов */
+.add-notification-form {
+  display: none; /* Скрываем старую форму, теперь используем новую */
+}
+
+/* Форма добавления уведомления (старая - скрываем) */
+.add-notification-form {
+  display: none;
+}
+
+/* Кнопка "текстовое уведомление" больше не нужна, заменена на send-notification-btn */
+.action-btn.text-notification {
+  display: none;
+}
+
+/* ===== СТИЛИ ДЛЯ КНОПКИ УДАЛЕНИЯ ===== */
+
+/* Корзина для удаления уведомления */
+.notification-delete-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  background: rgba(139, 69, 19, 0.3);
+  border: 1px solid #8B4513;
+  border-radius: 6px;
+  color: #D4B28C;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  opacity: 0.5;
+  padding: 0;
+  z-index: 10;
+}
+
+.notification-delete-btn:hover {
+  opacity: 1;
+  background: rgba(255, 69, 0, 0.3);
+  border-color: #FF4500;
+  color: #FF4500;
+  transform: scale(1.1);
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+  .notification-delete-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    bottom: 6px;
+    right: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .notification-item {
+    padding-bottom: 40px; /* Добавляем отступ снизу для кнопки удаления */
+  }
+  
+  .notification-delete-btn {
+    bottom: 10px;
+    right: 10px;
+  }
+}
+
+/* ===== ОСТАЛЬНЫЕ СУЩЕСТВУЮЩИЕ СТИЛИ ===== */
 
 /* Состояние загрузки */
 .loading-state {
@@ -392,43 +779,6 @@
   gap: 12px;
 }
 
-/* Кнопка "текстовое уведомление" рядом с "закрыть" */
-.action-btn.text-notification {
-  background: linear-gradient(135deg, rgba(218, 165, 32, 0.2), rgba(184, 134, 11, 0.3));
-  border: 2px solid #DAA520;
-  color: #FFD700;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-width: 120px;
-}
-
-.action-btn.text-notification:hover {
-  background: linear-gradient(135deg, rgba(218, 165, 32, 0.3), rgba(184, 134, 11, 0.4));
-  border-color: #FFD700;
-  color: #FFF8DC;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(218, 165, 32, 0.3);
-}
-
-.action-btn.text-notification:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(218, 165, 32, 0.2);
-}
-
-/* Иконка внутри кнопки */
-.action-btn.text-notification::before {
-  content: "📝";
-  font-size: 16px;
-}
-
 /* Кнопка "Закрыть" в футере */
 .action-btn.tertiary {
   background: rgba(139, 69, 19, 0.1);
@@ -519,11 +869,32 @@
     font-size: 16px;
   }
   
-  /* Для мобильных устройств - кнопка текстового уведомления */
-  .action-btn.text-notification {
-    min-width: auto;
-    padding: 10px 16px;
+  /* Адаптивность для новой формы */
+  .send-message-section {
+    padding: 15px;
+  }
+  
+  .search-results {
+    max-height: 200px;
+  }
+  
+  .result-login {
     font-size: 13px;
+  }
+  
+  .result-id {
+    display: none; /* Скрываем ID на мобильных */
+  }
+  
+  .radio-label {
+    padding: 10px;
+    font-size: 14px;
+  }
+  
+  .selected-user-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
 }
 
@@ -541,6 +912,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+    padding-bottom: 40px;
   }
   
   .notification-icon {
@@ -559,9 +931,53 @@
     font-size: 13px;
   }
   
-  /* Для очень маленьких экранов */
-  .action-btn.text-notification {
-    width: 100%;
-    margin-top: 8px;
+  /* Дополнительная адаптивность для мобильных */
+  .send-message-section h3 {
+    font-size: 16px;
+  }
+  
+  .message-input,
+  .message-textarea {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  
+  .radio-group {
+    gap: 8px;
+  }
+  
+  .radio-label {
+    padding: 8px;
+    font-size: 13px;
+  }
+  
+  .search-result-item {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  
+  .result-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+  
+  .result-login {
+    font-size: 12px;
+  }
+  
+  .result-name {
+    font-size: 11px;
+  }
+  
+  .send-notification-btn {
+    padding: 12px !important;
+    font-size: 14px !important;
+  }
+  
+  /* Адаптация кнопки удаления для мобильных */
+  .notification-delete-btn {
+    bottom: 10px;
+    right: 10px;
   }
 }

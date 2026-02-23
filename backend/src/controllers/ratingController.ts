@@ -184,4 +184,133 @@ export class RatingController {
       res.status(500).json(createErrorResponse('Ошибка при поиске пользователей по рейтингу'));
     }
   }
+
+  /**
+   * НОВЫЙ МЕТОД: Начислить баллы пользователю за действие
+   * POST /api/rating/award
+   * Доступен только авторизованным пользователям
+   */
+  static async awardPoints(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      // 1. Проверяем авторизацию
+      if (!req.user) {
+        res.status(401).json(createErrorResponse('Требуется авторизация'));
+        return;
+      }
+
+      // 2. Получаем данные из тела запроса
+      const { action, targetId, section } = req.body;
+
+      // 3. Валидация обязательных полей
+      if (!action) {
+        res.status(400).json(createErrorResponse('Не указано действие (action)'));
+        return;
+      }
+
+      // 4. Вызываем сервис для начисления баллов
+      const result = await RatingService.awardPoints(
+        req.user.id,
+        action,
+        targetId,
+        section
+      );
+
+      // 5. Возвращаем результат
+      if (result.awarded) {
+        res.json(createSuccessResponse({
+          awarded: true,
+          ratingChange: result.ratingChange,
+          activityChange: result.activityChange,
+          message: result.message
+        }));
+      } else {
+        // Если не начислено (например, уже получали сегодня), возвращаем 200 с флагом awarded: false
+        res.json(createSuccessResponse({
+          awarded: false,
+          ratingChange: 0,
+          activityChange: 0,
+          message: result.message
+        }));
+      }
+
+    } catch (error) {
+      console.error('[RatingController] Ошибка при начислении баллов:', error);
+      res.status(500).json(createErrorResponse('Ошибка при начислении баллов'));
+    }
+  }
+
+  /**
+   * НОВЫЙ МЕТОД: Получить историю начислений текущего пользователя
+   * GET /api/rating/my-history
+   */
+  static async getMyRatingHistory(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json(createErrorResponse('Требуется авторизация'));
+        return;
+      }
+
+      const adjustments = await RatingService.getRatingAdjustments({
+        userId: req.user.id,
+        limit: 50 // Последние 50 записей
+      });
+
+      res.json(createSuccessResponse(adjustments));
+
+    } catch (error) {
+      console.error('[RatingController] Ошибка при получении истории:', error);
+      res.status(500).json(createErrorResponse('Ошибка при получении истории начислений'));
+    }
+  }
+
+  /**
+   * НОВЫЙ МЕТОД: Проверить, был ли сегодня бонус за вход
+   * GET /api/rating/check-daily-bonus
+   */
+  static async checkDailyBonus(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json(createErrorResponse('Требуется авторизация'));
+        return;
+      }
+
+      // Получаем пользователя с его последним входом
+      const user = await prisma.users.findUnique({
+        where: { id: req.user.id },
+        select: { lastLogin: true }
+      });
+
+      if (!user) {
+        res.status(404).json(createErrorResponse('Пользователь не найден'));
+        return;
+      }
+
+      const today = new Date().toDateString();
+      const lastLoginDate = user.lastLogin ? new Date(user.lastLogin).toDateString() : null;
+
+      // Проверяем, были ли сегодня начисления за вход
+      const todayAdjustments = await prisma.rating_adjustments.findMany({
+        where: {
+          userId: req.user.id,
+          reason: { contains: 'Ежедневный вход' },
+          timestamp: {
+            gte: new Date(new Date().setHours(0, 0, 0, 0))
+          }
+        }
+      });
+
+      res.json(createSuccessResponse({
+        canGetBonus: lastLoginDate !== today && todayAdjustments.length === 0,
+        lastLogin: user.lastLogin,
+        alreadyReceived: todayAdjustments.length > 0
+      }));
+
+    } catch (error) {
+      console.error('[RatingController] Ошибка при проверке бонуса:', error);
+      res.status(500).json(createErrorResponse('Ошибка при проверке бонуса'));
+    }
+  }
 }
+
+// 👇 ИМПОРТ ДЛЯ ПОСЛЕДНЕГО МЕТОДА
+import { prisma } from '../config/database';

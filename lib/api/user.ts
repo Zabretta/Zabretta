@@ -38,6 +38,9 @@ export interface UserProfile {
   activityPoints: number;
   createdAt: string;
   lastLogin: string | null;
+  showPhone?: boolean;
+  showEmail?: boolean;
+  showCity?: boolean;
   content: Array<{
     id: string;
     type: string;
@@ -128,6 +131,9 @@ export interface PublicProfile {
   activityPoints: number;
   createdAt: string;
   lastLogin: string | null;
+  showPhone?: boolean;
+  showEmail?: boolean;
+  showCity?: boolean;
   content: Array<{
     id: string;
     type: string;
@@ -145,6 +151,10 @@ export interface UpdateProfileData {
   bio?: string;
   location?: string;
   phone?: string;
+  // Настройки приватности
+  showPhone?: boolean;
+  showEmail?: boolean;
+  showCity?: boolean;
 }
 
 export const userApi = {

@@ -14,16 +14,27 @@ interface ContentStats {
   commentsMade: number;
 }
 
+// Тип для формулы начисления
+interface RatingFormula {
+  section: string;
+  action: string;
+  ratingPoints: number;
+  activityPoints: number;
+  description: string;
+}
+
 export class RatingService {
+  /**
+   * Получить рейтинг пользователя
+   */
   static async getUserRating(userId: string): Promise<UserRating> {
-    // ИСПРАВЛЕНО: user → users
     const user = await prisma.users.findUnique({
       where: { id: userId },
       include: {
         content: {
           where: { status: 'ACTIVE' }
         },
-        rating_adjustments: {  // ИСПРАВЛЕНО: ratingAdjustments → rating_adjustments
+        rating_adjustments: {
           orderBy: { timestamp: 'desc' }
         }
       }
@@ -39,7 +50,6 @@ export class RatingService {
     const userLevel = USER_LEVELS.find(level => rating >= level.min && rating <= level.max) || USER_LEVELS[0];
     const activityLevel = ACTIVITY_LEVELS.find(level => activity >= level.min && activity <= level.max) || ACTIVITY_LEVELS[0];
     
-    // ИСПРАВЛЕНО: добавляем типы для acc и item
     const contentStats = (user.content || []).reduce<ContentStats>((acc: ContentStats, item: any) => {
       if (item.type === 'PROJECT') acc.projectsCreated++;
       if (item.type === 'MARKET') acc.mastersAdsCreated++;
@@ -68,6 +78,9 @@ export class RatingService {
     };
   }
   
+  /**
+   * Получить рейтинги всех пользователей с пагинацией
+   */
   static async getAllUserRatings(params: {
     page?: number;
     limit?: number;
@@ -84,7 +97,6 @@ export class RatingService {
       case 'activity_asc': orderBy.activityPoints = 'asc'; break;
     }
     
-    // ИСПРАВЛЕНО: user → users
     const [users, total] = await Promise.all([
       prisma.users.findMany({
         skip,
@@ -103,7 +115,6 @@ export class RatingService {
       users.map((user: any) => this.getUserRating(user.id))
     );
     
-    // ИСПРАВЛЕНО: добавляем типы для sum и r
     const totalRating = ratings.reduce((sum: number, r: UserRating) => sum + r.totalRating, 0);
     const totalActivity = ratings.reduce((sum: number, r: UserRating) => sum + r.totalActivity, 0);
     
@@ -115,6 +126,9 @@ export class RatingService {
     };
   }
   
+  /**
+   * Получить историю корректировок рейтинга
+   */
   static async getRatingAdjustments(params: {
     userId?: string;
     page?: number;
@@ -134,7 +148,6 @@ export class RatingService {
       if (endDate) where.timestamp.lte = new Date(endDate);
     }
     
-    // ИСПРАВЛЕНО: ratingAdjustment → rating_adjustments
     const [adjustments, total] = await Promise.all([
       prisma.rating_adjustments.findMany({
         where,
@@ -142,7 +155,7 @@ export class RatingService {
         take: limit,
         orderBy: { timestamp: 'desc' },
         include: {
-          users: {  // ИСПРАВЛЕНО: user → users
+          users: {
             select: {
               login: true,
               name: true
@@ -153,7 +166,6 @@ export class RatingService {
       prisma.rating_adjustments.count({ where })
     ]);
     
-    // ИСПРАВЛЕНО: добавляем тип для adj
     const formattedAdjustments: RatingAdjustment[] = adjustments.map((adj: any) => ({
       id: adj.id,
       userId: adj.userId,
@@ -165,7 +177,6 @@ export class RatingService {
       timestamp: adj.timestamp.toISOString()
     }));
     
-    // ИСПРАВЛЕНО: добавляем типы для sum и adj
     const summary = {
       totalRatingChanges: formattedAdjustments.reduce((sum: number, adj: RatingAdjustment) => sum + adj.ratingChange, 0),
       totalActivityChanges: formattedAdjustments.reduce((sum: number, adj: RatingAdjustment) => sum + adj.activityChange, 0),
@@ -180,8 +191,11 @@ export class RatingService {
     };
   }
   
+  /**
+   * Получить уровни и формулы рейтинга
+   */
   static async getRatingLevels() {
-    const formulas = [
+    const formulas: RatingFormula[] = [
       { section: 'projects', action: 'create', ratingPoints: 5, activityPoints: 10, description: 'Создание проекта' },
       { section: 'projects', action: 'like_given', ratingPoints: 0, activityPoints: 2, description: 'Лайк проекту' },
       { section: 'projects', action: 'like_received', ratingPoints: 1, activityPoints: 0, description: 'Получение лайка' },
@@ -196,12 +210,11 @@ export class RatingService {
       { section: 'general', action: 'daily_login', ratingPoints: 0, activityPoints: 2, description: 'Ежедневный вход' },
     ];
     
-    // ИСПРАВЛЕНО: ratingAdjustment → rating_adjustments
     const recentAdjustments = await prisma.rating_adjustments.findMany({
       take: 10,
       orderBy: { timestamp: 'desc' },
       include: {
-        users: {  // ИСПРАВЛЕНО: user → users
+        users: {
           select: {
             login: true,
             name: true
@@ -210,7 +223,6 @@ export class RatingService {
       }
     });
     
-    // ИСПРАВЛЕНО: добавляем тип для adj
     return {
       userLevels: USER_LEVELS,
       activityLevels: ACTIVITY_LEVELS,
@@ -226,6 +238,116 @@ export class RatingService {
         adminNote: adj.adminNote,
         timestamp: adj.timestamp.toISOString()
       }))
+    };
+  }
+
+  /**
+   * Начислить баллы пользователю за действие
+   */
+  static async awardPoints(
+    userId: string, 
+    action: string, 
+    targetId?: string,
+    section?: string
+  ): Promise<{ awarded: boolean; ratingChange: number; activityChange: number; message: string }> {
+    try {
+      // 1. Получаем все формулы
+      const { formulas } = await this.getRatingLevels();
+      
+      // 2. Ищем подходящую формулу
+      let formula = formulas.find(f => f.action === action);
+      
+      if (section) {
+        const exactFormula = formulas.find(f => f.section === section && f.action === action);
+        if (exactFormula) formula = exactFormula;
+      }
+      
+      if (!formula) {
+        console.warn(`[RatingService] Формула не найдена для действия: ${action}`);
+        return {
+          awarded: false,
+          ratingChange: 0,
+          activityChange: 0,
+          message: `Формула не найдена для действия: ${action}`
+        };
+      }
+
+      // 👇 ИСПРАВЛЕНО: Проверяем daily_login ТОЛЬКО если это не вызов из админки
+      if (action === 'daily_login' && !targetId?.startsWith('admin_')) {
+        const today = new Date().toDateString();
+        
+        const todayAdjustments = await prisma.rating_adjustments.findMany({
+          where: {
+            userId,
+            reason: formula.description,
+            timestamp: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0))
+            }
+          }
+        });
+        
+        if (todayAdjustments.length > 0) {
+          return {
+            awarded: false,
+            ratingChange: 0,
+            activityChange: 0,
+            message: 'Бонус за сегодня уже получен'
+          };
+        }
+      }
+
+      // 4. Создаем запись в истории
+      const adjustment = await prisma.rating_adjustments.create({
+        data: {
+          userId,
+          reason: `${formula.description}${targetId ? ` (ID: ${targetId})` : ''}`,
+          ratingChange: formula.ratingPoints,
+          activityChange: formula.activityPoints,
+          adminId: null,
+          adminNote: targetId ? `targetId: ${targetId}` : null,
+          timestamp: new Date()
+        }
+      });
+
+      // 5. Обновляем суммарные поля пользователя
+      await prisma.users.update({
+        where: { id: userId },
+        data: {
+          rating: { increment: formula.ratingPoints },
+          activityPoints: { increment: formula.activityPoints }
+        }
+      });
+
+      console.log(`[RatingService] Начислено ${formula.ratingPoints} рейтинга и ${formula.activityPoints} активности пользователю ${userId} за ${action}`);
+
+      return {
+        awarded: true,
+        ratingChange: formula.ratingPoints,
+        activityChange: formula.activityPoints,
+        message: `+${formula.ratingPoints} рейтинга, +${formula.activityPoints} активности`
+      };
+
+    } catch (error) {
+      console.error('[RatingService] Ошибка при начислении баллов:', error);
+      return {
+        awarded: false,
+        ratingChange: 0,
+        activityChange: 0,
+        message: 'Ошибка при начислении баллов'
+      };
+    }
+  }
+
+  /**
+   * Проверить и начислить бонус за ежедневный вход
+   */
+  static async checkAndAwardDailyLogin(userId: string): Promise<{ awarded: boolean; message: string }> {
+    // 👇 ИСПРАВЛЕНО: Убрали дублирующую проверку, доверяем awardPoints
+    const result = await this.awardPoints(userId, 'daily_login');
+    
+    return {
+      awarded: result.awarded,
+      message: result.awarded ? 'Бонус за вход начислен' : result.message
     };
   }
 }

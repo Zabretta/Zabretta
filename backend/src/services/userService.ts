@@ -1,7 +1,6 @@
 import { prisma } from '../config/database';
 import { UserRole } from '@prisma/client';
 
-
 // Типы для внутреннего использования
 interface ContentStats {
   projectsCreated: number;
@@ -34,6 +33,7 @@ export class UserService {
         login: true,
         name: true,
         avatar: true,
+        role: true, // ← добавлено поле role
         bio: true,
         location: true,
         phone: true,
@@ -160,7 +160,6 @@ export class UserService {
 
   /**
    * Обновление профиля пользователя (для самого пользователя)
-   * ИСПРАВЛЕНО: добавлены поля showPhone, showEmail, showCity
    */
   static async updateOwnProfile(userId: string, data: {
     name?: string;
@@ -283,7 +282,7 @@ export class UserService {
   }
 
   /**
-   * Поиск пользователей по логину или имени (для упрощенного поиска)
+   * Поиск пользователей по логину или имени
    */
   static async searchUsers(query: string, limit: number = 10) {
     const users = await prisma.users.findMany({
@@ -330,13 +329,10 @@ export class UserService {
     };
   }
 
-  // ===== НОВЫЙ МЕТОД =====
-
   /**
    * Получение полной статистики пользователя для личного кабинета
    */
   static async getUserDashboardStats(userId: string) {
-    // Получаем базовую информацию о пользователе
     const user = await prisma.users.findUnique({
       where: { id: userId },
       select: {
@@ -355,20 +351,14 @@ export class UserService {
       throw new Error('Пользователь не найдено');
     }
 
-    // Получаем статистику по контенту (разбивка по типам)
     const contentByType = await prisma.content.groupBy({
       by: ['type'],
       _count: true,
       where: { userId }
     });
 
-    // Получаем статистику по лайкам
     const [likesGiven, likesReceived] = await Promise.all([
-      // Лайки, которые поставил пользователь
-      prisma.like.count({
-        where: { userId }
-      }),
-      // Лайки, которые получили проекты пользователя
+      prisma.like.count({ where: { userId } }),
       prisma.like.count({
         where: {
           content: {
@@ -378,13 +368,8 @@ export class UserService {
       })
     ]);
 
-    // Получаем статистику по комментариям
     const [commentsMade, commentsReceived] = await Promise.all([
-      // Комментарии, которые написал пользователь
-      prisma.comment.count({
-        where: { userId }
-      }),
-      // Комментарии к проектам пользователя
+      prisma.comment.count({ where: { userId } }),
       prisma.comment.count({
         where: {
           content: {
@@ -394,13 +379,11 @@ export class UserService {
       })
     ]);
 
-    // Получаем общую статистику просмотров
     const totalViews = await prisma.content.aggregate({
       _sum: { views: true },
       where: { userId }
     });
 
-    // Формируем статистику по типам контента
     const statsByType = {
       projectsCreated: 0,
       mastersAdsCreated: 0,
@@ -408,7 +391,7 @@ export class UserService {
       libraryPostsCreated: 0
     };
 
-    contentByType.forEach(item => {
+    contentByType.forEach((item: any) => {
       switch(item.type) {
         case 'PROJECT':
           statsByType.projectsCreated = item._count;
@@ -444,7 +427,7 @@ export class UserService {
         commentsReceived,
         totalViews: totalViews._sum.views || 0
       },
-      totalContent: contentByType.reduce((sum, item) => sum + item._count, 0)
+      totalContent: contentByType.reduce((sum: number, item: any) => sum + item._count, 0)
     };
   }
 }

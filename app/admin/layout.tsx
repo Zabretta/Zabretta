@@ -13,15 +13,19 @@ export default function AdminRootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAdmin, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
+  // 🔥 Приводим роль к верхнему регистру для сравнения
+  const userRole = user?.role?.toUpperCase(); // 'ADMIN', 'MODERATOR' или undefined
+  const hasAccess = userRole === 'ADMIN' || userRole === 'MODERATOR';
+
   useEffect(() => {
-    // Если загрузка закончена и пользователь не админ - редирект на главную
-    if (!isLoading && !isAdmin) {
+    // Если загрузка закончена и пользователь не имеет доступа - редирект на главную
+    if (!isLoading && !hasAccess) {
       router.push('/');
     }
-  }, [isAdmin, isLoading, router]);
+  }, [hasAccess, isLoading, router]);
 
   // Показываем загрузку, пока проверяем права
   if (isLoading) {
@@ -42,12 +46,12 @@ export default function AdminRootLayout({
     );
   }
 
-  // Если не админ - не рендерим содержимое
-  if (!isAdmin) {
+  // Если нет доступа - не рендерим содержимое
+  if (!hasAccess) {
     return null;
   }
 
-  // Если админ - показываем админку
+  // Если есть доступ - показываем админку
   return (
     <AdminProvider>
       <AdminDataProvider>

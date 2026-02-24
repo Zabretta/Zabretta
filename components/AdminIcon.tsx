@@ -1,4 +1,3 @@
-// components/AdminIcon.tsx
 "use client"
 
 import React from 'react';
@@ -6,11 +5,16 @@ import './AdminIcon.css';
 
 interface AdminIconProps {
   isAdmin: boolean;
+  isModerator?: boolean;  // ← добавляем проп для модератора
   onClick?: () => void;
 }
 
-export default function AdminIcon({ isAdmin, onClick }: AdminIconProps) {
-  if (!isAdmin) return null;
+export default function AdminIcon({ isAdmin, isModerator, onClick }: AdminIconProps) {
+  // Показываем иконку если пользователь админ ИЛИ модератор
+  if (!isAdmin && !isModerator) return null;
+
+  // Определяем текст тултипа в зависимости от роли
+  const tooltipText = isAdmin ? 'Панель администратора' : 'Панель модератора';
 
   return (
     <div className="admin-icon-container" onClick={onClick}>
@@ -26,7 +30,7 @@ export default function AdminIcon({ isAdmin, onClick }: AdminIconProps) {
         </svg>
       </div>
       <div className="admin-tooltip">
-        Панель администратора
+        {tooltipText}
       </div>
     </div>
   );

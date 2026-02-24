@@ -1,4 +1,3 @@
-// backend/src/config/auth.ts
 export const JWT_CONFIG = {
   secret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
   expiresIn: '24h',
@@ -11,8 +10,15 @@ export const PASSWORD_CONFIG = {
   minLength: 6
 };
 
+// Массив ролей, имеющих доступ в админку
 export const ADMIN_ROLES = ['ADMIN', 'MODERATOR'];
 
+// Проверка на админа или модератора (доступ в админку)
 export const isAdminRole = (role: string): boolean => {
   return ADMIN_ROLES.includes(role);
+};
+
+// Проверка только на админа (для особо важных разделов)
+export const isSuperAdminRole = (role: string): boolean => {
+  return role === 'ADMIN';
 };

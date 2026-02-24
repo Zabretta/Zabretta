@@ -95,6 +95,10 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
       adviceGiven: 320,
       users: {
         total: 1 // Добавляем хотя бы одного пользователя для демо
+      },
+      content: {
+        projects: 450,
+        totalComments: 320
       }
     };
     setRealStats(demoStats);
@@ -107,8 +111,7 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
     // Получаем данные симуляции
     const simulationData = adminSimulationService.getCombinedStats({
-      onlineReal: realData.onlineUsers || 0,
-      // ИСПРАВЛЕНО: теперь totalReal берется из реальных данных
+      onlineReal: realData.users?.online || 0,
       totalReal: realData.users?.total || 0,
     });
 

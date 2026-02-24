@@ -85,10 +85,17 @@ export class AdminService {
     };
   }
   
+  // ===== ИСПРАВЛЕННЫЙ МЕТОД updateUser =====
   static async updateUser(userId: string, updates: UserUpdateRequest, adminId: string): Promise<AdminUser> {
+    // 🔥 Преобразуем role в uppercase для Prisma
+    const prismaUpdates = { ...updates };
+    if (prismaUpdates.role) {
+      prismaUpdates.role = prismaUpdates.role.toUpperCase() as UserRole;
+    }
+
     const user = await prisma.users.update({
       where: { id: userId },
-      data: updates,
+      data: prismaUpdates,
       select: {
         id: true,
         login: true,
@@ -112,7 +119,7 @@ export class AdminService {
       action: 'USER_UPDATED',
       targetType: TargetType.USER,
       targetId: userId,
-      details: updates
+      details: updates  // Логируем исходные данные
     });
     
     return {

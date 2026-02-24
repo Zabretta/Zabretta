@@ -1,4 +1,3 @@
-// components/Workbench.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -23,7 +22,7 @@ function WorkbenchContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0); // ✅ Начинаем с 0
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   
   // Реальные данные с бэкенда
@@ -46,6 +45,15 @@ function WorkbenchContent() {
   const [showOrientationHint, setShowOrientationHint] = useState(false);
   
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen, isAdmin } = useAuth();
+  
+  // 🔥 ИСПРАВЛЕНО: приводим роль к нижнему регистру для надежности
+  // В БД роль хранится как 'MODERATOR' (верхний регистр)
+  // toLowerCase() превращает в 'moderator' для правильного сравнения
+  const userRole = user?.role?.toLowerCase();
+  
+  // 🔥 ИСПРАВЛЕНО: теперь проверка работает и для админа, и для модератора
+  const canAccessAdmin = isAdmin || userRole === 'moderator';
+  
   const { settings } = useSettings();
   const { userRating } = useRating();
 
@@ -239,11 +247,12 @@ function WorkbenchContent() {
     }
   };
 
+  // 🔥 Функция для перехода в админку (работает и для админа, и для модератора)
   const handleAdminClick = () => {
-    if (isAdmin) {
+    if (canAccessAdmin) {
       window.location.href = '/admin';
     } else {
-      alert('У вас нет прав администратора');
+      alert('У вас нет прав доступа в панель управления');
     }
   };
 
@@ -405,9 +414,12 @@ function WorkbenchContent() {
               {isAuthenticated && user && (
                 <div className="user-header-info">
                   <p className="user-greeting">Добро пожаловать, {user.login}!</p>
-                  {isAdmin && (
+                  {/* 🔥 ПОКАЗЫВАЕМ БЕЙДЖ ДЛЯ АДМИНОВ И МОДЕРАТОРОВ */}
+                  {canAccessAdmin && (
                     <div className="admin-badge" onClick={handleAdminClick}>
-                      <span className="admin-badge-text">Администратор</span>
+                      <span className="admin-badge-text">
+                        {isAdmin ? 'Администратор' : 'Модератор'}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -502,20 +514,32 @@ function WorkbenchContent() {
             </button>
           ))}
           
-          {isAdmin && (
+          {/* 🔥 КНОПКА АДМИНКИ В ПРАВОМ ТУЛБОКСЕ */}
+          {canAccessAdmin && (
             <div className="admin-drawer">
-              <div className="admin-drawer-content" onClick={handleAdminClick}>
-                <AdminIcon isAdmin={isAdmin} />
-                <span className="admin-drawer-label">Панель администратора</span>
+              <div className="admin-drawer-content">
+                <AdminIcon 
+                  isAdmin={isAdmin} 
+                  isModerator={userRole === 'moderator'} 
+                  onClick={handleAdminClick}
+                />
+                <span className="admin-drawer-label">
+                  {isAdmin ? 'Панель администратора' : 'Панель модератора'}
+                </span>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {isAdmin && (
-        <div className="floating-admin-icon" onClick={handleAdminClick}>
-          <AdminIcon isAdmin={isAdmin} />
+      {/* 🔥 ПЛАВАЮЩАЯ КНОПКА АДМИНКИ */}
+      {canAccessAdmin && (
+        <div className="floating-admin-icon">
+          <AdminIcon 
+            isAdmin={isAdmin} 
+            isModerator={userRole === 'moderator'} 
+            onClick={handleAdminClick}
+          />
         </div>
       )}
 

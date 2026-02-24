@@ -1,9 +1,9 @@
-// components/admin/AdminSidebar.tsx
 "use client";
 
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/components/useAuth';
 import './AdminSidebar.css';
 
 interface AdminSidebarProps {
@@ -12,22 +12,32 @@ interface AdminSidebarProps {
   onToggle: () => void;
 }
 
+// Пункты меню в верхнем регистре (как в БД)
 const menuItems = [
-  { path: '/admin', icon: '📊', label: 'Панель управления' },
-  { path: '/admin/stats', icon: '📈', label: 'Статистика' },
-  { path: '/admin/users', icon: '👥', label: 'Пользователи' },
-  { path: '/admin/rating', icon: '⭐', label: 'Рейтинг' },
-  { path: '/admin/market-moderation', icon: '🛒', label: 'Модерация объявлений' }, // 🔥 НОВЫЙ ПУНКТ
-  { path: '/', icon: '🏠', label: 'На сайт' },
+  { path: '/admin', icon: '📊', label: 'Панель управления', roles: ['ADMIN', 'MODERATOR'] },
+  { path: '/admin/stats', icon: '📈', label: 'Статистика', roles: ['ADMIN'] },
+  { path: '/admin/users', icon: '👥', label: 'Пользователи', roles: ['ADMIN'] },
+  { path: '/admin/rating', icon: '⭐', label: 'Рейтинг', roles: ['ADMIN'] },
+  { path: '/admin/market-moderation', icon: '🛒', label: 'Модерация объявлений', roles: ['ADMIN', 'MODERATOR'] },
+  { path: '/', icon: '🏠', label: 'На сайт', roles: ['ADMIN', 'MODERATOR'] },
 ];
 
 export default function AdminSidebar({ collapsed, isMobileOpen, onToggle }: AdminSidebarProps) {
   const pathname = usePathname();
   const [activeItem, setActiveItem] = useState(pathname);
+  
+  // 🔥 ПОЛУЧАЕМ РОЛЬ ПОЛЬЗОВАТЕЛЯ
+  const { user } = useAuth();
+  // 🔥 ПРИВОДИМ К ВЕРХНЕМУ РЕГИСТРУ ДЛЯ СРАВНЕНИЯ
+  const userRole = (user?.role || '').toUpperCase(); 
+
+  // 🔥 ФИЛЬТРУЕМ ПУНКТЫ МЕНЮ ПО РОЛИ
+  const filteredItems = menuItems.filter(item => 
+    item.roles.includes(userRole)
+  );
 
   const handleItemClick = (path: string) => {
     setActiveItem(path);
-    // Закрываем мобильное меню при клике на пункт (если мы на мобильном)
     if (isMobileOpen) {
       onToggle();
     }
@@ -53,7 +63,7 @@ export default function AdminSidebar({ collapsed, isMobileOpen, onToggle }: Admi
       </div>
       
       <nav className="sidebar-nav">
-        {menuItems.map((item) => (
+        {filteredItems.map((item) => (
           <Link
             key={item.path}
             href={item.path}
@@ -78,7 +88,11 @@ export default function AdminSidebar({ collapsed, isMobileOpen, onToggle }: Admi
             <span>Система активна</span>
           </div>
           <div className="admin-info">
-            <span>Администратор</span>
+            <span>
+              {userRole === 'ADMIN' ? 'Администратор' : 
+               userRole === 'MODERATOR' ? 'Модератор' : 
+               'Администратор'}
+            </span>
           </div>
         </div>
       )}

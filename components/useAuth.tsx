@@ -43,13 +43,17 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // 🔧 ИСПРАВЛЕНО: используем переменную окружения для API
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
   // Функция для загрузки полных данных пользователя
   const refreshUser = async () => {
     try {
       const token = localStorage.getItem('samodelkin_auth_token');
       if (!token) return;
 
-      const response = await fetch('/api/user/me', {
+      // 🔧 ИСПРАВЛЕНО: добавляем полный URL бэкенда
+      const response = await fetch(`${API_BASE}/api/user/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -66,6 +70,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
           localStorage.setItem('samodelkin_user', JSON.stringify(userData));
           console.log('✅ useAuth: пользователь обновлен', userData);
         }
+      } else {
+        console.warn(`⚠️ useAuth: ошибка загрузки ${response.status}`);
       }
     } catch (error) {
       console.error('❌ useAuth: ошибка обновления пользователя:', error);

@@ -1,3 +1,4 @@
+// api/types.ts
 export interface APIResponse<T = any> {
   success: boolean;
   data?: T;
@@ -19,9 +20,14 @@ export interface User {
   name?: string;
   avatar?: string;
   createdAt: string;
-  role?: 'user' | 'moderator' | 'admin'; // Добавлено поле role
+  role?: 'user' | 'moderator' | 'admin';
 }
 
+// НОВЫЕ ТИПЫ ДЛЯ МОДЕРАЦИИ
+export type ModerationFlag = "BAD_WORDS" | "SPAM_LINKS" | "ALL_CAPS" | "REPETITIVE_CHARS";
+export type ModerationStatus = "PENDING" | "APPROVED" | "REJECTED" | "FLAGGED";
+
+// ОБНОВЛЕННЫЙ MarketItem
 export interface MarketItem {
   id: number;
   title: string;
@@ -34,8 +40,66 @@ export interface MarketItem {
   contact: string;
   createdAt: string;
   images: string[];
+  // НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ (опционально для обратной совместимости)
+  moderationStatus?: ModerationStatus;
+  moderationFlags?: ModerationFlag[];
+  moderatedAt?: string;
+  moderatedBy?: string;
+  moderatorNote?: string;
 }
 
+// НОВЫЙ ТИП для создания объявления с полями модерации
+export interface CreateMarketItemDTO {
+  title: string;
+  description: string;
+  price: number | "free";
+  location: string;
+  type: "sell" | "buy" | "free" | "exchange" | "auction";
+  author: string;
+  category?: string | null;
+  imageUrl?: string;
+  negotiable?: boolean;
+  duration?: "2weeks" | "1month" | "2months";
+  // НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
+  moderationStatus: ModerationStatus;
+  moderationFlags: ModerationFlag[];
+}
+
+// НОВЫЙ ТИП для ответа при создании объявления
+export interface CreateMarketItemResponse {
+  id: string;
+  title: string;
+  description: string;
+  price: number | "free";
+  location: string;
+  type: string;
+  author: string;
+  category?: string | null;
+  imageUrl?: string;
+  negotiable?: boolean;
+  expirationDate?: string;
+  duration?: string;
+  createdAt: string;
+  // НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
+  moderationStatus: ModerationStatus;
+  moderationFlags: ModerationFlag[];
+}
+
+// НОВЫЙ ТИП для фильтрации объявлений в админке (понадобится позже)
+export interface ModerationQueueItem {
+  id: string;
+  title: string;
+  description: string;
+  author: string;
+  authorId: string;
+  createdAt: string;
+  moderationFlags: ModerationFlag[];
+  price: number | "free";
+  location: string;
+  type: string;
+}
+
+// Остальные типы остаются без изменений
 export interface Project {
   id: number;
   title: string;
@@ -57,7 +121,6 @@ export interface CommunityStats {
   activeProjects: number;
 }
 
-// Дополнительные типы для системы рейтинга
 export interface RatingRecord {
   id: string;
   userId: string;

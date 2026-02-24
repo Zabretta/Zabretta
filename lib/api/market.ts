@@ -7,6 +7,11 @@ export type ItemCategory =
   | 'tools' | 'materials' | 'furniture' | 'electronics' | 'cooking'
   | 'auto' | 'sport' | 'robot' | 'handmade' | 'stolar' | 'hammer' | 'other';
 
+// НОВЫЕ ТИПЫ ДЛЯ МОДЕРАЦИИ
+export type ModerationFlag = "BAD_WORDS" | "SPAM_LINKS" | "ALL_CAPS" | "REPETITIVE_CHARS";
+export type ModerationStatus = "PENDING" | "APPROVED" | "REJECTED" | "FLAGGED";
+
+// ОБНОВЛЕННЫЙ MarketItem с полями модерации
 export interface MarketItem {
   id: string;
   title: string;
@@ -27,8 +32,15 @@ export interface MarketItem {
   views: number;
   contacts: number;
   category?: ItemCategory;
+  // НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
+  moderationStatus?: ModerationStatus;
+  moderationFlags?: ModerationFlag[];
+  moderatedAt?: string;
+  moderatedBy?: string;
+  moderatorNote?: string;
 }
 
+// ОБНОВЛЕННЫЙ CreateItemData с полями модерации
 export interface CreateItemData {
   title: string;
   description: string;
@@ -36,10 +48,13 @@ export interface CreateItemData {
   location: string;
   type: ItemType;
   author: string;
-  category?: ItemCategory;
+  category?: ItemCategory | null;
   imageUrl?: string;
   negotiable?: boolean;
   duration: DurationType;
+  // НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
+  moderationStatus: ModerationStatus;
+  moderationFlags: ModerationFlag[];
 }
 
 export interface ContactAuthorData {
@@ -54,6 +69,8 @@ export interface MarketFilters {
   search?: string;
   page?: number;
   limit?: number;
+  // НОВЫЙ ФИЛЬТР для модерации (понадобится в админке)
+  moderationStatus?: ModerationStatus;
 }
 
 // ===== ТИПЫ ДЛЯ СООБЩЕНИЙ =====
@@ -73,20 +90,20 @@ export interface MarketMessage {
     login: string;
     name: string | null;
     avatar: string | null;
-    phone?: string | null;        // Добавлено для контактов
-    email?: string | null;        // Добавлено для контактов
-    showPhone?: boolean;           // Добавлено для приватности
-    showEmail?: boolean;           // Добавлено для приватности
+    phone?: string | null;
+    email?: string | null;
+    showPhone?: boolean;
+    showEmail?: boolean;
   };
   toUser?: {
     id: string;
     login: string;
     name: string | null;
     avatar: string | null;
-    phone?: string | null;        // Добавлено для контактов
-    email?: string | null;        // Добавлено для контактов
-    showPhone?: boolean;           // Добавлено для приватности
-    showEmail?: boolean;           // Добавлено для приватности
+    phone?: string | null;
+    email?: string | null;
+    showPhone?: boolean;
+    showEmail?: boolean;
   };
   item?: {
     id: string;
@@ -105,8 +122,8 @@ export interface MessageThread {
     avatar: string | null;
     phone: string | null;
     email: string | null;
-    showPhone: boolean;            // Добавлено обязательно
-    showEmail: boolean;            // Добавлено обязательно
+    showPhone: boolean;
+    showEmail: boolean;
   };
   item: {
     id: string;
@@ -168,6 +185,7 @@ export const marketApi = {
     if (filters?.search) queryParams.append('search', filters.search);
     if (filters?.page) queryParams.append('page', filters.page.toString());
     if (filters?.limit) queryParams.append('limit', filters.limit.toString());
+    if (filters?.moderationStatus) queryParams.append('moderationStatus', filters.moderationStatus);
 
     const query = queryParams.toString();
     const endpoint = `/market/items${query ? `?${query}` : ''}`;
@@ -232,7 +250,6 @@ export const marketApi = {
 
   /**
    * Получить все сообщения текущего пользователя
-   * GET /api/market/messages
    */
   getMessages: async (): Promise<MarketMessage[]> => {
     return fetchWithAuth('/market/messages');
@@ -240,13 +257,11 @@ export const marketApi = {
 
   /**
    * Получить переписку по сообщению
-   * GET /api/market/messages/:id/thread
    */
   getMessageThread: async (messageId: string): Promise<MessageThread> => {
     try {
       const response = await fetchWithAuth(`/market/messages/${messageId}/thread`);
       
-      // Проверяем структуру ответа и добавляем поля showPhone/showEmail если их нет
       if (response && response.otherUser) {
         return {
           ...response,
@@ -257,7 +272,6 @@ export const marketApi = {
             avatar: response.otherUser.avatar || null,
             phone: response.otherUser.phone || null,
             email: response.otherUser.email || null,
-            // Гарантируем наличие полей приватности с значениями по умолчанию false
             showPhone: response.otherUser.showPhone === true ? true : false,
             showEmail: response.otherUser.showEmail === true ? true : false,
           },
@@ -280,7 +294,6 @@ export const marketApi = {
 
   /**
    * Отправить ответ на сообщение
-   * POST /api/market/messages/:id/reply
    */
   sendReply: async (messageId: string, data: SendReplyData): Promise<MarketMessage> => {
     return fetchWithAuth(`/market/messages/${messageId}/reply`, {
@@ -291,7 +304,6 @@ export const marketApi = {
 
   /**
    * Отметить сообщение как прочитанное
-   * PUT /api/market/messages/:id/read
    */
   markAsRead: async (messageId: string): Promise<MarketMessage> => {
     return fetchWithAuth(`/market/messages/${messageId}/read`, {
@@ -301,7 +313,6 @@ export const marketApi = {
 
   /**
    * Получить количество непрочитанных сообщений
-   * GET /api/market/messages/unread/count
    */
   getUnreadCount: async (): Promise<UnreadCountResponse> => {
     return fetchWithAuth('/market/messages/unread/count');

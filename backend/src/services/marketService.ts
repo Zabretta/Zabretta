@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import { ItemType, DurationType, ItemCategory } from '@prisma/client';
+import { ItemType, DurationType, ItemCategory, ModerationStatus, ModerationFlag } from '@prisma/client';
 
 export interface CreateItemData {
   title: string;
@@ -13,6 +13,9 @@ export interface CreateItemData {
   imageUrl?: string;
   negotiable?: boolean;
   duration: DurationType;
+  // 🔥 НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
+  moderationStatus: ModerationStatus;
+  moderationFlags: ModerationFlag[];
 }
 
 export interface MarketFilters {
@@ -21,6 +24,8 @@ export interface MarketFilters {
   search?: string;
   page?: number;
   limit?: number;
+  // 🔥 НОВЫЙ ФИЛЬТР
+  moderationStatus?: string;
 }
 
 export interface ContactAuthorData {
@@ -62,7 +67,7 @@ export class MarketService {
    * Получить объявления с фильтрацией
    */
   static async getItems(filters?: MarketFilters) {
-    const { type, category, search, page = 1, limit = 20 } = filters || {};
+    const { type, category, search, page = 1, limit = 20, moderationStatus } = filters || {};
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -75,6 +80,17 @@ export class MarketService {
     if (category) {
       const categoryEnum = category.toUpperCase() as ItemCategory;
       where.category = categoryEnum;
+    }
+
+    // 🔥 НОВЫЙ ФИЛЬТР ПО СТАТУСУ МОДЕРАЦИИ
+    if (moderationStatus) {
+      const statusEnum = moderationStatus.toUpperCase() as ModerationStatus;
+      where.moderationStatus = statusEnum;
+    } else {
+      // По умолчанию не показываем REJECTED объявления
+      where.moderationStatus = {
+        not: 'REJECTED'
+      };
     }
 
     if (search) {
@@ -125,7 +141,13 @@ export class MarketService {
         updatedAt: item.updatedAt.toISOString(),
         views: item.views,
         contacts: item.contacts,
-        category: item.category?.toLowerCase() as any
+        category: item.category?.toLowerCase() as any,
+        // 🔥 НОВЫЕ ПОЛЯ В ОТВЕТЕ
+        moderationStatus: item.moderationStatus,
+        moderationFlags: item.moderationFlags,
+        moderatedAt: item.moderatedAt?.toISOString(),
+        moderatedBy: item.moderatedBy,
+        moderatorNote: item.moderatorNote
       }));
 
       return {
@@ -180,7 +202,13 @@ export class MarketService {
           expirationDate,
           rating: 4.5,
           views: 0,
-          contacts: 0
+          contacts: 0,
+          // 🔥 НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
+          moderationStatus: data.moderationStatus,
+          moderationFlags: data.moderationFlags,
+          moderatedAt: null,
+          moderatedBy: null,
+          moderatorNote: null
         }
       });
 
@@ -188,7 +216,10 @@ export class MarketService {
         id: item.id,
         title: item.title,
         price: item.price === 'free' ? 'free' : parseInt(item.price),
-        expirationDate: item.expirationDate?.toISOString()
+        expirationDate: item.expirationDate?.toISOString(),
+        // 🔥 НОВЫЕ ПОЛЯ В ОТВЕТЕ
+        moderationStatus: item.moderationStatus,
+        moderationFlags: item.moderationFlags
       };
     } catch (error) {
       console.error('❌ Ошибка создания объявления:', error);
@@ -293,7 +324,13 @@ export class MarketService {
         updatedAt: item.updatedAt.toISOString(),
         views: item.views + 1,
         contacts: item.contacts,
-        category: item.category?.toLowerCase() as any
+        category: item.category?.toLowerCase() as any,
+        // 🔥 НОВЫЕ ПОЛЯ В ОТВЕТЕ
+        moderationStatus: item.moderationStatus,
+        moderationFlags: item.moderationFlags,
+        moderatedAt: item.moderatedAt?.toISOString(),
+        moderatedBy: item.moderatedBy,
+        moderatorNote: item.moderatorNote
       };
     } catch (error) {
       console.error('❌ Ошибка получения объявления:', error);
@@ -372,6 +409,14 @@ export class MarketService {
         updateData.expirationDate = expirationDate;
       }
 
+      // 🔥 Если обновляются поля модерации
+      if (data.moderationStatus) {
+        updateData.moderationStatus = data.moderationStatus;
+      }
+      if (data.moderationFlags) {
+        updateData.moderationFlags = data.moderationFlags;
+      }
+
       const updatedItem = await prisma.marketItem.update({
         where: { id },
         data: updateData
@@ -381,7 +426,10 @@ export class MarketService {
         id: updatedItem.id,
         title: updatedItem.title,
         price: updatedItem.price === 'free' ? 'free' : parseInt(updatedItem.price),
-        expirationDate: updatedItem.expirationDate?.toISOString()
+        expirationDate: updatedItem.expirationDate?.toISOString(),
+        // 🔥 НОВЫЕ ПОЛЯ В ОТВЕТЕ
+        moderationStatus: updatedItem.moderationStatus,
+        moderationFlags: updatedItem.moderationFlags
       };
     } catch (error) {
       console.error('❌ Ошибка обновления объявления:', error);

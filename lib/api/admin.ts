@@ -12,6 +12,46 @@ export interface GetUsersParams {
   sortBy?: string;
 }
 
+// ===== НОВЫЕ ТИПЫ ДЛЯ МОДЕРАЦИИ ОБЪЯВЛЕНИЙ =====
+export interface GetMarketItemsParams {
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'FLAGGED';
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface ModerateMarketItemData {
+  status: 'APPROVED' | 'REJECTED';
+  moderatorNote?: string;
+}
+
+export interface UpdateMarketItemData {
+  title?: string;
+  description?: string;
+  price?: number | 'free';
+  location?: string;
+  category?: string;
+}
+
+export interface MarketItemModeration {
+  id: string;
+  title: string;
+  description: string;
+  price: number | 'free';
+  location: string;
+  author: string;
+  authorId: string;
+  authorEmail?: string;
+  type: string;
+  category?: string;
+  imageUrl?: string;
+  createdAt: string;
+  moderationStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'FLAGGED';
+  moderationFlags: string[];
+  views?: number;
+  contacts?: number;
+}
+
 // Получение JWT токена из localStorage
 const getAuthToken = (): string | null => {
   if (typeof window !== 'undefined') {
@@ -118,7 +158,7 @@ export const adminApi = {
     return response.data;
   },
 
-  // === ПОЛЬЗОВАТЕЛИ (ИСПРАВЛЕНО) ===
+  // === ПОЛЬЗОВАТЕЛИ ===
   getUsers: async (params?: GetUsersParams) => {
     // Фильтруем параметры, удаляя undefined и 'undefined'
     const cleanParams: Record<string, string> = {};
@@ -183,7 +223,7 @@ export const adminApi = {
     return response.data;
   },
 
-  // === РЕЙТИНГ (публичные эндпоинты - ИСПРАВЛЕНО с префиксом /api) ===
+  // === РЕЙТИНГ (публичные эндпоинты) ===
   getRatingLevels: async () => {
     const response = await fetchPublic('/api/rating/levels');
     return response.data;
@@ -210,7 +250,7 @@ export const adminApi = {
     return response.data;
   },
 
-  // === СИСТЕМНАЯ СТАТИСТИКА (тоже требуют префикс /api) ===
+  // === СИСТЕМНАЯ СТАТИСТИКА ===
   getSystemStats: async () => {
     const response = await fetchPublic('/api/stats/system');
     return response.data;
@@ -228,6 +268,78 @@ export const adminApi = {
 
   getUserActivityStats: async (userId: string) => {
     const response = await fetchPublic(`/api/stats/users/${userId}`);
+    return response.data;
+  },
+
+  // ===== НОВЫЕ МЕТОДЫ ДЛЯ МОДЕРАЦИИ ОБЪЯВЛЕНИЙ =====
+
+  /**
+   * Получить объявления для модерации
+   * GET /api/admin/market/moderation
+   */
+  getMarketItemsForModeration: async (params?: GetMarketItemsParams): Promise<{ items: MarketItemModeration[]; total: number }> => {
+    const cleanParams: Record<string, string> = {};
+    
+    if (params) {
+      if (params.status) cleanParams.status = params.status;
+      if (params.search && params.search !== 'undefined') cleanParams.search = params.search;
+      if (params.page !== undefined) cleanParams.page = params.page.toString();
+      if (params.limit !== undefined) cleanParams.limit = params.limit.toString();
+    }
+    
+    const query = Object.keys(cleanParams).length > 0 
+      ? '?' + new URLSearchParams(cleanParams).toString() 
+      : '';
+    
+    const response = await fetchWithAuth(`/admin/market/moderation${query}`);
+    return response.data;
+  },
+
+  /**
+   * Получить объявление для модерации по ID
+   * GET /api/admin/market/moderation/:id
+   */
+  getMarketItemForModeration: async (id: string): Promise<MarketItemModeration> => {
+    const response = await fetchWithAuth(`/admin/market/moderation/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Отмодерировать объявление (одобрить/отклонить)
+   * POST /api/admin/market/moderation/:id
+   */
+  moderateMarketItem: async (id: string, data: ModerateMarketItemData): Promise<{ success: boolean }> => {
+    const response = await fetchWithAuth(`/admin/market/moderation/${id}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  },
+
+  /**
+   * Обновить объявление (перед одобрением)
+   * PUT /api/admin/market/items/:id
+   */
+  updateMarketItem: async (id: string, data: UpdateMarketItemData): Promise<MarketItemModeration> => {
+    const response = await fetchWithAuth(`/admin/market/items/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return response.data;
+  },
+
+  /**
+   * Получить статистику по модерации
+   * GET /api/admin/market/moderation/stats
+   */
+  getMarketModerationStats: async (): Promise<{
+    total: number;
+    flagged: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+  }> => {
+    const response = await fetchWithAuth('/admin/market/moderation/stats');
     return response.data;
   },
 };

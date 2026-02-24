@@ -1,5 +1,3 @@
-// backend/prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -205,6 +203,13 @@ model marketItem {
   contacts       Int           @default(0)
   category       ItemCategory?
   categoryId     String?
+  
+  // ПОЛЯ ДЛЯ МОДЕРАЦИИ
+  moderationStatus ModerationStatus @default(PENDING)
+  moderationFlags  ModerationFlag[] @default([])  // 👈 ИСПРАВЛЕНО: используем ModerationFlag[]
+  moderatedAt      DateTime?
+  moderatedBy      String?
+  moderatorNote    String?
 
   users        users           @relation(fields: [authorId], references: [id], onDelete: Cascade)
   marketCategory marketCategory? @relation(fields: [categoryId], references: [id])
@@ -360,4 +365,20 @@ enum ItemCategory {
   STOLAR
   HAMMER
   OTHER
+}
+
+// НОВЫЙ ENUM ДЛЯ СТАТУСОВ МОДЕРАЦИИ
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+}
+
+// 🔥 НОВЫЙ ENUM ДЛЯ ФЛАГОВ МОДЕРАЦИИ
+enum ModerationFlag {
+  BAD_WORDS
+  SPAM_LINKS
+  ALL_CAPS
+  REPETITIVE_CHARS
 }

@@ -1,8 +1,8 @@
-// components/Marketplace.tsx
 "use client"
 
 import { useState, useMemo, ChangeEvent, useEffect } from "react";
 import { marketApi } from "@/lib/api/market";
+import { containsProfanity } from "@/utils/profanity-list";
 import "./Marketplace.css";
 
 interface MarketplaceProps {
@@ -19,6 +19,10 @@ type ItemType = "sell" | "buy" | "free" | "exchange" | "auction";
 type DurationType = "2weeks" | "1month" | "2months";
 type ItemCategory = "tools" | "materials" | "furniture" | "electronics" | "cooking" | 
                    "auto" | "sport" | "robot" | "handmade" | "stolar" | "hammer" | "other";
+
+// Временные типы для модерации (позже будут вынесены в общие типы)
+type ModerationFlag = "BAD_WORDS" | "SPAM_LINKS" | "ALL_CAPS" | "REPETITIVE_CHARS";
+type ModerationStatus = "PENDING" | "APPROVED" | "REJECTED" | "FLAGGED";
 
 interface MarketItem {
   id: string;
@@ -38,6 +42,9 @@ interface MarketItem {
   views?: number;
   contacts?: number;
   category?: ItemCategory;
+  // Новые поля для модерации (опционально, т.к. старые объявления их могут не иметь)
+  moderationStatus?: ModerationStatus;
+  moderationFlags?: ModerationFlag[];
 }
 
 export default function Marketplace({ onClose, currentUser }: MarketplaceProps) {
@@ -69,6 +76,50 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     { id: "1month" as DurationType, label: "1 месяц", description: "Стандартный срок" },
     { id: "2months" as DurationType, label: "2 месяца", description: "Длительный срок" }
   ];
+
+  /**
+   * Проверяет текст на наличие признаков для модерации
+   * @returns массив флагов (пустой если всё чисто)
+   */
+  const checkModerationFlags = (text: string): ModerationFlag[] => {
+    const flags: ModerationFlag[] = [];
+    const lowerText = text.toLowerCase();
+    
+    // 1. BAD_WORDS - нецензурная лексика (мат)
+    const hasBadWords = containsProfanity(text);
+    if (hasBadWords) {
+      flags.push("BAD_WORDS");
+    }
+    
+    // 2. SPAM_LINKS - наличие ссылок (URL)
+    // Проверяем наличие http://, https://, www. или доменных зон в составе текста
+    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(ru|com|org|net|рф|su|xyz|top|info|site)[^\s]*)/i;
+    const hasLinks = urlRegex.test(text);
+    if (hasLinks) {
+      flags.push("SPAM_LINKS");
+    }
+    
+    // 3. ALL_CAPS - слишком много заглавных букв (>50%)
+    // Игнорируем цифры и пробелы при подсчете
+    const lettersOnly = text.replace(/[^a-zA-Zа-яА-Я]/g, '');
+    if (lettersOnly.length > 0) {
+      const uppercaseLetters = text.replace(/[^A-ZА-Я]/g, '').length;
+      const uppercaseRatio = uppercaseLetters / lettersOnly.length;
+      if (uppercaseRatio > 0.5) {
+        flags.push("ALL_CAPS");
+      }
+    }
+    
+    // 4. REPETITIVE_CHARS - повторяющиеся символы (например, "ааааа", "!!!!!!")
+    // Ищем любые символы, повторяющиеся 4 и более раз подряд
+    const repetitiveRegex = /(.)\1{3,}/;
+    const hasRepetitive = repetitiveRegex.test(text);
+    if (hasRepetitive) {
+      flags.push("REPETITIVE_CHARS");
+    }
+    
+    return flags;
+  };
 
   /**
    * Сжимает изображение перед загрузкой
@@ -348,6 +399,24 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         price = 0;
       }
       
+      // 🔥 НОВОЕ: Проверяем текст на наличие флагов модерации
+      // Объединяем заголовок и описание для полной проверки
+      const fullText = `${title} ${description}`;
+      const moderationFlags = checkModerationFlags(fullText);
+      
+      // Определяем статус модерации:
+      // - FLAGGED если есть нарушения
+      // - APPROVED если всё чисто
+      const moderationStatus: ModerationStatus = moderationFlags.length > 0 ? "FLAGGED" : "APPROVED";
+      
+      // Логируем результат проверки для отладки
+      if (moderationFlags.length > 0) {
+        console.log('🚩 Объявление содержит флаги модерации:', moderationFlags);
+        console.log('📊 Статус модерации:', moderationStatus);
+      } else {
+        console.log('✅ Объявление чистое, флагов нет');
+      }
+      
       // 🔥 ИСПРАВЛЕНО: category передаётся как null, если не выбрана
       const newItemData = {
         title: title.trim(),
@@ -356,10 +425,13 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         location: location.trim(),
         type: type,
         author: currentUser.login,
-        category: category || null, // ← категория может быть null
+        category: category || null,
         imageUrl: imageUrl,
         negotiable: negotiable,
         duration: selectedDuration,
+        // НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
+        moderationStatus: moderationStatus,
+        moderationFlags: moderationFlags,
       };
       
       console.log('📝 Отправка данных для создания объявления:', {
@@ -367,7 +439,9 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         imageUrl: imageUrl ? `Data URL (${Math.round(imageUrl.length / 1024)}KB)` : 'нет фото',
         price: price === "free" ? "бесплатно" : `${price} ₽`,
         negotiable: negotiable,
-        category: category || 'не выбрана (null)'
+        category: category || 'не выбрана (null)',
+        moderationStatus: moderationStatus,
+        moderationFlags: moderationFlags.length > 0 ? moderationFlags : 'нет'
       });
       
       const result = await marketApi.createItem(newItemData);
@@ -397,7 +471,13 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         priceMessage = `Цена: ${price} ₽${negotiable ? " (договорная)" : ""}`;
       }
       
-      alert(`✅ Объявление "${result.title}" успешно создано!\nАвтор: ${currentUser.login}\n${priceMessage}\nБудет активно до: ${expirationDate}`);
+      // Добавляем информацию о статусе модерации в сообщение пользователю
+      let moderationMessage = "";
+      if (moderationFlags.length > 0) {
+        moderationMessage = `\n\n⚠️ Объявление помечено на модерацию (флаги: ${moderationFlags.join(', ')}). Оно появится в ленте, но может быть проверено модератором.`;
+      }
+      
+      alert(`✅ Объявление "${result.title}" успешно создано!\nАвтор: ${currentUser.login}\n${priceMessage}\nБудет активно до: ${expirationDate}${moderationMessage}`);
       setIsCreatingAd(false);
       setSelectedDuration("1month");
       

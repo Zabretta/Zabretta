@@ -1,13 +1,18 @@
-// backend/src/services/adminService.ts
 import { prisma } from '../config/database';
-import { UserRole, TargetType } from '@prisma/client';
+import { UserRole, TargetType, ModerationStatus, ModerationFlag } from '@prisma/client';
 import { 
   AdminUser, 
   AdminStats, 
   AdminAuditLog, 
   AdminViolationReport,
   GetAdminUsersParams,
-  GetAdminAuditLogsParams
+  GetAdminAuditLogsParams,
+  // 🔥 НОВЫЕ ТИПЫ ДЛЯ МОДЕРАЦИИ
+  GetMarketModerationParams,
+  MarketModerationItem,
+  ModerateMarketItemData,
+  UpdateMarketItemData,
+  MarketModerationStats
 } from '../types/api';
 import { UserUpdateRequest, RatingAdjustmentRequest } from '../types/admin';
 
@@ -193,7 +198,9 @@ export class AdminService {
       contentByType,
       totalRating,
       todayRating,
-      averageRating
+      averageRating,
+      // 🔥 НОВЫЕ СТАТИСТИКИ ДЛЯ МОДЕРАЦИИ
+      marketStats
     ] = await Promise.all([
       prisma.users.count(),
       prisma.users.count({ where: { isActive: true } }),
@@ -207,7 +214,15 @@ export class AdminService {
         _sum: { ratingChange: true },
         where: { timestamp: { gte: today } }
       }),
-      prisma.users.aggregate({ _avg: { rating: true } })
+      prisma.users.aggregate({ _avg: { rating: true } }),
+      // Статистика по модерации объявлений
+      prisma.marketItem.groupBy({
+        by: ['moderationStatus'],
+        _count: true,
+        where: {
+          moderationStatus: { in: ['PENDING', 'FLAGGED', 'APPROVED', 'REJECTED'] }
+        }
+      })
     ]);
     
     const topUsers = await prisma.users.findMany({
@@ -227,6 +242,23 @@ export class AdminService {
       acc[item.role] = item._count;
       return acc;
     }, {} as Record<string, number>);
+    
+    // Подсчет статистики модерации
+    const marketModerationStats = {
+      flagged: 0,
+      pending: 0,
+      approved: 0,
+      rejected: 0
+    };
+    
+    (marketStats || []).forEach((stat: any) => {
+      switch (stat.moderationStatus) {
+        case 'FLAGGED': marketModerationStats.flagged = stat._count; break;
+        case 'PENDING': marketModerationStats.pending = stat._count; break;
+        case 'APPROVED': marketModerationStats.approved = stat._count; break;
+        case 'REJECTED': marketModerationStats.rejected = stat._count; break;
+      }
+    });
     
     return {
       users: {
@@ -254,6 +286,15 @@ export class AdminService {
           rating: user.rating,
           activity: user.activityPoints
         }))
+      },
+      moderation: {  // 🔥 НОВАЯ СЕКЦИЯ
+        market: {
+          total: marketModerationStats.flagged + marketModerationStats.pending + marketModerationStats.approved + marketModerationStats.rejected,
+          flagged: marketModerationStats.flagged,
+          pending: marketModerationStats.pending,
+          approved: marketModerationStats.approved,
+          rejected: marketModerationStats.rejected
+        }
       },
       system: {
         uptime: '99.8%',
@@ -299,6 +340,324 @@ export class AdminService {
       })),
       total
     };
+  }
+
+  // ===== НОВЫЕ МЕТОДЫ ДЛЯ МОДЕРАЦИИ ОБЪЯВЛЕНИЙ =====
+
+  /**
+   * Получить объявления для модерации
+   */
+  static async getMarketItemsForModeration(params: GetMarketModerationParams): Promise<{ items: MarketModerationItem[]; total: number }> {
+    const { status, search, page = 1, limit = 20 } = params;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (status) {
+      where.moderationStatus = status.toUpperCase() as ModerationStatus;
+    } else {
+      // По умолчанию показываем только требующие внимания
+      where.moderationStatus = {
+        in: ['FLAGGED', 'PENDING']
+      };
+    }
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { author: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.marketItem.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [
+          { moderationStatus: 'asc' }, // FLAGGED сверху
+          { createdAt: 'desc' }
+        ],
+        include: {
+          users: {
+            select: {
+              id: true,
+              login: true,
+              email: true
+            }
+          }
+        }
+      }),
+      prisma.marketItem.count({ where })
+    ]);
+
+    return {
+      items: items.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        price: item.price === 'free' ? 'free' : parseInt(item.price),
+        location: item.location,
+        author: item.author,
+        authorId: item.authorId,
+        authorEmail: item.users?.email,
+        type: item.type.toLowerCase(),
+        category: item.category?.toLowerCase(),
+        imageUrl: item.imageUrl || undefined,
+        createdAt: item.createdAt.toISOString(),
+        moderationStatus: item.moderationStatus,
+        moderationFlags: item.moderationFlags,
+        views: item.views,
+        contacts: item.contacts
+      })),
+      total
+    };
+  }
+
+  /**
+   * Получить объявление для модерации по ID
+   */
+  static async getMarketItemForModeration(id: string): Promise<MarketModerationItem> {
+    const item = await prisma.marketItem.findUnique({
+      where: { id },
+      include: {
+        users: {
+          select: {
+            id: true,
+            login: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    if (!item) {
+      throw new Error('Объявление не найдено');
+    }
+
+    return {
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      price: item.price === 'free' ? 'free' : parseInt(item.price),
+      location: item.location,
+      author: item.author,
+      authorId: item.authorId,
+      authorEmail: item.users?.email,
+      type: item.type.toLowerCase(),
+      category: item.category?.toLowerCase(),
+      imageUrl: item.imageUrl || undefined,
+      createdAt: item.createdAt.toISOString(),
+      moderationStatus: item.moderationStatus,
+      moderationFlags: item.moderationFlags,
+      views: item.views,
+      contacts: item.contacts
+    };
+  }
+
+  /**
+   * Отмодерировать объявление (одобрить/отклонить)
+   */
+  static async moderateMarketItem(
+    id: string, 
+    data: ModerateMarketItemData, 
+    adminId: string,
+    adminLogin: string
+  ): Promise<{ success: boolean }> {
+    const item = await prisma.marketItem.findUnique({
+      where: { id },
+      include: {
+        users: {
+          select: {
+            id: true,
+            login: true
+          }
+        }
+      }
+    });
+
+    if (!item) {
+      throw new Error('Объявление не найдено');
+    }
+
+    // Обновляем статус модерации
+    await prisma.marketItem.update({
+      where: { id },
+      data: {
+        moderationStatus: data.status,
+        moderatedAt: new Date(),
+        moderatedBy: adminId,
+        moderatorNote: data.moderatorNote || null
+      }
+    });
+
+    // Логируем действие
+    await this.createAuditLog({
+      userId: adminId,
+      userName: adminLogin,
+      action: `MARKET_${data.status}`,
+      targetType: TargetType.CONTENT,
+      targetId: id,
+      details: {
+        title: item.title,
+        authorId: item.authorId,
+        authorLogin: item.author,
+        note: data.moderatorNote
+      }
+    });
+
+    // Если объявление отклонено - отправляем уведомление автору
+    if (data.status === 'REJECTED') {
+      await this.createNotificationForAuthor(item.authorId, {
+        type: 'SYSTEM',
+        title: 'Объявление отклонено',
+        message: `Ваше объявление "${item.title}" было отклонено модератором.${data.moderatorNote ? ` Причина: ${data.moderatorNote}` : ''}`,
+        link: `/market`
+      });
+    }
+
+    // Если одобрено и были флаги - можно отправить уведомление, что всё хорошо
+    if (data.status === 'APPROVED' && item.moderationFlags.length > 0) {
+      await this.createNotificationForAuthor(item.authorId, {
+        type: 'SYSTEM',
+        title: 'Объявление одобрено',
+        message: `Ваше объявление "${item.title}" прошло модерацию и опубликовано.`,
+        link: `/market`
+      });
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * Обновить объявление (перед одобрением)
+   */
+  static async updateMarketItem(
+    id: string, 
+    data: UpdateMarketItemData, 
+    adminId: string,
+    adminLogin: string
+  ): Promise<MarketModerationItem> {
+    const item = await prisma.marketItem.findUnique({
+      where: { id }
+    });
+
+    if (!item) {
+      throw new Error('Объявление не найдено');
+    }
+
+    const updateData: any = { ...data };
+
+    // Преобразуем цену
+    if (data.price !== undefined) {
+      updateData.price = data.price === 'free' ? 'free' : data.price.toString();
+      updateData.priceValue = data.price === 'free' ? null : Number(data.price);
+    }
+
+    // Обновляем объявление
+    const updatedItem = await prisma.marketItem.update({
+      where: { id },
+      data: updateData,
+      include: {
+        users: {
+          select: {
+            id: true,
+            login: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // Логируем действие
+    await this.createAuditLog({
+      userId: adminId,
+      userName: adminLogin,
+      action: 'MARKET_UPDATED_BY_MODERATOR',
+      targetType: TargetType.CONTENT,
+      targetId: id,
+      details: {
+        title: item.title,
+        changes: data
+      }
+    });
+
+    return {
+      id: updatedItem.id,
+      title: updatedItem.title,
+      description: updatedItem.description,
+      price: updatedItem.price === 'free' ? 'free' : parseInt(updatedItem.price),
+      location: updatedItem.location,
+      author: updatedItem.author,
+      authorId: updatedItem.authorId,
+      authorEmail: updatedItem.users?.email,
+      type: updatedItem.type.toLowerCase(),
+      category: updatedItem.category?.toLowerCase(),
+      imageUrl: updatedItem.imageUrl || undefined,
+      createdAt: updatedItem.createdAt.toISOString(),
+      moderationStatus: updatedItem.moderationStatus,
+      moderationFlags: updatedItem.moderationFlags,
+      views: updatedItem.views,
+      contacts: updatedItem.contacts
+    };
+  }
+
+  /**
+   * Получить статистику модерации
+   */
+  static async getMarketModerationStats(): Promise<MarketModerationStats> {
+    const stats = await prisma.marketItem.groupBy({
+      by: ['moderationStatus'],
+      _count: true
+    });
+
+    const result = {
+      total: 0,
+      flagged: 0,
+      pending: 0,
+      approved: 0,
+      rejected: 0
+    };
+
+    stats.forEach((stat: any) => {
+      const count = stat._count;
+      result.total += count;
+      
+      switch (stat.moderationStatus) {
+        case 'FLAGGED': result.flagged = count; break;
+        case 'PENDING': result.pending = count; break;
+        case 'APPROVED': result.approved = count; break;
+        case 'REJECTED': result.rejected = count; break;
+      }
+    });
+
+    return result;
+  }
+
+  /**
+   * Вспомогательный метод для создания уведомлений
+   */
+  private static async createNotificationForAuthor(
+    userId: string,
+    data: {
+      type: 'SYSTEM' | 'MESSAGE' | 'LIKE' | 'COMMENT' | 'ACHIEVEMENT';
+      title: string;
+      message: string;
+      link?: string;
+    }
+  ): Promise<void> {
+    await (prisma as any).userNotification.create({
+      data: {
+        userId,
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        link: data.link,
+        read: false,
+        createdAt: new Date()
+      }
+    });
   }
   
   private static async createAuditLog(data: {

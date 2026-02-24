@@ -1,3 +1,4 @@
+// components/admin/AdminSidebar.tsx
 "use client";
 
 import { useState } from 'react';
@@ -16,6 +17,7 @@ const menuItems = [
   { path: '/admin/stats', icon: '📈', label: 'Статистика' },
   { path: '/admin/users', icon: '👥', label: 'Пользователи' },
   { path: '/admin/rating', icon: '⭐', label: 'Рейтинг' },
+  { path: '/admin/market-moderation', icon: '🛒', label: 'Модерация объявлений' }, // 🔥 НОВЫЙ ПУНКТ
   { path: '/', icon: '🏠', label: 'На сайт' },
 ];
 

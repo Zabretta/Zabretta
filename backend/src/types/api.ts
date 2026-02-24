@@ -66,6 +66,16 @@ export interface AdminStats {
       activity: number;
     }>;
   };
+  // 🔥 НОВОЕ: Статистика модерации (опционально)
+  moderation?: {
+    market: {
+      total: number;
+      flagged: number;
+      pending: number;
+      approved: number;
+      rejected: number;
+    };
+  };
   system: {
     uptime: string;
     memoryUsage: number;
@@ -132,6 +142,57 @@ export interface AdminSystemSettings {
     sessionTimeout: number;
   };
 }
+
+// ===== 🔥 НОВЫЕ ТИПЫ ДЛЯ МОДЕРАЦИИ ОБЪЯВЛЕНИЙ =====
+
+export interface GetMarketModerationParams {
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'FLAGGED';
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface MarketModerationItem {
+  id: string;
+  title: string;
+  description: string;
+  price: number | 'free';
+  location: string;
+  author: string;
+  authorId: string;
+  authorEmail?: string;
+  type: string;
+  category?: string;
+  imageUrl?: string;
+  createdAt: string;
+  moderationStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'FLAGGED';
+  moderationFlags: string[];
+  views?: number;
+  contacts?: number;
+}
+
+export interface ModerateMarketItemData {
+  status: 'APPROVED' | 'REJECTED';
+  moderatorNote?: string;
+}
+
+export interface UpdateMarketItemData {
+  title?: string;
+  description?: string;
+  price?: number | 'free';
+  location?: string;
+  category?: string;
+}
+
+export interface MarketModerationStats {
+  total: number;
+  flagged: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+}
+
+// ===== СУЩЕСТВУЮЩИЕ ТИПЫ РЕЙТИНГА =====
 
 export interface RatingRecord {
   id: string;

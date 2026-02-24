@@ -1,4 +1,3 @@
-// backend/src/controllers/marketController.ts
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { MarketService } from '../services/marketService';
@@ -19,7 +18,9 @@ export class MarketController {
         category: req.query.category as string,
         search: req.query.search as string,
         page: req.query.page ? Number(req.query.page) : undefined,
-        limit: req.query.limit ? Number(req.query.limit) : undefined
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+        // 🔥 НОВЫЙ ФИЛЬТР для модерации
+        moderationStatus: req.query.moderationStatus as string
       };
 
       console.log('📊 Обработанные фильтры:', filters);
@@ -45,6 +46,18 @@ export class MarketController {
           res.status(400).json(createErrorResponse('Некорректная категория'));
           return;
         }
+      }
+
+      // 🔥 НОВАЯ валидация для moderationStatus
+      if (filters.moderationStatus) {
+        const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'FLAGGED'];
+        if (!validStatuses.includes(filters.moderationStatus.toUpperCase())) {
+          console.warn(`⚠️ Некорректный статус модерации: ${filters.moderationStatus}`);
+          res.status(400).json(createErrorResponse('Некорректный статус модерации'));
+          return;
+        }
+        // Приводим к верхнему регистру для соответствия enum в Prisma
+        filters.moderationStatus = filters.moderationStatus.toUpperCase();
       }
 
       // Валидация page
@@ -164,6 +177,19 @@ export class MarketController {
         return;
       }
 
+      // 🔥 НОВАЯ валидация для полей модерации
+      if (!req.body.moderationStatus) {
+        console.warn('⚠️ Отсутствует статус модерации');
+        res.status(400).json(createErrorResponse('Отсутствует статус модерации'));
+        return;
+      }
+
+      if (!req.body.moderationFlags || !Array.isArray(req.body.moderationFlags)) {
+        console.warn('⚠️ Отсутствуют флаги модерации или они не являются массивом');
+        res.status(400).json(createErrorResponse('Некорректные флаги модерации'));
+        return;
+      }
+
       // Преобразуем тип из запроса в enum Prisma
       let type = req.body.type;
       if (type) {
@@ -190,11 +216,18 @@ export class MarketController {
         duration = durationMap[duration] || duration;
       }
 
+      // 🔥 Преобразуем статус модерации в enum Prisma
+      let moderationStatus = req.body.moderationStatus;
+      if (moderationStatus) {
+        moderationStatus = moderationStatus.toUpperCase();
+      }
+
       const itemData = {
         ...req.body,
         type,
         category,
         duration,
+        moderationStatus, // 🔥 НОВОЕ поле
         authorId: req.user.id,
         author: req.user.login
       };
@@ -204,6 +237,10 @@ export class MarketController {
       const result = await MarketService.createItem(itemData);
       
       console.log(`✅ Объявление "${result.title}" успешно создано с ID: ${result.id}`);
+      if (result.moderationFlags && result.moderationFlags.length > 0) {
+        console.log(`🚩 Флаги модерации: ${result.moderationFlags.join(', ')}`);
+        console.log(`📊 Статус модерации: ${result.moderationStatus}`);
+      }
       
       res.json(createSuccessResponse(result));
     } catch (error: any) {
@@ -258,6 +295,11 @@ export class MarketController {
           '2months': 'TWOMONTHS'
         };
         updateData.duration = durationMap[updateData.duration] || updateData.duration;
+      }
+
+      // 🔥 Преобразуем статус модерации, если он есть
+      if (updateData.moderationStatus) {
+        updateData.moderationStatus = updateData.moderationStatus.toUpperCase();
       }
 
       console.log('📝 Подготовленные данные для обновления:', JSON.stringify(updateData, null, 2));

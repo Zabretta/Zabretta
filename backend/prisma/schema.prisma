@@ -1,3 +1,4 @@
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -41,8 +42,6 @@ model content {
 
   @@map("content")
 }
-
-// ===== НОВЫЕ МОДЕЛИ =====
 
 model Like {
   id        String   @id @default(cuid())
@@ -94,7 +93,6 @@ model UserNotification {
   @@map("user_notifications")
 }
 
-// МОДЕЛЬ ДЛЯ НАСТРОЕК УВЕДОМЛЕНИЙ
 model NotificationSetting {
   id        String   @id @default(cuid())
   userId    String   @unique
@@ -123,16 +121,6 @@ model NotificationSetting {
 
   @@map("notification_settings")
 }
-
-enum NotificationType {
-  LIKE
-  COMMENT
-  MESSAGE
-  SYSTEM
-  ACHIEVEMENT
-}
-
-// ===== СУЩЕСТВУЮЩИЕ МОДЕЛИ =====
 
 model rating_adjustments {
   id             String   @id @default(cuid())
@@ -206,10 +194,16 @@ model marketItem {
   
   // ПОЛЯ ДЛЯ МОДЕРАЦИИ
   moderationStatus ModerationStatus @default(PENDING)
-  moderationFlags  ModerationFlag[] @default([])  // 👈 ИСПРАВЛЕНО: используем ModerationFlag[]
+  moderationFlags  ModerationFlag[] @default([])
   moderatedAt      DateTime?
   moderatedBy      String?
   moderatorNote    String?
+
+  // 👇 НОВЫЕ ПОЛЯ ДЛЯ РЕДАКТИРОВАНИЯ И УДАЛЕНИЯ
+  editCount        Int              @default(0)      // Счетчик редактирований
+  lastEditedAt     DateTime?                          // Дата последнего редактирования
+  isDeleted        Boolean          @default(false)   // Мягкое удаление
+  deletedAt        DateTime?                          // Дата удаления
 
   users        users           @relation(fields: [authorId], references: [id], onDelete: Cascade)
   marketCategory marketCategory? @relation(fields: [categoryId], references: [id])
@@ -233,7 +227,6 @@ model marketCategory {
   @@map("market_categories")
 }
 
-// ОБНОВЛЕННАЯ МОДЕЛЬ СООБЩЕНИЙ - ИСПРАВЛЕНО
 model marketMessage {
   id         String   @id @default(cuid())
   parentId   String?  
@@ -244,7 +237,7 @@ model marketMessage {
   read       Boolean  @default(false)
   contactMethod String
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt @default(now())  // Добавлено default(now())
+  updatedAt  DateTime @updatedAt @default(now())
 
   // Связи
   item     marketItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -265,17 +258,15 @@ model marketMessage {
   @@map("market_messages")
 }
 
-// ===== МОДЕЛЬ ПОЛЬЗОВАТЕЛЯ =====
 model users {
   id                 String               @id @default(cuid())
   login              String               @unique
   email              String               @unique
   name               String?
   avatar             String?
-  // ДОБАВЛЕННЫЕ ПОЛЯ ДЛЯ ПРОФИЛЯ
-  bio                String?               // Информация о себе
-  location           String?               // Город/местоположение
-  phone              String?               // Номер телефона
+  bio                String?
+  location           String?
+  phone              String?
   role               UserRole             @default(USER)
   isActive           Boolean              @default(true)
   rating             Int                  @default(0)
@@ -309,7 +300,14 @@ model users {
   comments           Comment[]
 }
 
-// ENUM
+enum NotificationType {
+  LIKE
+  COMMENT
+  MESSAGE
+  SYSTEM
+  ACHIEVEMENT
+}
+
 enum ContentStatus {
   DRAFT
   ACTIVE
@@ -367,7 +365,6 @@ enum ItemCategory {
   OTHER
 }
 
-// НОВЫЙ ENUM ДЛЯ СТАТУСОВ МОДЕРАЦИИ
 enum ModerationStatus {
   PENDING
   APPROVED
@@ -375,7 +372,6 @@ enum ModerationStatus {
   FLAGGED
 }
 
-// 🔥 НОВЫЙ ENUM ДЛЯ ФЛАГОВ МОДЕРАЦИИ
 enum ModerationFlag {
   BAD_WORDS
   SPAM_LINKS

@@ -19,7 +19,6 @@ export class MarketController {
         search: req.query.search as string,
         page: req.query.page ? Number(req.query.page) : undefined,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
-        // 🔥 НОВЫЙ ФИЛЬТР для модерации
         moderationStatus: req.query.moderationStatus as string
       };
 
@@ -48,7 +47,7 @@ export class MarketController {
         }
       }
 
-      // 🔥 НОВАЯ валидация для moderationStatus
+      // Валидация для moderationStatus
       if (filters.moderationStatus) {
         const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'FLAGGED'];
         if (!validStatuses.includes(filters.moderationStatus.toUpperCase())) {
@@ -56,7 +55,6 @@ export class MarketController {
           res.status(400).json(createErrorResponse('Некорректный статус модерации'));
           return;
         }
-        // Приводим к верхнему регистру для соответствия enum в Prisma
         filters.moderationStatus = filters.moderationStatus.toUpperCase();
       }
 
@@ -81,12 +79,10 @@ export class MarketController {
     } catch (error) {
       console.error('❌ Ошибка получения объявлений:', error);
       
-      // Детальная информация об ошибке
       if (error instanceof Error) {
         console.error('📚 Сообщение ошибки:', error.message);
         console.error('📚 Stack:', error.stack);
         
-        // Ошибки Prisma
         if (error.name === 'PrismaClientValidationError') {
           console.error('🔴 Ошибка валидации Prisma:', error.message);
           res.status(500).json(createErrorResponse('Ошибка валидации данных в БД'));
@@ -177,7 +173,7 @@ export class MarketController {
         return;
       }
 
-      // 🔥 НОВАЯ валидация для полей модерации
+      // Валидация для полей модерации
       if (!req.body.moderationStatus) {
         console.warn('⚠️ Отсутствует статус модерации');
         res.status(400).json(createErrorResponse('Отсутствует статус модерации'));
@@ -193,21 +189,18 @@ export class MarketController {
       // Преобразуем тип из запроса в enum Prisma
       let type = req.body.type;
       if (type) {
-        // "sell" → "SELL"
         type = type.toUpperCase();
       }
 
       // Преобразуем категорию из запроса в enum Prisma
       let category = req.body.category;
       if (category) {
-        // "tools" → "TOOLS"
         category = category.toUpperCase();
       }
 
       // Преобразуем длительность из запроса в enum Prisma
       let duration = req.body.duration;
       if (duration) {
-        // "2weeks" → "TWOWEEKS"
         const durationMap: Record<string, string> = {
           '2weeks': 'TWOWEEKS',
           '1month': 'ONEMONTH',
@@ -216,7 +209,7 @@ export class MarketController {
         duration = durationMap[duration] || duration;
       }
 
-      // 🔥 Преобразуем статус модерации в enum Prisma
+      // Преобразуем статус модерации в enum Prisma
       let moderationStatus = req.body.moderationStatus;
       if (moderationStatus) {
         moderationStatus = moderationStatus.toUpperCase();
@@ -227,7 +220,7 @@ export class MarketController {
         type,
         category,
         duration,
-        moderationStatus, // 🔥 НОВОЕ поле
+        moderationStatus,
         authorId: req.user.id,
         author: req.user.login
       };
@@ -249,7 +242,6 @@ export class MarketController {
         console.error('📚 Stack:', error.stack);
       }
       
-      // Ошибки валидации Prisma
       if (error.name === 'PrismaClientValidationError') {
         res.status(400).json(createErrorResponse('Ошибка валидации данных'));
         return;
@@ -297,7 +289,7 @@ export class MarketController {
         updateData.duration = durationMap[updateData.duration] || updateData.duration;
       }
 
-      // 🔥 Преобразуем статус модерации, если он есть
+      // Преобразуем статус модерации, если он есть
       if (updateData.moderationStatus) {
         updateData.moderationStatus = updateData.moderationStatus.toUpperCase();
       }
@@ -462,7 +454,7 @@ export class MarketController {
     }
   }
 
-  // ===== НОВЫЕ МЕТОДЫ ДЛЯ СООБЩЕНИЙ =====
+  // ===== МЕТОДЫ ДЛЯ СООБЩЕНИЙ =====
 
   /**
    * GET /api/market/messages

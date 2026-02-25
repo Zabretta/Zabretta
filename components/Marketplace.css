@@ -1289,11 +1289,7 @@ input[type="checkbox"] {
   left: -9999px !important;
 }
 
-/* Альтернативно: просто скрыть элемент */
-.item-date {
-  display: none;
-}
-
+/* Кнопка связаться */
 .contact-btn {
   background: linear-gradient(to right, #5D4037, #8B4513);
   color: white;
@@ -1305,6 +1301,8 @@ input[type="checkbox"] {
   cursor: pointer;
   transition: all 0.3s ease;
   white-space: nowrap;
+  min-width: 120px;
+  text-align: center;
 }
 
 .contact-btn:hover:not(:disabled) {
@@ -1316,6 +1314,293 @@ input[type="checkbox"] {
 .contact-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* ===== СТИЛИ ДЛЯ КНОПОК РЕДАКТИРОВАНИЯ И УДАЛЕНИЯ ===== */
+.item-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-btn, .delete-btn {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.2em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.edit-btn {
+  background: linear-gradient(to right, #4a90e2, #357abd);
+  color: white;
+}
+
+.edit-btn:hover:not(:disabled) {
+  background: linear-gradient(to right, #5a9ef2, #4a90e2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);
+}
+
+.delete-btn {
+  background: linear-gradient(to right, #e25c5c, #c44b4b);
+  color: white;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background: linear-gradient(to right, #f26c6c, #e25c5c);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(226, 92, 92, 0.3);
+}
+
+.edit-btn:disabled, .delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ===== СТИЛИ ДЛЯ ФОРМЫ РЕДАКТИРОВАНИЯ ===== */
+.edit-form-container {
+  margin-bottom: 30px;
+  padding: 25px;
+  background: rgba(43, 32, 28, 0.98);
+  border: 3px solid #4a90e2;
+  border-radius: 15px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+  animation: slideDown 0.3s ease;
+}
+
+.edit-form {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.edit-form h3 {
+  color: #F5DEB3;
+  margin-bottom: 25px;
+  font-size: 1.8em;
+  text-align: center;
+  border-bottom: 2px solid #4a90e2;
+  padding-bottom: 15px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.edit-form .type-selector,
+.edit-form .form-group,
+.edit-form .duration-section {
+  margin-bottom: 20px;
+}
+
+.edit-form input[type="text"],
+.edit-form input[type="number"],
+.edit-form textarea,
+.edit-form select {
+  background: rgba(245, 222, 179, 0.1);
+  border: 2px solid #8B7355;
+  border-radius: 6px;
+  color: #F5DEB3;
+  padding: 12px 15px;
+  width: 100%;
+  font-size: 1em;
+  transition: all 0.3s ease;
+}
+
+.edit-form input:focus,
+.edit-form textarea:focus,
+.edit-form select:focus {
+  border-color: #4a90e2;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.edit-form .checkbox-label {
+  margin: 20px 0;
+}
+
+.edit-form .form-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+.edit-form .submit-btn {
+  background: linear-gradient(to right, #4a90e2, #357abd);
+}
+
+.edit-form .submit-btn:hover:not(:disabled) {
+  background: linear-gradient(to right, #5a9ef2, #4a90e2);
+}
+
+.edit-form .cancel-btn {
+  background: rgba(245, 222, 179, 0.1);
+  color: #F5DEB3;
+  border: 1px solid #8B7355;
+}
+
+.edit-form .cancel-btn:hover {
+  background: rgba(245, 222, 179, 0.2);
+  border-color: #D2691E;
+}
+
+/* ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ ===== */
+.delete-confirm-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 4000;
+  animation: fadeIn 0.3s ease;
+}
+
+.delete-confirm-content {
+  background: linear-gradient(135deg, #4E342E, #3E2723);
+  border: 3px solid #e25c5c;
+  border-radius: 15px;
+  padding: 35px;
+  max-width: 450px;
+  width: 90%;
+  text-align: center;
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.delete-confirm-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(to right, #e25c5c, #c44b4b);
+}
+
+.delete-confirm-content h3 {
+  color: #F5DEB3;
+  margin-bottom: 15px;
+  font-size: 1.6em;
+  font-weight: 700;
+}
+
+.delete-confirm-content p {
+  color: #BCAAA4;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+  line-height: 1.5;
+}
+
+.delete-warning {
+  color: #e25c5c !important;
+  font-weight: 600;
+  font-size: 1.1em;
+  margin: 15px 0 25px 0 !important;
+  padding: 10px;
+  background: rgba(226, 92, 92, 0.1);
+  border-radius: 8px;
+  border-left: 3px solid #e25c5c;
+}
+
+.delete-confirm-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 25px;
+}
+
+.confirm-delete-btn {
+  background: linear-gradient(to right, #e25c5c, #c44b4b);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 30px;
+  font-size: 1.1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex: 1;
+  max-width: 180px;
+  box-shadow: 0 4px 15px rgba(226, 92, 92, 0.3);
+}
+
+.confirm-delete-btn:hover:not(:disabled) {
+  background: linear-gradient(to right, #f26c6c, #e25c5c);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(226, 92, 92, 0.4);
+}
+
+.cancel-delete-btn {
+  background: rgba(245, 222, 179, 0.1);
+  color: #F5DEB3;
+  border: 2px solid #8B7355;
+  border-radius: 8px;
+  padding: 12px 30px;
+  font-size: 1.1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex: 1;
+  max-width: 180px;
+}
+
+.cancel-delete-btn:hover:not(:disabled) {
+  background: rgba(245, 222, 179, 0.2);
+  border-color: #D2691E;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(210, 105, 30, 0.2);
+}
+
+.confirm-delete-btn:disabled,
+.cancel-delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Состояния загрузки и пустого списка */
@@ -1419,11 +1704,54 @@ input[type="checkbox"] {
     padding: 6px 10px;
   }
   
-  /* Адаптивность для категорий в поиске */
   .category-filter {
     padding: 12px 45px 12px 15px;
     font-size: 0.95em;
     background-position: right 15px center;
+  }
+  
+  .item-actions {
+    flex-direction: row;
+    width: auto;
+    gap: 5px;
+  }
+  
+  .edit-btn, .delete-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1em;
+  }
+  
+  .delete-confirm-content {
+    padding: 25px 20px;
+  }
+  
+  .delete-confirm-content h3 {
+    font-size: 1.3em;
+  }
+  
+  .delete-confirm-content p {
+    font-size: 1em;
+  }
+  
+  .delete-confirm-actions {
+    flex-direction: row;
+    gap: 10px;
+  }
+  
+  .confirm-delete-btn,
+  .cancel-delete-btn {
+    max-width: 140px;
+    padding: 10px 20px;
+    font-size: 1em;
+  }
+  
+  .edit-form-container {
+    padding: 20px 15px;
+  }
+  
+  .edit-form h3 {
+    font-size: 1.5em;
   }
 }
 
@@ -1490,7 +1818,6 @@ input[type="checkbox"] {
     font-size: 0.7em;
   }
   
-  /* Адаптивность строки автора */
   .form-author-info {
     flex-direction: column;
     gap: 8px;
@@ -1505,5 +1832,46 @@ input[type="checkbox"] {
     font-size: 1em;
     padding: 3px 10px;
     min-width: 100px;
+  }
+  
+  .item-actions {
+    flex-direction: row;
+    gap: 4px;
+  }
+  
+  .edit-btn, .delete-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 1em;
+  }
+  
+  .delete-confirm-content {
+    padding: 20px 15px;
+  }
+  
+  .delete-confirm-content h3 {
+    font-size: 1.2em;
+  }
+  
+  .delete-confirm-content p {
+    font-size: 0.95em;
+  }
+  
+  .delete-warning {
+    font-size: 1em;
+    padding: 8px;
+  }
+  
+  .delete-confirm-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .confirm-delete-btn,
+  .cancel-delete-btn {
+    max-width: 100%;
+    width: 100%;
+    padding: 10px;
+    font-size: 1em;
   }
 }

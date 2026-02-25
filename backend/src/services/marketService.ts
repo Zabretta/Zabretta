@@ -13,7 +13,7 @@ export interface CreateItemData {
   imageUrl?: string;
   negotiable?: boolean;
   duration: DurationType;
-  // 🔥 НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
+  // ПОЛЯ ДЛЯ МОДЕРАЦИИ
   moderationStatus: ModerationStatus;
   moderationFlags: ModerationFlag[];
 }
@@ -24,7 +24,7 @@ export interface MarketFilters {
   search?: string;
   page?: number;
   limit?: number;
-  // 🔥 НОВЫЙ ФИЛЬТР
+  // ФИЛЬТР ДЛЯ МОДЕРАЦИИ
   moderationStatus?: string;
 }
 
@@ -70,7 +70,10 @@ export class MarketService {
     const { type, category, search, page = 1, limit = 20, moderationStatus } = filters || {};
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: any = {
+      // 🔥 Исключаем удаленные объявления
+      isDeleted: false
+    };
 
     if (type) {
       const typeEnum = type.toUpperCase() as ItemType;
@@ -82,7 +85,7 @@ export class MarketService {
       where.category = categoryEnum;
     }
 
-    // 🔥 НОВЫЙ ФИЛЬТР ПО СТАТУСУ МОДЕРАЦИИ
+    // ФИЛЬТР ПО СТАТУСУ МОДЕРАЦИИ
     if (moderationStatus) {
       const statusEnum = moderationStatus.toUpperCase() as ModerationStatus;
       where.moderationStatus = statusEnum;
@@ -142,12 +145,17 @@ export class MarketService {
         views: item.views,
         contacts: item.contacts,
         category: item.category?.toLowerCase() as any,
-        // 🔥 НОВЫЕ ПОЛЯ В ОТВЕТЕ
+        // ПОЛЯ ДЛЯ МОДЕРАЦИИ
         moderationStatus: item.moderationStatus,
         moderationFlags: item.moderationFlags,
         moderatedAt: item.moderatedAt?.toISOString(),
         moderatedBy: item.moderatedBy,
-        moderatorNote: item.moderatorNote
+        moderatorNote: item.moderatorNote,
+        // НОВЫЕ ПОЛЯ ДЛЯ РЕДАКТИРОВАНИЯ И УДАЛЕНИЯ
+        editCount: item.editCount,
+        lastEditedAt: item.lastEditedAt?.toISOString(),
+        isDeleted: item.isDeleted,
+        deletedAt: item.deletedAt?.toISOString()
       }));
 
       return {
@@ -203,12 +211,17 @@ export class MarketService {
           rating: 4.5,
           views: 0,
           contacts: 0,
-          // 🔥 НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
+          // ПОЛЯ ДЛЯ МОДЕРАЦИИ
           moderationStatus: data.moderationStatus,
           moderationFlags: data.moderationFlags,
           moderatedAt: null,
           moderatedBy: null,
-          moderatorNote: null
+          moderatorNote: null,
+          // НОВЫЕ ПОЛЯ ПРИ СОЗДАНИИ
+          editCount: 0,
+          lastEditedAt: null,
+          isDeleted: false,
+          deletedAt: null
         }
       });
 
@@ -217,7 +230,7 @@ export class MarketService {
         title: item.title,
         price: item.price === 'free' ? 'free' : parseInt(item.price),
         expirationDate: item.expirationDate?.toISOString(),
-        // 🔥 НОВЫЕ ПОЛЯ В ОТВЕТЕ
+        // ПОЛЯ ДЛЯ МОДЕРАЦИИ
         moderationStatus: item.moderationStatus,
         moderationFlags: item.moderationFlags
       };
@@ -325,12 +338,17 @@ export class MarketService {
         views: item.views + 1,
         contacts: item.contacts,
         category: item.category?.toLowerCase() as any,
-        // 🔥 НОВЫЕ ПОЛЯ В ОТВЕТЕ
+        // ПОЛЯ ДЛЯ МОДЕРАЦИИ
         moderationStatus: item.moderationStatus,
         moderationFlags: item.moderationFlags,
         moderatedAt: item.moderatedAt?.toISOString(),
         moderatedBy: item.moderatedBy,
-        moderatorNote: item.moderatorNote
+        moderatorNote: item.moderatorNote,
+        // НОВЫЕ ПОЛЯ ДЛЯ РЕДАКТИРОВАНИЯ
+        editCount: item.editCount,
+        lastEditedAt: item.lastEditedAt?.toISOString(),
+        isDeleted: item.isDeleted,
+        deletedAt: item.deletedAt?.toISOString()
       };
     } catch (error) {
       console.error('❌ Ошибка получения объявления:', error);
@@ -355,8 +373,13 @@ export class MarketService {
         throw new Error('Нет прав на удаление этого объявления');
       }
 
-      await prisma.marketItem.delete({
-        where: { id }
+      // Мягкое удаление - помечаем как удаленное, но не удаляем физически
+      await prisma.marketItem.update({
+        where: { id },
+        data: { 
+          isDeleted: true,
+          deletedAt: new Date()
+        }
       });
 
       return { success: true };
@@ -371,30 +394,73 @@ export class MarketService {
    */
   static async updateItem(id: string, userId: string, data: Partial<CreateItemData>) {
     try {
+      console.log(`🔍 [UPDATE] Начало обновления объявления ID: ${id}`);
+      console.log(`🔍 [UPDATE] Пользователь ID: ${userId}`);
+      console.log(`🔍 [UPDATE] Данные для обновления:`, JSON.stringify(data, null, 2));
+
       const item = await prisma.marketItem.findUnique({
         where: { id }
       });
 
       if (!item) {
+        console.log(`❌ [UPDATE] Объявление с ID ${id} не найдено`);
         throw new Error('Объявление не найдено');
       }
 
+      console.log(`🔍 [UPDATE] Найденное объявление:`, {
+        id: item.id,
+        authorId: item.authorId,
+        title: item.title
+      });
+
       if (item.authorId !== userId) {
+        console.log(`❌ [UPDATE] Нет прав на редактирование. authorId: ${item.authorId}, userId: ${userId}`);
         throw new Error('Нет прав на редактирование этого объявления');
       }
 
       const updateData: any = { ...data };
+      console.log(`🔍 [UPDATE] Подготовка данных для обновления...`);
+
+      // Удаляем поля, которые не нужно обновлять напрямую
+      delete updateData.id;
+      delete updateData.authorId;
+      delete updateData.author;
+      delete updateData.createdAt;
+      delete updateData.views;
+      delete updateData.contacts;
 
       if (data.price !== undefined) {
+        console.log(`🔍 [UPDATE] Обработка цены:`, data.price);
         updateData.price = data.price === 'free' ? 'free' : data.price.toString();
         updateData.priceValue = data.price === 'free' ? null : Number(data.price);
+        console.log(`🔍 [UPDATE] Цена после обработки:`, { price: updateData.price, priceValue: updateData.priceValue });
       }
 
+      // 🔥 ИСПРАВЛЕНИЕ: Преобразуем duration в верхний регистр для Prisma enum
       if (data.duration) {
+        console.log(`🔍 [UPDATE] Обработка длительности:`, data.duration);
+        
+        // Преобразуем duration в верхний регистр
+        const durationMap: Record<string, string> = {
+          '2weeks': 'TWOWEEKS',
+          '1month': 'ONEMONTH',
+          '2months': 'TWOMONTHS',
+          'twoweeks': 'TWOWEEKS',
+          'onemonth': 'ONEMONTH',
+          'twomonths': 'TWOMONTHS'
+        };
+        
+        let durationValue = data.duration.toString().toLowerCase();
+        let durationEnum = durationMap[durationValue] || durationValue.toUpperCase();
+        
+        console.log(`🔍 [UPDATE] Duration после преобразования:`, durationEnum);
+        updateData.duration = durationEnum;
+        
+        // Пересчитываем expirationDate
         const now = new Date();
         const expirationDate = new Date(now);
 
-        switch (data.duration) {
+        switch (durationEnum) {
           case 'TWOWEEKS':
             expirationDate.setDate(now.getDate() + 14);
             break;
@@ -404,12 +470,15 @@ export class MarketService {
           case 'TWOMONTHS':
             expirationDate.setMonth(now.getMonth() + 2);
             break;
+          default:
+            console.log(`⚠️ [UPDATE] Неизвестный duration: ${durationEnum}, используем ONEMONTH`);
+            expirationDate.setMonth(now.getMonth() + 1);
         }
 
         updateData.expirationDate = expirationDate;
+        console.log(`🔍 [UPDATE] Новая дата истечения:`, expirationDate);
       }
 
-      // 🔥 Если обновляются поля модерации
       if (data.moderationStatus) {
         updateData.moderationStatus = data.moderationStatus;
       }
@@ -417,9 +486,24 @@ export class MarketService {
         updateData.moderationFlags = data.moderationFlags;
       }
 
+      // Обновляем счетчик редактирований
+      updateData.editCount = {
+        increment: 1
+      };
+      updateData.lastEditedAt = new Date();
+
+      console.log(`🔍 [UPDATE] Финальные данные для обновления:`, JSON.stringify(updateData, null, 2));
+
       const updatedItem = await prisma.marketItem.update({
         where: { id },
         data: updateData
+      });
+
+      console.log(`✅ [UPDATE] Объявление успешно обновлено:`, {
+        id: updatedItem.id,
+        title: updatedItem.title,
+        editCount: updatedItem.editCount,
+        lastEditedAt: updatedItem.lastEditedAt
       });
 
       return {
@@ -427,12 +511,19 @@ export class MarketService {
         title: updatedItem.title,
         price: updatedItem.price === 'free' ? 'free' : parseInt(updatedItem.price),
         expirationDate: updatedItem.expirationDate?.toISOString(),
-        // 🔥 НОВЫЕ ПОЛЯ В ОТВЕТЕ
+        // ПОЛЯ ДЛЯ МОДЕРАЦИИ
         moderationStatus: updatedItem.moderationStatus,
-        moderationFlags: updatedItem.moderationFlags
+        moderationFlags: updatedItem.moderationFlags,
+        // НОВЫЕ ПОЛЯ
+        editCount: updatedItem.editCount,
+        lastEditedAt: updatedItem.lastEditedAt?.toISOString()
       };
     } catch (error) {
-      console.error('❌ Ошибка обновления объявления:', error);
+      console.error('❌ [UPDATE] Ошибка обновления объявления:', error);
+      if (error instanceof Error) {
+        console.error('❌ [UPDATE] Сообщение ошибки:', error.message);
+        console.error('❌ [UPDATE] Stack:', error.stack);
+      }
       throw error;
     }
   }
@@ -601,7 +692,6 @@ export class MarketService {
         ? originalMessage.toUserId 
         : originalMessage.fromUserId;
 
-      // Получаем данные собеседника с полями приватности
       const otherUser = await prisma.users.findUnique({
         where: { id: otherUserId },
         select: {

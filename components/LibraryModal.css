@@ -1,0 +1,792 @@
+/* LibraryModal.css */
+
+/* Затемнение фона */
+.library-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Модальное окно на весь экран */
+.library-modal-content {
+  position: relative;
+  width: 95vw;
+  height: 95vh;
+  background: linear-gradient(135deg, #2c1e0e 0%, #3d2e1b 100%);
+  border: 4px solid #8B4513;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), inset 0 0 30px rgba(139, 69, 19, 0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.4s ease-out;
+}
+
+/* Кнопка закрытия */
+.library-close-button {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(139, 69, 19, 0.8);
+  border: 2px solid #D2691E;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.library-close-button:hover {
+  background: #D2691E;
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 0 20px #D2691E;
+}
+
+/* Заголовок */
+.library-header {
+  padding: 20px 30px;
+  background: linear-gradient(to right, #8B4513, #A0522D);
+  border-bottom: 3px solid #D2691E;
+  text-align: center;
+}
+
+.library-title {
+  font-size: 2.5em;
+  color: #FFF8DC;
+  text-shadow: 3px 3px 0 #5D4037, 5px 5px 0 rgba(0, 0, 0, 0.3);
+  margin: 0;
+  letter-spacing: 2px;
+}
+
+.library-subtitle {
+  font-size: 1.1em;
+  color: #F5DEB3;
+  margin: 5px 0 0;
+  font-style: italic;
+}
+
+/* Основной контейнер */
+.library-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  background: #2c1e0e;
+}
+
+/* Стеллажи (горизонтальная прокрутка) */
+.library-shelves {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 20px;
+  gap: 0;
+  background: #2c1e0e;
+  scrollbar-width: thin;
+  scrollbar-color: #8B4513 #5D4037;
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+.library-shelves::-webkit-scrollbar {
+  height: 12px;
+}
+
+.library-shelves::-webkit-scrollbar-track {
+  background: #5D4037;
+  border-radius: 6px;
+}
+
+.library-shelves::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #8B4513, #D2691E);
+  border-radius: 6px;
+  border: 2px solid #5D4037;
+}
+
+/* Отдельный стеллаж */
+.library-shelf {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  min-width: 200px;
+  max-width: 250px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.library-shelf.active {
+  transform: translateY(-10px);
+  filter: drop-shadow(0 10px 15px rgba(210, 105, 30, 0.5));
+}
+
+.library-shelf.left-edge .shelf-side {
+  border-left: none;
+}
+
+.library-shelf.right-edge .shelf-side {
+  border-right: none;
+}
+
+/* Боковина стеллажа */
+.shelf-side {
+  width: 180px;
+  background: linear-gradient(135deg, #8B4513, #5D4037);
+  border: 3px solid #D2691E;
+  border-radius: 8px 0 0 8px;
+  padding: 15px 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.right-edge .shelf-side {
+  border-radius: 0 8px 8px 0;
+}
+
+/* Надпись на стеллаже */
+.shelf-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #FFF8DC;
+  text-shadow: 2px 2px 0 #5D4037;
+  letter-spacing: 2px;
+  white-space: nowrap;
+  margin: 10px 0;
+  padding: 10px 3px;
+  background: rgba(210, 105, 30, 0.3);
+  border-radius: 10px;
+  border: 1px solid #D2691E;
+}
+
+/* Корешки книг */
+.book-spines {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px 0;
+  min-height: 150px;
+}
+
+.book-spine {
+  background-color: #8B4513;
+  border-radius: 2px 2px 0 0;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3), inset -1px 0 2px rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.book-spine:hover {
+  transform: scale(1.05) translateY(-5px) !important;
+  filter: brightness(1.2);
+  z-index: 5;
+}
+
+/* Проход между стеллажами */
+.shelf-passage {
+  width: 60px;
+  background: linear-gradient(90deg, #2c1e0e, #3d2e1b);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+
+/* Люстра в проходе */
+.passage-lamp {
+  width: 30px;
+  height: 30px;
+  background: radial-gradient(circle at 30% 30%, #FFD700, #DAA520);
+  border-radius: 50%;
+  margin-top: 30px;
+  box-shadow: 0 0 20px #FFD700, 0 0 40px #DAA520;
+  position: relative;
+  animation: flicker 3s infinite;
+}
+
+.passage-lamp::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 20px;
+  background: #8B7355;
+}
+
+.passage-lamp::after {
+  content: '';
+  position: absolute;
+  bottom: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 100px;
+  background: linear-gradient(to bottom, rgba(255, 215, 0, 0.3), transparent);
+  pointer-events: none;
+}
+
+/* Панель подразделов */
+.library-subsections-panel {
+  width: 280px;
+  background: linear-gradient(135deg, #3d2e1b, #2c1e0e);
+  border-left: 3px solid #8B4513;
+  border-right: 3px solid #8B4513;
+  padding: 20px 15px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.subsections-title {
+  color: #F5DEB3;
+  font-size: 1.2em;
+  margin: 0 0 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #D2691E;
+}
+
+.subsections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subsection-button {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  background: linear-gradient(135deg, #5D4037, #4E342E);
+  border: 2px solid #8B4513;
+  border-radius: 8px;
+  color: #FFF8DC;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.subsection-button:hover {
+  transform: translateX(5px);
+  background: linear-gradient(135deg, #8B4513, #A0522D);
+  border-color: #D2691E;
+}
+
+.subsection-button.active {
+  background: linear-gradient(135deg, #D2691E, #8B4513);
+  border-color: #FF8C00;
+  box-shadow: 0 0 15px #D2691E;
+}
+
+.subsection-icon {
+  font-size: 1.2em;
+  margin-right: 10px;
+}
+
+.subsection-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.subsection-count {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  color: #F5DEB3;
+}
+
+/* Панель документов */
+.library-items-panel {
+  flex: 1;
+  background: linear-gradient(135deg, #2c1e0e, #3d2e1b);
+  padding: 20px;
+  overflow-y: auto;
+  min-width: 300px;
+}
+
+.items-title {
+  color: #F5DEB3;
+  font-size: 1.3em;
+  margin: 0 0 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #D2691E;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: linear-gradient(135deg, #5D4037, #4E342E);
+  border: 2px solid #8B4513;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.item-card:hover {
+  transform: translateY(-3px);
+  background: linear-gradient(135deg, #8B4513, #A0522D);
+  border-color: #D2691E;
+  box-shadow: 0 5px 15px rgba(210, 105, 30, 0.3);
+}
+
+.item-card.active {
+  background: linear-gradient(135deg, #D2691E, #8B4513);
+  border-color: #FF8C00;
+  box-shadow: 0 0 20px #D2691E;
+}
+
+.item-icon {
+  font-size: 2em;
+  filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.3));
+}
+
+.item-info {
+  flex: 1;
+}
+
+.item-title {
+  font-size: 1.1em;
+  font-weight: bold;
+  color: #FFF8DC;
+  margin-bottom: 5px;
+}
+
+.item-meta {
+  display: flex;
+  gap: 15px;
+  font-size: 0.8em;
+  color: #F5DEB3;
+  flex-wrap: wrap;
+}
+
+.item-author, .item-date, .item-likes {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.empty-items {
+  text-align: center;
+  padding: 40px;
+  color: #8B7355;
+  font-style: italic;
+  background: rgba(139, 69, 19, 0.1);
+  border-radius: 10px;
+  border: 2px dashed #8B4513;
+}
+
+/* Модалка просмотра документа */
+.item-view-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 11000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.item-view-content {
+  width: 90%;
+  max-width: 1000px;
+  max-height: 90vh;
+  background: linear-gradient(135deg, #2c1e0e, #3d2e1b);
+  border: 4px solid #8B4513;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: scaleIn 0.3s ease-out;
+}
+
+.item-view-close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #D2691E;
+  border: 2px solid #FF8C00;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.item-view-close:hover {
+  transform: scale(1.1) rotate(90deg);
+  background: #FF8C00;
+}
+
+.item-view-header {
+  padding: 25px 30px;
+  background: linear-gradient(to right, #8B4513, #A0522D);
+  border-bottom: 3px solid #D2691E;
+}
+
+.item-view-header h2 {
+  color: #FFF8DC;
+  font-size: 1.8em;
+  margin: 0 0 10px;
+  text-shadow: 2px 2px 0 #5D4037;
+}
+
+.item-view-meta {
+  display: flex;
+  gap: 30px;
+  color: #F5DEB3;
+  font-size: 0.95em;
+}
+
+.item-view-body {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+  color: #FFF8DC;
+  line-height: 1.6;
+  font-size: 1.1em;
+  min-height: 300px;
+  max-height: 500px;
+}
+
+.item-text-content {
+  white-space: pre-wrap;
+  font-family: inherit;
+}
+
+.item-image-placeholder,
+.item-video-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px dashed #8B4513;
+  border-radius: 10px;
+  padding: 30px;
+  text-align: center;
+}
+
+.placeholder-icon {
+  font-size: 5em;
+  margin-bottom: 20px;
+  opacity: 0.7;
+}
+
+.image-note {
+  margin-top: 20px;
+  color: #8B7355;
+  font-style: italic;
+}
+
+/* Нижняя панель документа */
+.item-view-footer {
+  padding: 20px 30px;
+  background: linear-gradient(to right, #5D4037, #4E342E);
+  border-top: 3px solid #8B4513;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+}
+
+.footer-login {
+  font-size: 1.1em;
+  color: #F5DEB3;
+  background: rgba(139, 69, 19, 0.3);
+  padding: 8px 15px;
+  border-radius: 20px;
+  border: 1px solid #D2691E;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+}
+
+.like-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(139, 69, 19, 0.3);
+  border: 2px solid #D2691E;
+  border-radius: 30px;
+  color: white;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.like-button:hover:not(:disabled) {
+  background: #D2691E;
+  transform: scale(1.05);
+  box-shadow: 0 0 20px #D2691E;
+}
+
+.like-button.liked {
+  background: #D2691E;
+  border-color: #FFD700;
+  animation: pulse 1s;
+}
+
+.like-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.like-icon {
+  font-size: 1.2em;
+}
+
+.like-count {
+  font-weight: bold;
+  min-width: 30px;
+  text-align: center;
+}
+
+.like-text {
+  font-size: 0.9em;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes flicker {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 20px #FFD700, 0 0 40px #DAA520;
+  }
+  25% {
+    opacity: 0.9;
+    box-shadow: 0 0 15px #FFD700, 0 0 30px #DAA520;
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 25px #FFD700, 0 0 50px #DAA520;
+  }
+  75% {
+    opacity: 0.8;
+    box-shadow: 0 0 10px #FFD700, 0 0 20px #DAA520;
+  }
+}
+
+/* Адаптивность */
+@media (max-width: 1200px) {
+  .library-subsections-panel {
+    width: 240px;
+  }
+}
+
+@media (max-width: 992px) {
+  .library-main {
+    flex-wrap: wrap;
+  }
+  
+  .library-shelves {
+    width: 100%;
+    max-width: none;
+    order: -1;
+  }
+  
+  .library-subsections-panel {
+    width: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .library-modal-content {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+  }
+  
+  .library-header {
+    padding: 15px;
+  }
+  
+  .library-title {
+    font-size: 1.8em;
+  }
+  
+  .library-main {
+    flex-direction: column;
+  }
+  
+  .library-shelves {
+    padding: 10px;
+  }
+  
+  .library-shelf {
+    min-width: 150px;
+  }
+  
+  .shelf-side {
+    width: 130px;
+  }
+  
+  .shelf-label {
+    font-size: 1em;
+  }
+  
+  .shelf-passage {
+    width: 40px;
+  }
+  
+  .library-subsections-panel,
+  .library-items-panel {
+    width: 100%;
+    border-left: none;
+    border-right: none;
+    border-top: 3px solid #8B4513;
+  }
+  
+  .item-view-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+  
+  .item-view-header h2 {
+    font-size: 1.4em;
+  }
+  
+  .item-view-meta {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .item-view-footer {
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+  }
+  
+  .footer-right {
+    justify-content: center;
+  }
+  
+  .like-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .library-shelf {
+    min-width: 120px;
+  }
+  
+  .shelf-side {
+    width: 100px;
+  }
+  
+  .book-spine {
+    height: 30px !important;
+  }
+  
+  .item-card {
+    padding: 10px;
+  }
+  
+  .item-icon {
+    font-size: 1.5em;
+  }
+  
+  .item-title {
+    font-size: 0.95em;
+  }
+  
+  .item-meta {
+    gap: 8px;
+    font-size: 0.7em;
+  }
+}

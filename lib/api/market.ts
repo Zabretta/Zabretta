@@ -7,7 +7,7 @@ export type ItemCategory =
   | 'tools' | 'materials' | 'furniture' | 'electronics' | 'cooking'
   | 'auto' | 'sport' | 'robot' | 'handmade' | 'stolar' | 'hammer' | 'other';
 
-// НОВЫЕ ТИПЫ ДЛЯ МОДЕРАЦИИ
+// ТИПЫ ДЛЯ МОДЕРАЦИИ
 export type ModerationFlag = "BAD_WORDS" | "SPAM_LINKS" | "ALL_CAPS" | "REPETITIVE_CHARS";
 export type ModerationStatus = "PENDING" | "APPROVED" | "REJECTED" | "FLAGGED";
 
@@ -32,7 +32,7 @@ export interface MarketItem {
   views: number;
   contacts: number;
   category?: ItemCategory;
-  // НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
+  // ПОЛЯ ДЛЯ МОДЕРАЦИИ
   moderationStatus?: ModerationStatus;
   moderationFlags?: ModerationFlag[];
   moderatedAt?: string;
@@ -52,7 +52,7 @@ export interface CreateItemData {
   imageUrl?: string;
   negotiable?: boolean;
   duration: DurationType;
-  // НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
+  // ПОЛЯ ДЛЯ МОДЕРАЦИИ
   moderationStatus: ModerationStatus;
   moderationFlags: ModerationFlag[];
 }
@@ -69,7 +69,6 @@ export interface MarketFilters {
   search?: string;
   page?: number;
   limit?: number;
-  // НОВЫЙ ФИЛЬТР для модерации (понадобится в админке)
   moderationStatus?: ModerationStatus;
 }
 
@@ -215,6 +214,7 @@ export const marketApi = {
 
   /**
    * Получить объявление по ID
+   * НУЖНО ДЛЯ РЕДАКТИРОВАНИЯ
    */
   getItemById: async (id: string): Promise<MarketItem> => {
     return fetchWithAuth(`/market/items/${id}`);
@@ -222,6 +222,7 @@ export const marketApi = {
 
   /**
    * Удалить объявление (только для автора)
+   * НУЖНО ДЛЯ УДАЛЕНИЯ
    */
   deleteItem: async (id: string): Promise<{ success: boolean }> => {
     return fetchWithAuth(`/market/items/${id}`, {
@@ -231,6 +232,7 @@ export const marketApi = {
 
   /**
    * Обновить объявление (только для автора)
+   * НУЖНО ДЛЯ РЕДАКТИРОВАНИЯ
    */
   updateItem: async (id: string, data: Partial<CreateItemData>): Promise<MarketItem> => {
     return fetchWithAuth(`/market/items/${id}`, {

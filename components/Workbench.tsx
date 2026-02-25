@@ -8,6 +8,7 @@ import Marketplace from "./Marketplace";
 import SettingsModal from "./SettingsModal";
 import ProfileModal from "./ProfileModal";
 import NotificationsModal from "./NotificationsModal";
+import LibraryModal from "./LibraryModal"; // Импорт компонента библиотеки
 import { useAuth } from "./useAuth";
 import { useSettings } from "./SettingsContext";
 import { useRating, RatingProvider } from "./RatingContext";
@@ -22,6 +23,7 @@ function WorkbenchContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false); // Состояние для библиотеки
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -256,6 +258,12 @@ function WorkbenchContent() {
     }
   };
 
+  // Обработчик открытия библиотеки
+  const handleLibraryClick = () => {
+    setIsLibraryOpen(true);
+    console.log('Открытие библиотеки');
+  };
+
   const handleDrawerClick = (drawerId: string) => {
     setActiveDrawer(drawerId);
     
@@ -300,7 +308,7 @@ function WorkbenchContent() {
     { id: "projects", label: "Лента проектов", icon: "📁", color: "#8B4513" },
     { id: "masters", label: "Мастера рядом", icon: "👥", color: "#A0522D" },
     { id: "help", label: "Ищут помощи", icon: "❓", color: "#8B7355" },
-    { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D" },
+    { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D", action: handleLibraryClick }, // Добавлен action
     { id: "market", label: "Барахолка", icon: "🛒", color: "#D2691E", action: () => setIsMarketplaceOpen(true) },
     { id: "contests", label: "Правила", icon: "🎯", color: "#CD853F", action: handleRulesClick },
   ];
@@ -582,6 +590,15 @@ function WorkbenchContent() {
         <NotificationsModal 
           isOpen={isNotificationsOpen}
           onClose={() => setIsNotificationsOpen(false)}
+        />
+      )}
+
+      {/* ✅ МОДАЛКА БИБЛИОТЕКИ */}
+      {isLibraryOpen && (
+        <LibraryModal 
+          isOpen={isLibraryOpen}
+          onClose={() => setIsLibraryOpen(false)}
+          currentUser={user}
         />
       )}
     </div>

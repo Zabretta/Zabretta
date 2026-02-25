@@ -20,7 +20,6 @@ type DurationType = "2weeks" | "1month" | "2months";
 type ItemCategory = "tools" | "materials" | "furniture" | "electronics" | "cooking" | 
                    "auto" | "sport" | "robot" | "handmade" | "stolar" | "hammer" | "other";
 
-// Временные типы для модерации (позже будут вынесены в общие типы)
 type ModerationFlag = "BAD_WORDS" | "SPAM_LINKS" | "ALL_CAPS" | "REPETITIVE_CHARS";
 type ModerationStatus = "PENDING" | "APPROVED" | "REJECTED" | "FLAGGED";
 
@@ -42,7 +41,6 @@ interface MarketItem {
   views?: number;
   contacts?: number;
   category?: ItemCategory;
-  // Новые поля для модерации (опционально, т.к. старые объявления их могут не иметь)
   moderationStatus?: ModerationStatus;
   moderationFlags?: ModerationFlag[];
 }
@@ -62,6 +60,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
+  const [editingItem, setEditingItem] = useState<MarketItem | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+
   const filters = [
     { id: "all" as ItemType | "all", label: "Все объявления" },
     { id: "sell" as ItemType | "all", label: "Продажа" },
@@ -77,30 +79,21 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     { id: "2months" as DurationType, label: "2 месяца", description: "Длительный срок" }
   ];
 
-  /**
-   * Проверяет текст на наличие признаков для модерации
-   * @returns массив флагов (пустой если всё чисто)
-   */
   const checkModerationFlags = (text: string): ModerationFlag[] => {
     const flags: ModerationFlag[] = [];
     const lowerText = text.toLowerCase();
     
-    // 1. BAD_WORDS - нецензурная лексика (мат)
     const hasBadWords = containsProfanity(text);
     if (hasBadWords) {
       flags.push("BAD_WORDS");
     }
     
-    // 2. SPAM_LINKS - наличие ссылок (URL)
-    // Проверяем наличие http://, https://, www. или доменных зон в составе текста
     const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(ru|com|org|net|рф|su|xyz|top|info|site)[^\s]*)/i;
     const hasLinks = urlRegex.test(text);
     if (hasLinks) {
       flags.push("SPAM_LINKS");
     }
     
-    // 3. ALL_CAPS - слишком много заглавных букв (>50%)
-    // Игнорируем цифры и пробелы при подсчете
     const lettersOnly = text.replace(/[^a-zA-Zа-яА-Я]/g, '');
     if (lettersOnly.length > 0) {
       const uppercaseLetters = text.replace(/[^A-ZА-Я]/g, '').length;
@@ -110,8 +103,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       }
     }
     
-    // 4. REPETITIVE_CHARS - повторяющиеся символы (например, "ааааа", "!!!!!!")
-    // Ищем любые символы, повторяющиеся 4 и более раз подряд
     const repetitiveRegex = /(.)\1{3,}/;
     const hasRepetitive = repetitiveRegex.test(text);
     if (hasRepetitive) {
@@ -121,12 +112,8 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     return flags;
   };
 
-  /**
-   * Сжимает изображение перед загрузкой
-   */
   const compressImage = (file: File, maxSizeMB: number = 10): Promise<File> => {
     return new Promise((resolve, reject) => {
-      // Если файл и так меньше лимита, не сжимаем
       if (file.size <= maxSizeMB * 1024 * 1024) {
         console.log(`📦 Файл ${(file.size / 1024 / 1024).toFixed(2)}MB - не требуется сжатие`);
         resolve(file);
@@ -142,12 +129,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         img.src = event.target?.result as string;
         
         img.onload = () => {
-          // Создаем canvas для сжатия
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
           
-          // Уменьшаем размер, если изображение слишком большое
           const maxDimension = 1200;
           if (width > maxDimension || height > maxDimension) {
             if (width > height) {
@@ -166,7 +151,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
           
-          // Конвертируем обратно в файл с качеством 0.8
           canvas.toBlob(
             (blob) => {
               if (blob) {
@@ -202,14 +186,12 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       try {
         console.log('📸 Выбран файл:', file.name, (file.size / 1024 / 1024).toFixed(2) + 'MB');
         
-        // 🔥 УВЕЛИЧЕННЫЙ ЛИМИТ: проверяем размер до сжатия (макс 20MB чтобы не убить браузер)
         if (file.size > 20 * 1024 * 1024) {
           alert(`Файл слишком большой (${(file.size / 1024 / 1024).toFixed(2)}MB). Максимальный размер: 20MB.`);
           e.target.value = '';
           return;
         }
         
-        // Проверяем тип файла
         const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
         if (!allowedTypes.includes(file.type)) {
           alert("Неподдерживаемый формат файла! Разрешены: JPG, PNG, WebP, GIF.");
@@ -217,11 +199,9 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
           return;
         }
         
-        // Сжимаем изображение если нужно (цель - не больше 10MB для сервера)
         const processedFile = await compressImage(file, 10);
         setImageFile(processedFile);
         
-        // Создаем превью
         const reader = new FileReader();
         reader.onload = (event) => {
           const dataUrl = event.target?.result as string;
@@ -253,7 +233,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     if (fileInput) fileInput.value = '';
   };
 
-  // ✅ ИСПРАВЛЕННАЯ ЗАГРУЗКА ОБЪЯВЛЕНИЙ
   useEffect(() => {
     const loadItems = async () => {
       setIsLoading(true);
@@ -268,14 +247,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         console.log('📡 Загрузка объявлений с фильтрами:', filters);
         const response = await marketApi.loadItems(filters) as any;
         
-        // ✅ API возвращает объект с полем items
         const itemsArray = response.items || [];
         
         console.log(`✅ Загружено ${itemsArray.length} объявлений`);
         setItems(itemsArray);
-        
-        const itemsWithPhotos = itemsArray.filter((item: MarketItem) => item.imageUrl);
-        console.log(`📸 Объявлений с фото: ${itemsWithPhotos.length}/${itemsArray.length}`);
         
       } catch (error) {
         console.error("❌ Ошибка загрузки объявлений:", error);
@@ -325,12 +300,163 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       .slice(0, 5);
   }, [items, searchQuery]);
 
+  const handleEditStart = (item: MarketItem) => {
+    if (!currentUser || currentUser.login !== item.author) {
+      alert("Вы можете редактировать только свои объявления");
+      return;
+    }
+    
+    setEditingItem(item);
+    setIsEditMode(true);
+    setIsCreatingAd(false);
+    
+    setSelectedDuration(item.duration || "1month");
+    setSelectedCategory(item.category || "");
+    setImageUrl(item.imageUrl);
+    setSelectedImage(item.imageUrl || null);
+  };
+
+  const handleEditCancel = () => {
+    setEditingItem(null);
+    setIsEditMode(false);
+    handleRemoveImage();
+    setSelectedDuration("1month");
+    setSelectedCategory("");
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!currentUser || !editingItem) return;
+    
+    setIsLoading(true);
+    
+    try {
+      const form = e.target as HTMLFormElement;
+      const formData = new FormData(form);
+      
+      const title = formData.get("title") as string;
+      const description = formData.get("description") as string;
+      const location = formData.get("location") as string;
+      const priceValue = formData.get("price") as string;
+      const type = (formData.get("type") as ItemType) || editingItem.type;
+      const category = formData.get("category") as ItemCategory;
+      const negotiable = formData.get("negotiable") === "on";
+      
+      if (!title || title.trim().length < 5) {
+        alert('Название должно содержать минимум 5 символов');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!description || description.trim().length < 20) {
+        alert('Описание должно содержать минимум 20 символов');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!location) {
+        alert('Укажите местоположение');
+        setIsLoading(false);
+        return;
+      }
+      
+      let price: number | "free" = "free";
+      
+      if (priceValue && priceValue.trim() !== "") {
+        const parsedPrice = parseInt(priceValue);
+        if (!isNaN(parsedPrice)) {
+          if (parsedPrice > 0) {
+            price = parsedPrice;
+          } else if (parsedPrice === 0 && negotiable) {
+            price = 0;
+          } else if (parsedPrice === 0) {
+            price = "free";
+          }
+        }
+      }
+      
+      if (negotiable && price === "free") {
+        price = 0;
+      }
+      
+      const fullText = `${title} ${description}`;
+      const moderationFlags = checkModerationFlags(fullText);
+      const moderationStatus: ModerationStatus = moderationFlags.length > 0 ? "FLAGGED" : "APPROVED";
+      
+      const updateData = {
+        title: title.trim(),
+        description: description.trim(),
+        price: price,
+        location: location.trim(),
+        type: type,
+        category: category || null,
+        imageUrl: imageUrl,
+        negotiable: negotiable,
+        duration: selectedDuration,
+        moderationStatus: moderationStatus,
+        moderationFlags: moderationFlags,
+      };
+      
+      console.log('📝 Обновление объявления:', editingItem.id, updateData);
+      
+      const result = await marketApi.updateItem(editingItem.id, updateData);
+      
+      setItems(prev => prev.map(item => 
+        item.id === editingItem.id 
+          ? { ...item, ...result, author: currentUser.login }
+          : item
+      ));
+      
+      alert('✅ Объявление успешно обновлено!');
+      handleEditCancel();
+      
+    } catch (error) {
+      console.error("❌ Ошибка при обновлении объявления:", error);
+      alert("Не удалось обновить объявление. Попробуйте ещё раз.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteConfirm = (itemId: string) => {
+    if (!currentUser) return;
+    setItemToDelete(itemId);
+  };
+
+  const handleDeleteCancel = () => {
+    setItemToDelete(null);
+  };
+
+  const handleDelete = async () => {
+    if (!currentUser || !itemToDelete) return;
+    
+    setIsLoading(true);
+    
+    try {
+      await marketApi.deleteItem(itemToDelete);
+      
+      setItems(prev => prev.filter(item => item.id !== itemToDelete));
+      
+      alert('✅ Объявление успешно удалено');
+      setItemToDelete(null);
+      
+    } catch (error) {
+      console.error("❌ Ошибка при удалении объявления:", error);
+      alert("Не удалось удалить объявление. Попробуйте ещё раз.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCreateAd = () => {
     if (!currentUser) {
       alert("Для создания объявления необходимо войти в систему");
       return;
     }
     setIsCreatingAd(true);
+    setIsEditMode(false);
+    setEditingItem(null);
   };
 
   const handleCancelCreateAd = () => {
@@ -399,25 +525,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         price = 0;
       }
       
-      // 🔥 НОВОЕ: Проверяем текст на наличие флагов модерации
-      // Объединяем заголовок и описание для полной проверки
       const fullText = `${title} ${description}`;
       const moderationFlags = checkModerationFlags(fullText);
-      
-      // Определяем статус модерации:
-      // - FLAGGED если есть нарушения
-      // - APPROVED если всё чисто
       const moderationStatus: ModerationStatus = moderationFlags.length > 0 ? "FLAGGED" : "APPROVED";
       
-      // Логируем результат проверки для отладки
-      if (moderationFlags.length > 0) {
-        console.log('🚩 Объявление содержит флаги модерации:', moderationFlags);
-        console.log('📊 Статус модерации:', moderationStatus);
-      } else {
-        console.log('✅ Объявление чистое, флагов нет');
-      }
-      
-      // 🔥 ИСПРАВЛЕНО: category передаётся как null, если не выбрана
       const newItemData = {
         title: title.trim(),
         description: description.trim(),
@@ -429,7 +540,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         imageUrl: imageUrl,
         negotiable: negotiable,
         duration: selectedDuration,
-        // НОВЫЕ ПОЛЯ ДЛЯ МОДЕРАЦИИ
         moderationStatus: moderationStatus,
         moderationFlags: moderationFlags,
       };
@@ -458,10 +568,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       
       setItems(prev => [newItemWithAuthor, ...prev]);
       
-      const expirationDate = result.expirationDate ? 
-        new Date(result.expirationDate).toLocaleDateString('ru-RU') : 
-        'не указана';
-      
       let priceMessage = "";
       if (price === "free") {
         priceMessage = "Цена: Бесплатно";
@@ -471,22 +577,20 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         priceMessage = `Цена: ${price} ₽${negotiable ? " (договорная)" : ""}`;
       }
       
-      // Добавляем информацию о статусе модерации в сообщение пользователю
       let moderationMessage = "";
       if (moderationFlags.length > 0) {
-        moderationMessage = `\n\n⚠️ Объявление помечено на модерацию (флаги: ${moderationFlags.join(', ')}). Оно появится в ленте, но может быть проверено модератором.`;
+        moderationMessage = `\n\n⚠️ Объявление помечено на модерацию (флаги: ${moderationFlags.join(', ')}).`;
       }
       
-      alert(`✅ Объявление "${result.title}" успешно создано!\nАвтор: ${currentUser.login}\n${priceMessage}\nБудет активно до: ${expirationDate}${moderationMessage}`);
+      alert(`✅ Объявление "${result.title}" успешно создано!\nАвтор: ${currentUser.login}\n${priceMessage}${moderationMessage}`);
       setIsCreatingAd(false);
       setSelectedDuration("1month");
       
     } catch (error) {
       console.error("❌ Ошибка при создании объявления:", error);
       
-      // Специальная обработка ошибки 413
       if (error instanceof Error && error.message.includes('413')) {
-        alert('Файл слишком большой. Максимальный размер: 10MB. Попробуйте выбрать фото меньше или сжать его.');
+        alert('Файл слишком большой. Максимальный размер: 10MB.');
       } else {
         alert("Не удалось создать объявление. Попробуйте ещё раз.");
       }
@@ -495,12 +599,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     }
   };
 
-  // ✅ ИСПРАВЛЕННАЯ ФУНКЦИЯ handleContact
   const handleContact = async (itemId: string) => {
     setIsLoading(true);
     
     try {
-      // Находим объявление, чтобы получить его название
       const item = items.find(i => i.id === itemId);
       
       if (!item) {
@@ -514,7 +616,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       });
       
       if (result.success) {
-        alert(`✅ Сообщение автору "${item.author}" отправлено!\n\nТекст сообщения:\nЗдравствуйте! Я заинтересован в вашем объявлении "${item.title}"`);
+        alert(`✅ Сообщение автору "${item.author}" отправлено!`);
       }
       
     } catch (error) {
@@ -605,6 +707,237 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     }
     
     return expirationDate.toISOString();
+  };
+
+  const renderDeleteConfirmModal = () => {
+    if (!itemToDelete) return null;
+    
+    const item = items.find(i => i.id === itemToDelete);
+    
+    return (
+      <div className="delete-confirm-modal">
+        <div className="delete-confirm-content">
+          <h3>Подтверждение удаления</h3>
+          <p>Вы уверены, что хотите удалить объявление "{item?.title}"?</p>
+          <p className="delete-warning">Это действие нельзя отменить!</p>
+          <div className="delete-confirm-actions">
+            <button 
+              className="confirm-delete-btn"
+              onClick={handleDelete}
+              disabled={isLoading}
+            >
+              {isLoading ? "Удаление..." : "Да, удалить"}
+            </button>
+            <button 
+              className="cancel-delete-btn"
+              onClick={handleDeleteCancel}
+              disabled={isLoading}
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderEditForm = () => {
+    if (!isEditMode || !editingItem) return null;
+    
+    return (
+      <div className="edit-form-container">
+        <form className="edit-form" onSubmit={handleEditSubmit}>
+          <h3>Редактирование объявления</h3>
+          <div className="form-author-info">
+            <span className="author-label">Автор:</span>
+            <span className="author-name">{currentUser?.login}</span>
+          </div>
+          
+          <div className="type-selector">
+            <label className="type-option">
+              <input type="radio" name="type" value="sell" defaultChecked={editingItem.type === "sell"} />
+              <span>Продажа</span>
+            </label>
+            <label className="type-option">
+              <input type="radio" name="type" value="buy" defaultChecked={editingItem.type === "buy"} />
+              <span>Покупка</span>
+            </label>
+            <label className="type-option">
+              <input type="radio" name="type" value="free" defaultChecked={editingItem.type === "free"} />
+              <span>Бесплатно</span>
+            </label>
+            <label className="type-option">
+              <input type="radio" name="type" value="exchange" defaultChecked={editingItem.type === "exchange"} />
+              <span>Обмен</span>
+            </label>
+            <label className="type-option">
+              <input type="radio" name="type" value="auction" defaultChecked={editingItem.type === "auction"} />
+              <span>Аукцион</span>
+            </label>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Название объявления *</label>
+              <input 
+                type="text" 
+                name="title"
+                required 
+                minLength={5}
+                defaultValue={editingItem.title}
+                placeholder="Название товара или услуги" 
+              />
+            </div>
+            <div className="form-group">
+              <label>Цена (₽)</label>
+              <input 
+                type="number" 
+                name="price"
+                defaultValue={editingItem.price === "free" ? "" : editingItem.price}
+                placeholder="Укажите цену" 
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Категория</label>
+              <select name="category" defaultValue={editingItem.category || ""}>
+                <option value="">Выберите категорию</option>
+                <option value="tools">Инструменты</option>
+                <option value="materials">Материалы</option>
+                <option value="furniture">Мебель</option>
+                <option value="electronics">Электроника</option>
+                <option value="cooking">Кулинария</option>
+                <option value="auto">Авто</option>
+                <option value="sport">Спорт</option>
+                <option value="robot">Робототехника</option>
+                <option value="handmade">Рукоделие</option>
+                <option value="stolar">Столярка</option>
+                <option value="hammer">Кузнечное дело</option>
+                <option value="other">Другое</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Город/Населенный пункт *</label>
+              <input 
+                type="text" 
+                name="location"
+                required 
+                defaultValue={editingItem.location}
+                placeholder="Ваше местоположение" 
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Подробное описание *</label>
+            <textarea 
+              name="description"
+              rows={4} 
+              required 
+              minLength={20}
+              defaultValue={editingItem.description}
+              placeholder="Опишите товар/услугу подробно..."
+            />
+          </div>
+
+          <div className="duration-section">
+            <div className="duration-header">
+              <h4>Срок публикации объявления</h4>
+            </div>
+            <div className="duration-options">
+              {durationOptions.map(option => (
+                <div 
+                  key={option.id}
+                  className={`duration-option ${selectedDuration === option.id ? "active" : ""}`}
+                  onClick={() => setSelectedDuration(option.id)}
+                >
+                  <div className="duration-option-header">
+                    <div className="duration-radio">
+                      <input
+                        type="radio"
+                        id={`edit-duration-${option.id}`}
+                        name="duration"
+                        value={option.id}
+                        checked={selectedDuration === option.id}
+                        onChange={() => setSelectedDuration(option.id)}
+                      />
+                      <span className="radio-custom"></span>
+                    </div>
+                    <label 
+                      htmlFor={`edit-duration-${option.id}`}
+                      className="duration-label"
+                    >
+                      {option.label}
+                    </label>
+                  </div>
+                  <div className="duration-description">{option.description}</div>
+                  <div className="duration-date">
+                    Активно до: {formatExpirationDate(calculatePreviewExpirationDate(option.id))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Фотография товара</label>
+            <input 
+              type="file" 
+              name="image"
+              accept="image/*"
+              className="file-input"
+              onChange={handleImageSelect}
+            />
+            
+            {selectedImage && (
+              <div className="image-preview">
+                <img 
+                  src={selectedImage} 
+                  alt="Превью" 
+                  className="preview-image"
+                />
+                <button 
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="remove-image-btn"
+                >
+                  ✕ Удалить фото
+                </button>
+              </div>
+            )}
+          </div>
+
+          <label className="checkbox-label">
+            <input 
+              type="checkbox" 
+              name="negotiable" 
+              defaultChecked={editingItem.negotiable}
+            />
+            <span>Цена договорная</span>
+          </label>
+
+          <div className="form-actions">
+            <button 
+              type="submit" 
+              className="submit-btn"
+              disabled={isLoading}
+            >
+              {isLoading ? "Сохранение..." : "Сохранить изменения"}
+            </button>
+            <button 
+              type="button" 
+              className="cancel-btn" 
+              onClick={handleEditCancel}
+              disabled={isLoading}
+            >
+              Отмена
+            </button>
+          </div>
+        </form>
+      </div>
+    );
   };
 
   return (
@@ -707,7 +1040,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
           <button 
             className="create-ad-btn" 
             onClick={handleCreateAd}
-            disabled={isCreatingAd || isLoading}
+            disabled={isCreatingAd || isLoading || isEditMode}
           >
             📝 Создать объявление
             {isLoading && " (загрузка...)"}
@@ -934,7 +1267,11 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
           </div>
         )}
 
-        {isLoading ? (
+        {renderEditForm()}
+
+        {renderDeleteConfirmModal()}
+
+        {isLoading && !isCreatingAd && !isEditMode ? (
           <div className="loading-items">
             <div className="loading-spinner">🛠️</div>
             <p>Загрузка объявлений...</p>
@@ -975,9 +1312,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
                             `;
                           }
                         }}
-                        onLoad={() => {
-                          console.log('✅ Фото загружено для объявления:', item.id, item.title);
-                        }}
                       />
                     ) : (
                       <div className="image-placeholder">
@@ -1000,7 +1334,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
                         <span className="negotiable-price">Договорная</span>
                       ) : (
                         <>
-                          <span className="price-amount">{item.price.toLocaleString()} ₽</span>
+                          <span className="price-amount">{typeof item.price === 'number' ? item.price.toLocaleString() : item.price} ₽</span>
                           {item.negotiable && <span className="negotiable-badge">Договорная</span>}
                         </>
                       )}
@@ -1014,17 +1348,36 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
                         <span className="author-name">{item.author}</span>
                         <span className="author-rating">★ {item.rating?.toFixed(1) || "4.5"}</span>
                       </div>
-                      {item.createdAt && (
-                        <div className="item-date">
-                          {formatDate(item.createdAt)}
-                        </div>
-                      )}
                     </div>
-                    <button className="contact-btn" onClick={() => handleContact(item.id)}
-                      disabled={isLoading}
-                    >
-                      Связаться
-                    </button>
+                    
+                    {currentUser && currentUser.login === item.author ? (
+                      <div className="item-actions">
+                        <button 
+                          className="edit-btn"
+                          onClick={() => handleEditStart(item)}
+                          disabled={isLoading}
+                          aria-label="Редактировать объявление"
+                        >
+                          ✏️
+                        </button>
+                        <button 
+                          className="delete-btn"
+                          onClick={() => handleDeleteConfirm(item.id)}
+                          disabled={isLoading}
+                          aria-label="Удалить объявление"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        className="contact-btn" 
+                        onClick={() => handleContact(item.id)}
+                        disabled={isLoading}
+                      >
+                        Связаться
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

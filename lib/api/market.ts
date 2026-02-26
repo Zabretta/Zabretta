@@ -242,6 +242,16 @@ export const marketApi = {
   },
 
   /**
+   * Увеличить счетчик просмотров объявления
+   * 🔥 НОВЫЙ МЕТОД ДЛЯ СЧЕТЧИКА ПРОСМОТРОВ
+   */
+  incrementViews: async (id: string): Promise<{ success: boolean }> => {
+    return fetchWithAuth(`/market/items/${id}/views`, {
+      method: 'POST',
+    });
+  },
+
+  /**
    * Получить категории
    */
   getCategories: async (): Promise<{ id: string; name: string; label: string; icon?: string }[]> => {

@@ -529,6 +529,37 @@ export class MarketService {
   }
 
   /**
+   * Увеличить счетчик просмотров объявления
+   * 🔥 НОВЫЙ МЕТОД
+   */
+  static async incrementViews(id: string) {
+    try {
+      console.log(`👁️ [VIEWS] Увеличение счетчика просмотров для объявления ID: ${id}`);
+
+      const item = await prisma.marketItem.findUnique({
+        where: { id }
+      });
+
+      if (!item) {
+        console.log(`❌ [VIEWS] Объявление с ID ${id} не найдено`);
+        throw new Error('Объявление не найдено');
+      }
+
+      await prisma.marketItem.update({
+        where: { id },
+        data: { views: { increment: 1 } }
+      });
+
+      console.log(`✅ [VIEWS] Счетчик просмотров для объявления ${id} успешно увеличен`);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [VIEWS] Ошибка увеличения счетчика просмотров:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Получить категории
    */
   static async getCategories() {

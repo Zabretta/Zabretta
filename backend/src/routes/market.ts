@@ -9,6 +9,8 @@ const router = express.Router();
 router.get('/items', MarketController.getItems);
 router.get('/items/:id', MarketController.getItemById);
 router.get('/categories', MarketController.getCategories);
+// 🔥 ДОБАВИТЬ ЭТУ СТРОКУ - публичный маршрут для счетчика просмотров
+router.post('/items/:id/views', MarketController.incrementViews);
 
 // Защищенные маршруты (требуют авторизации)
 router.use(authenticate);

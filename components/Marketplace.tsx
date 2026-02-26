@@ -64,6 +64,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
+  // 🔥 НОВЫЕ СОСТОЯНИЯ ДЛЯ ДЕТАЛЬНОГО ПРОСМОТРА
+  const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
   const filters = [
     { id: "all" as ItemType | "all", label: "Все объявления" },
     { id: "sell" as ItemType | "all", label: "Продажа" },
@@ -627,6 +631,37 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     }
   };
 
+  // 🔥 НОВЫЙ ОБРАБОТЧИК: Клик по карточке для детального просмотра
+  const handleItemClick = async (item: MarketItem) => {
+    // Если это кнопки редактирования/удаления - не открываем модалку
+    if ((window.event as any)?.target?.closest('.edit-btn, .delete-btn, .contact-btn')) {
+      return;
+    }
+    
+    setSelectedItem(item);
+    setIsDetailModalOpen(true);
+    
+    // Увеличиваем счетчик просмотров
+    try {
+      await marketApi.incrementViews(item.id);
+      
+      // Обновляем счетчик в списке
+      setItems(prev => prev.map(i => 
+        i.id === item.id 
+          ? { ...i, views: (i.views || 0) + 1 }
+          : i
+      ));
+    } catch (error) {
+      console.error('❌ Ошибка при увеличении счетчика просмотров:', error);
+    }
+  };
+
+  // 🔥 НОВЫЙ МЕТОД: Закрытие модалки детального просмотра
+  const handleCloseDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedItem(null);
+  };
+
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
     setShowSuggestions(true);
@@ -936,6 +971,84 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
             </button>
           </div>
         </form>
+      </div>
+    );
+  };
+
+  // 🔥 НОВЫЙ КОМПОНЕНТ: Модальное окно детального просмотра
+  const renderDetailModal = () => {
+    if (!isDetailModalOpen || !selectedItem) return null;
+    
+    return (
+      <div className="detail-modal" onClick={handleCloseDetailModal}>
+        <div className="detail-modal-content" onClick={(e) => e.stopPropagation()}>
+          <button className="detail-modal-close" onClick={handleCloseDetailModal}>✕</button>
+          
+          <div className="detail-modal-header">
+            <h2>{selectedItem.title}</h2>
+            <div className="detail-modal-type">
+              <span className="badge-icon">{getTypeIcon(selectedItem.type)}</span>
+              <span className="badge-text">{getTypeLabel(selectedItem.type)}</span>
+            </div>
+          </div>
+          
+          <div className="detail-modal-image">
+            {selectedItem.imageUrl ? (
+              <img src={selectedItem.imageUrl} alt={selectedItem.title} />
+            ) : (
+              <div className="image-placeholder">
+                <span className="placeholder-icon">🛠️</span>
+                <span className="placeholder-text">Нет фотографии</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="detail-modal-info">
+            <div className="detail-modal-price">
+              {selectedItem.price === "free" ? (
+                <span className="free-price">Бесплатно</span>
+              ) : selectedItem.price === 0 && selectedItem.negotiable ? (
+                <span className="negotiable-price">Договорная</span>
+              ) : (
+                <>
+                  <span className="price-amount">{typeof selectedItem.price === 'number' ? selectedItem.price.toLocaleString() : selectedItem.price} ₽</span>
+                  {selectedItem.negotiable && <span className="negotiable-badge">Договорная</span>}
+                </>
+              )}
+            </div>
+            
+            <div className="detail-modal-location">
+              <span>📍 {selectedItem.location}</span>
+            </div>
+            
+            {selectedItem.expirationDate && (
+              <div className="detail-modal-expiration">
+                <span>⏰ Активно до: {formatExpirationDate(selectedItem.expirationDate)}</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="detail-modal-description">
+            <h3>Описание</h3>
+            <p>{selectedItem.description}</p>
+          </div>
+          
+          <div className="detail-modal-author">
+            <div className="author-info">
+              <span className="author-name">{selectedItem.author}</span>
+              <span className="author-rating">★ {selectedItem.rating?.toFixed(1) || "4.5"}</span>
+            </div>
+            <button 
+              className="contact-btn"
+              onClick={() => {
+                handleCloseDetailModal();
+                handleContact(selectedItem.id);
+              }}
+            >
+              Связаться с автором
+            </button>
+          </div>
+        </div>
       </div>
     );
   };
@@ -1268,8 +1381,8 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         )}
 
         {renderEditForm()}
-
         {renderDeleteConfirmModal()}
+        {renderDetailModal()} {/* 🔥 НОВОЕ: модальное окно детального просмотра */}
 
         {isLoading && !isCreatingAd && !isEditMode ? (
           <div className="loading-items">
@@ -1279,7 +1392,11 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         ) : filteredItems.length > 0 ? (
           <div className="items-grid">
             {filteredItems.map(item => (
-              <div key={item.id} className="market-item">
+              <div 
+                key={item.id} 
+                className="market-item"
+                onClick={() => handleItemClick(item)} // 🔥 НОВОЕ: клик по карточке
+              >
                 <div className="item-type-badge">
                   <span className="badge-icon">{getTypeIcon(item.type)}</span>
                   <span className="badge-text">{getTypeLabel(item.type)}</span>
@@ -1323,7 +1440,16 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
                 </div>
                 
                 <div className="item-content">
-                  <h3 className="item-title">{item.title}</h3>
+                  <div className="item-title-row">
+                    <h3 className="item-title">{item.title}</h3>
+                    {/* 🔥 НОВОЕ: счетчик просмотров только для автора */}
+                    {currentUser && currentUser.login === item.author && item.views !== undefined && (
+                      <div className="item-views-badge" title="Просмотры">
+                        <span className="views-icon">👁️</span>
+                        <span className="views-count">{item.views}</span>
+                      </div>
+                    )}
+                  </div>
                   <p className="item-description">{item.description}</p>
                   
                   <div className="item-meta">
@@ -1354,7 +1480,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
                       <div className="item-actions">
                         <button 
                           className="edit-btn"
-                          onClick={() => handleEditStart(item)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditStart(item);
+                          }}
                           disabled={isLoading}
                           aria-label="Редактировать объявление"
                         >
@@ -1362,7 +1491,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
                         </button>
                         <button 
                           className="delete-btn"
-                          onClick={() => handleDeleteConfirm(item.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteConfirm(item.id);
+                          }}
                           disabled={isLoading}
                           aria-label="Удалить объявление"
                         >
@@ -1372,7 +1504,10 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
                     ) : (
                       <button 
                         className="contact-btn" 
-                        onClick={() => handleContact(item.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleContact(item.id);
+                        }}
                         disabled={isLoading}
                       >
                         Связаться

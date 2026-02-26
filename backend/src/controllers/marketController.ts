@@ -366,6 +366,41 @@ export class MarketController {
   }
 
   /**
+   * POST /api/market/items/:id/views
+   * Увеличить счетчик просмотров объявления
+   */
+  static async incrementViews(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      console.log(`📥 POST /api/market/items/${id}/views - Запрос получен`);
+
+      if (!id) {
+        res.status(400).json(createErrorResponse('ID объявления не указан'));
+        return;
+      }
+
+      await MarketService.incrementViews(id);
+      
+      console.log(`✅ Счетчик просмотров для объявления ${id} увеличен`);
+      
+      res.json(createSuccessResponse({ success: true }));
+    } catch (error: any) {
+      if (error.message === 'Объявление не найдено') {
+        console.warn(`⚠️ Объявление с ID ${req.params.id} не найдено`);
+        res.status(404).json(createErrorResponse('Объявление не найдено'));
+        return;
+      }
+      
+      console.error('❌ Ошибка увеличения счетчика просмотров:', error);
+      if (error instanceof Error) {
+        console.error('📚 Stack:', error.stack);
+      }
+      
+      res.status(500).json(createErrorResponse('Ошибка при увеличении счетчика просмотров'));
+    }
+  }
+
+  /**
    * POST /api/market/contact
    * Связаться с автором объявления
    */

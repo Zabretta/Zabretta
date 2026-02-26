@@ -1061,6 +1061,7 @@ input[type="checkbox"] {
   display: flex;
   flex-direction: column;
   height: 100%;
+  cursor: pointer;
 }
 
 .market-item:hover {
@@ -1173,12 +1174,20 @@ input[type="checkbox"] {
   z-index: 1;
 }
 
+/* 🔥 НОВЫЙ СТИЛЬ: строка заголовка с счетчиком просмотров */
+.item-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 10px;
+}
+
 .item-title {
   color: #F5DEB3 !important;
   font-size: 1.3em;
-  margin: 0 0 12px 0;
-  line-height: 1.4;
   font-weight: 600;
+  line-height: 1.4;
   word-wrap: break-word;
   overflow: hidden;
   display: -webkit-box;
@@ -1186,6 +1195,31 @@ input[type="checkbox"] {
   -webkit-box-orient: vertical;
   line-clamp: 2;
   background: transparent !important;
+  flex: 1;
+  margin: 0;
+}
+
+/* 🔥 НОВЫЙ СТИЛЬ: счетчик просмотров */
+.item-views-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #8B7355;
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 0.8em;
+  color: #8B9DCE;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+}
+
+.views-icon {
+  font-size: 0.9em;
+}
+
+.views-count {
+  font-weight: 600;
 }
 
 .item-description {
@@ -1571,6 +1605,179 @@ input[type="checkbox"] {
   transform: none !important;
 }
 
+/* ===== СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА ДЕТАЛЬНОГО ПРОСМОТРА ===== */
+.detail-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 5000;
+  animation: fadeIn 0.3s ease;
+  padding: 20px;
+}
+
+.detail-modal-content {
+  background: linear-gradient(135deg, #4E342E, #3E2723);
+  border: 3px solid #8B4513;
+  border-radius: 15px;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+}
+
+.detail-modal-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(139, 69, 19, 0.3);
+  border: 2px solid #8B4513;
+  color: #F5DEB3;
+  font-size: 1.5em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.detail-modal-close:hover {
+  background: rgba(210, 105, 30, 0.5);
+  border-color: #D2691E;
+  transform: rotate(90deg);
+}
+
+.detail-modal-header {
+  padding: 30px 30px 20px;
+  border-bottom: 2px solid #8B4513;
+}
+
+.detail-modal-header h2 {
+  color: #F5DEB3;
+  font-size: 2em;
+  margin: 0 0 10px 0;
+  padding-right: 40px;
+}
+
+.detail-modal-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(139, 69, 19, 0.3), rgba(160, 82, 45, 0.3));
+  border: 1px solid #8B4513;
+  border-radius: 20px;
+  padding: 6px 15px;
+  color: #F5DEB3;
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.detail-modal-image {
+  width: 100%;
+  height: 400px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #3E2723, #5D4037);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-modal-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.detail-modal-info {
+  padding: 25px 30px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid #5D4037;
+}
+
+.detail-modal-price {
+  font-size: 1.8em;
+}
+
+.detail-modal-location {
+  color: #8B9DCE;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-modal-expiration {
+  color: #8B9DCE;
+  font-size: 1em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-modal-description {
+  padding: 25px 30px;
+  border-bottom: 1px solid #5D4037;
+}
+
+.detail-modal-description h3 {
+  color: #F5DEB3;
+  font-size: 1.3em;
+  margin: 0 0 15px 0;
+}
+
+.detail-modal-description p {
+  color: #BCAAA4;
+  font-size: 1.1em;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.detail-modal-author {
+  padding: 25px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.detail-modal-author .author-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.detail-modal-author .author-name {
+  font-size: 1.2em;
+}
+
+.detail-modal-author .author-rating {
+  font-size: 1.1em;
+}
+
+.detail-modal-author .contact-btn {
+  min-width: 200px;
+  padding: 12px 30px;
+  font-size: 1.1em;
+}
+
 /* Анимации */
 @keyframes fadeIn {
   from {
@@ -1753,6 +1960,32 @@ input[type="checkbox"] {
   .edit-form h3 {
     font-size: 1.5em;
   }
+  
+  .detail-modal-content {
+    max-width: 95%;
+  }
+  
+  .detail-modal-header h2 {
+    font-size: 1.5em;
+  }
+  
+  .detail-modal-image {
+    height: 300px;
+  }
+  
+  .detail-modal-info {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .detail-modal-author {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .detail-modal-author .contact-btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1873,5 +2106,26 @@ input[type="checkbox"] {
     width: 100%;
     padding: 10px;
     font-size: 1em;
+  }
+  
+  .detail-modal-image {
+    height: 200px;
+  }
+  
+  .detail-modal-header h2 {
+    font-size: 1.3em;
+  }
+  
+  .detail-modal-price {
+    font-size: 1.5em;
+  }
+  
+  .detail-modal-description p {
+    font-size: 1em;
+  }
+  
+  .item-views-badge {
+    font-size: 0.75em;
+    padding: 3px 6px;
   }
 }

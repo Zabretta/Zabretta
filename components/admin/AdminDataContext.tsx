@@ -1,9 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { adminApi } from '@/lib/api/admin';
 import { adminSimulationService } from '@/services/adminSimulationService';
 import { AdminStats, AdminStatsHistory } from '@/types/admin';
+import io, { Socket } from 'socket.io-client'; // 👈 ДОБАВЛЕНО
 
 interface AdminDataContextType {
   stats: AdminStats | null;
@@ -15,11 +16,15 @@ interface AdminDataContextType {
   handleAction: (action: string, value?: any) => Promise<void>;
   isBackendAvailable: boolean;
   error: string | null;
+  onlineCount: number; // 👈 ДОБАВЛЕНО
 }
 
 const AdminDataContext = createContext<AdminDataContextType | undefined>(undefined);
 
 export function AdminDataProvider({ children }: { children: ReactNode }) {
+  // Используем ref для отслеживания монтирования
+  const isMounted = useRef(true);
+  
   // Реальные данные с бэкенда
   const [realStats, setRealStats] = useState<any>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -33,148 +38,202 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [realtime, setRealtime] = useState(true);
   const [isBackendAvailable, setIsBackendAvailable] = useState(true);
+  
+  // 👇 ДОБАВЛЕНО: для WebSocket
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
-  // Проверка доступности бэкенда через health endpoint
+  const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+
+  // 👇 ДОБАВЛЕНО: подключение к WebSocket
   useEffect(() => {
+    const newSocket = io(SOCKET_URL, {
+      withCredentials: true,
+      transports: ['websocket', 'polling']
+    });
+
+    newSocket.on('connect', () => {
+      console.log('🔌 Admin WebSocket подключен');
+    });
+
+    newSocket.on('online-count', (count: number) => {
+      console.log('👥 Admin: онлайн пользователей =', count);
+      setOnlineCount(count);
+      
+      // Обновляем статистику с новым значением онлайн
+      if (realStats && isMounted.current) {
+        const updatedRealStats = {
+          ...realStats,
+          users: {
+            ...realStats.users,
+            online: count
+          }
+        };
+        
+        const combined = combineStats(updatedRealStats);
+        if (combined) {
+          setStats(combined);
+        }
+      }
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('🔌 Admin WebSocket отключен');
+    });
+
+    newSocket.on('error', (error: Error) => {
+      console.error('❌ Admin WebSocket ошибка:', error);
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, []);
+
+  // Проверка доступности бэкенда
+  useEffect(() => {
+    isMounted.current = true;
+    
     const checkHealth = async () => {
       try {
         const response = await fetch('http://localhost:3001/api/health');
-        setIsBackendAvailable(response.ok);
-        if (!response.ok) {
-          console.warn('⚠️ Бэкенд недоступен, используется только симуляция');
-          setError('Бэкенд недоступен. Работа в автономном режиме.');
+        if (isMounted.current) {
+          setIsBackendAvailable(response.ok);
+          if (!response.ok) {
+            console.warn('⚠️ Бэкенд недоступен, используется только симуляция');
+            setError('Бэкенд недоступен. Работа в автономном режиме.');
+          }
         }
       } catch {
-        setIsBackendAvailable(false);
-        setError('Бэкенд недоступен. Работа в автономном режиме.');
+        if (isMounted.current) {
+          setIsBackendAvailable(false);
+          setError('Бэкенд недоступен. Работа в автономном режиме.');
+        }
       }
     };
     
     checkHealth();
+    
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
-  // Загрузка реальных данных с бэкенда
+  // Функция загрузки реальных данных
   const loadRealData = useCallback(async () => {
+    if (!isMounted.current) return null;
+
     if (!isBackendAvailable) {
       // Если бэкенд недоступен, используем демо-данные
-      return getDemoData();
+      return {
+        users: {
+          online: onlineCount, // Используем реальное значение из WebSocket
+          total: 120
+        },
+        content: {
+          projects: 7543,
+          totalComments: 15287
+        }
+      };
     }
 
     try {
-      const [statsData, logsData] = await Promise.all([
-        adminApi.getStats(),
-        adminApi.getAuditLogs({ limit: 50 }).catch(() => ({ data: { logs: [] } }))
-      ]);
-
-      setRealStats(statsData);
-      setAuditLogs(logsData?.data?.logs || []);
+      const statsResponse = await fetch('http://localhost:3001/api/stats/system');
       
-      // Преобразуем логи аудита в формат истории
-      const formattedHistory: AdminStatsHistory[] = (logsData?.data?.logs || []).map((log: any) => ({
-        timestamp: log.timestamp,
-        action: log.action,
-        changes: typeof log.details === 'string' ? JSON.parse(log.details) : (log.details || {}),
-        admin: log.userName || 'Система',
-      }));
-      
-      setHistory(formattedHistory);
-      
-      return { stats: statsData, logs: logsData?.data?.logs || [] };
-    } catch (error) {
-      console.error('Ошибка загрузки реальных данных:', error);
-      setError('Не удалось загрузить данные с сервера');
-      return getDemoData();
-    }
-  }, [isBackendAvailable]);
-
-  // Демо-данные для работы без бэкенда
-  const getDemoData = useCallback(() => {
-    const demoStats = {
-      onlineUsers: 85,
-      projectsCreated: 450,
-      adviceGiven: 320,
-      users: {
-        total: 1 // Добавляем хотя бы одного пользователя для демо
-      },
-      content: {
-        projects: 450,
-        totalComments: 320
+      if (!statsResponse.ok) {
+        throw new Error(`HTTP error! status: ${statsResponse.status}`);
       }
-    };
-    setRealStats(demoStats);
-    return { stats: demoStats, logs: [] };
-  }, []);
+      
+      const statsResult = await statsResponse.json();
+      console.log('📊 Сырые данные с бэкенда:', statsResult);
+      
+      // 👇 ИСПРАВЛЕНО: используем onlineCount из WebSocket вместо данных из БД
+      const adaptedStats = {
+        users: {
+          online: onlineCount, // Берем из WebSocket
+          total: statsResult.data?.users?.total || 0
+        },
+        content: {
+          projects: statsResult.data?.content?.projects || statsResult.data?.content?.totalPosts || 0,
+          totalComments: statsResult.data?.content?.totalComments || 0
+        }
+      };
+      
+      console.log('🔄 Адаптированные данные (с WebSocket):', adaptedStats);
 
-  // Комбинирование реальных данных с симуляцией (ИСПРАВЛЕНО)
+      return adaptedStats;
+    } catch (error) {
+      console.error('❌ Ошибка загрузки реальных данных:', error);
+      if (isMounted.current) {
+        setError('Не удалось загрузить данные с сервера');
+      }
+      return null;
+    }
+  }, [isBackendAvailable, onlineCount]); // 👈 Добавлена зависимость
+
+  // Функция комбинирования данных
   const combineStats = useCallback((realData: any) => {
-    if (!realData) return null;
+    if (!realData || !isMounted.current) return null;
 
-    // Получаем данные симуляции
-    const simulationData = adminSimulationService.getCombinedStats({
-      onlineReal: realData.users?.online || 0,
-      totalReal: realData.users?.total || 0,
-    });
+    console.log('🔄 Комбинируем данные:', realData);
+    
+    const simState = adminSimulationService.getState();
 
-    // Формируем полный объект статистики
+    const onlineReal = realData.users?.online || 0;
+    const totalReal = realData.users?.total || 0;
+
     const combined: AdminStats = {
-      // Система 1: Онлайн (реальные + симуляция)
-      onlineShown: simulationData.onlineShown,
-      onlineReal: simulationData.onlineReal,
-      onlineFake: simulationData.onlineFake,
-      isOnlineSimulationActive: simulationData.isOnlineSimulationActive,
+      onlineShown: simState.isOnlineSimulationActive 
+        ? onlineReal + simState.onlineFake 
+        : onlineReal,
+      onlineReal: onlineReal,
+      onlineFake: simState.isOnlineSimulationActive ? simState.onlineFake : 0,
+      isOnlineSimulationActive: simState.isOnlineSimulationActive,
       
-      // Система 2: Всего (реальные + симуляция)
-      totalShown: simulationData.totalShown,
-      totalReal: simulationData.totalReal,
-      totalFake: simulationData.totalFake,
-      isTotalSimulationActive: simulationData.isTotalSimulationActive,
+      totalShown: simState.isTotalSimulationActive 
+        ? totalReal + simState.totalFake 
+        : totalReal,
+      totalReal: totalReal,
+      totalFake: simState.isTotalSimulationActive ? simState.totalFake : 0,
+      isTotalSimulationActive: simState.isTotalSimulationActive,
       
-      // Статические данные
-      projectsCreated: realData.content?.projects || realData.projectsCreated || 0,
-      adviceGiven: realData.content?.totalComments || realData.adviceGiven || 0,
+      projectsCreated: realData.content?.projects || 0,
+      adviceGiven: realData.content?.totalComments || 0,
       lastUpdate: new Date().toISOString(),
     };
 
-    setStats(combined);
-    
-    // Добавляем историю симуляции в общую историю
-    const simulationHistory = adminSimulationService.getState().history;
-    if (simulationHistory.length > 0) {
-      setHistory(prev => {
-        const combinedHistory = [
-          ...simulationHistory.map(item => ({
-            timestamp: item.timestamp,
-            action: item.action,
-            changes: item.changes,
-            admin: item.admin,
-          })),
-          ...prev
-        ];
-        // Убираем дубликаты и сортируем по времени
-        return Array.from(
-          new Map(combinedHistory.map(item => [item.timestamp, item])).values()
-        ).sort((a, b) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        ).slice(0, 50);
-      });
-    }
-
+    console.log('✅ Комбинированный результат:', combined);
     return combined;
   }, []);
 
-  // Основная функция обновления всех данных
+  // Функция обновления всех данных
   const refreshData = useCallback(async () => {
+    if (!isMounted.current) return;
+    
     setLoading(true);
     setError(null);
     
     try {
       const realData = await loadRealData();
-      combineStats(realData.stats);
+      if (realData && isMounted.current) {
+        setRealStats(realData);
+        
+        const combined = combineStats(realData);
+        if (combined && isMounted.current) {
+          setStats(combined);
+        }
+      }
     } catch (err: any) {
-      console.error('Ошибка обновления данных:', err);
-      setError(err.message || 'Ошибка загрузки данных');
+      console.error('❌ Ошибка обновления данных:', err);
+      if (isMounted.current) {
+        setError(err.message || 'Ошибка загрузки данных');
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   }, [loadRealData, combineStats]);
 
@@ -183,48 +242,65 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     refreshData();
     
     return () => {
-      adminSimulationService.destroy();
+      isMounted.current = false;
     };
-  }, [refreshData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Подписка на изменения симуляции
+  useEffect(() => {
+    const handleSimulationUpdate = () => {
+      if (realStats && isMounted.current) {
+        const combined = combineStats(realStats);
+        if (combined) {
+          setStats(combined);
+        }
+      }
+    };
+
+    const unsubscribe = adminSimulationService.subscribe(handleSimulationUpdate);
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [realStats, combineStats]);
 
   // Realtime обновления
   useEffect(() => {
-    let statsInterval: NodeJS.Timeout;
-    let simulationInterval: NodeJS.Timeout;
+    if (!realtime || !isBackendAvailable) return;
 
-    if (realtime) {
-      // Обновление реальных данных каждые 30 секунд
-      statsInterval = setInterval(() => {
-        if (isBackendAvailable) {
-          adminApi.getStats()
-            .then(realData => {
-              setRealStats(realData);
-              if (stats) {
-                combineStats(realData);
-              }
-            })
-            .catch(console.error);
-        }
-      }, 30000);
-
-      // Обновление симуляции онлайн каждые 5 секунд (если активна)
-      simulationInterval = setInterval(() => {
-        if (adminSimulationService.getState().isOnlineSimulationActive) {
-          // Генерируем новое значение
-          adminSimulationService.toggleOnlineSimulation();
-          adminSimulationService.toggleOnlineSimulation();
-          if (realStats) {
-            combineStats(realStats);
+    const interval = setInterval(async () => {
+      if (!isMounted.current) return;
+      
+      try {
+        const response = await fetch('http://localhost:3001/api/stats/system');
+        if (response.ok && isMounted.current) {
+          const result = await response.json();
+          const adaptedStats = {
+            users: {
+              online: onlineCount, // 👈 ИСПРАВЛЕНО: используем WebSocket
+              total: result.data?.users?.total || 0
+            },
+            content: {
+              projects: result.data?.content?.projects || 0,
+              totalComments: result.data?.content?.totalComments || 0
+            }
+          };
+          
+          setRealStats(adaptedStats);
+          
+          const combined = combineStats(adaptedStats);
+          if (combined) {
+            setStats(combined);
           }
         }
-      }, 5000);
-    }
+      } catch (error) {
+        console.error('Ошибка фонового обновления:', error);
+      }
+    }, 30000);
 
-    return () => {
-      if (statsInterval) clearInterval(statsInterval);
-      if (simulationInterval) clearInterval(simulationInterval);
-    };
-  }, [realtime, isBackendAvailable, realStats, stats, combineStats]);
+    return () => clearInterval(interval);
+  }, [realtime, isBackendAvailable, combineStats, onlineCount]); // 👈 Добавлена зависимость
 
   // Обработчик действий
   const handleAction = useCallback(async (action: string, value?: any) => {
@@ -232,47 +308,21 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
       setError(null);
       
       switch (action) {
-        // Симуляция онлайн
         case 'toggleOnlineSimulation':
           adminSimulationService.toggleOnlineSimulation();
           break;
-          
-        // Симуляция "всего"
         case 'toggleTotalSimulation':
           adminSimulationService.toggleTotalSimulation();
           break;
-          
-        // Управление фиктивными пользователями
         case 'incrementTotalFake':
           adminSimulationService.incrementTotalFake();
           break;
-          
         case 'decrementTotalFake':
           adminSimulationService.decrementTotalFake();
           break;
-          
-        case 'setTotalFake':
-          if (typeof value === 'number') {
-            adminSimulationService.setTotalFake(value);
-          }
-          break;
-          
-        // Очистка истории
-        case 'clearHistory':
-          adminSimulationService.clearHistory();
-          setHistory([]);
-          break;
-          
-        // Сброс симуляции
-        case 'resetSimulation':
-          adminSimulationService.reset();
-          break;
-          
-        // Ручное обновление
         case 'refresh':
           await refreshData();
           return;
-          
         default:
           console.warn(`Неизвестное действие: ${action}`);
           return;
@@ -280,20 +330,31 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
 
       // После изменения симуляции обновляем комбинированные данные
       if (realStats) {
-        combineStats(realStats);
+        // 👇 ИСПРАВЛЕНО: обновляем realStats с актуальным onlineCount
+        const updatedRealStats = {
+          ...realStats,
+          users: {
+            ...realStats.users,
+            online: onlineCount
+          }
+        };
+        
+        const combined = combineStats(updatedRealStats);
+        if (combined) {
+          setStats(combined);
+        }
       }
-      
     } catch (error) {
       console.error('Ошибка выполнения действия:', error);
       setError('Ошибка выполнения действия');
     }
-  }, [realStats, combineStats, refreshData]);
+  }, [realStats, combineStats, refreshData, onlineCount]); // 👈 Добавлена зависимость
 
   const toggleRealtime = useCallback(() => {
     setRealtime(prev => !prev);
   }, []);
 
-  const contextValue: AdminDataContextType = {
+  const value = {
     stats,
     history,
     loading,
@@ -303,16 +364,16 @@ export function AdminDataProvider({ children }: { children: ReactNode }) {
     handleAction,
     isBackendAvailable,
     error,
+    onlineCount, // 👈 ДОБАВЛЕНО
   };
 
   return (
-    <AdminDataContext.Provider value={contextValue}>
+    <AdminDataContext.Provider value={value}>
       {children}
     </AdminDataContext.Provider>
   );
 }
 
-// Хук для использования контекста
 export const useAdminData = () => {
   const context = useContext(AdminDataContext);
   if (!context) {

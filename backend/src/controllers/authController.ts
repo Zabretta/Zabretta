@@ -6,7 +6,7 @@ import { prisma } from '../config/database';
 import { JWT_CONFIG } from '../config/auth';
 import { createSuccessResponse, createErrorResponse } from '../utils/response';
 import { AuthRequest } from '../middleware/auth';
-import { RatingService } from '../services/ratingService'; // 👈 ИМПОРТ
+import { RatingService } from '../services/ratingService';
 
 interface RegisterRequest {
   login: string;
@@ -44,8 +44,8 @@ export class AuthController {
       // Хеширование пароля
       const passwordHash = await bcrypt.hash(password, 10);
 
-      // Создание пользователя - ИСПРАВЛЕНО: добавлен (prisma as any) для обхода проверки id
-      const user = await (prisma as any).users.create({
+      // ИСПРАВЛЕНО: убрал (prisma as any)
+      const user = await prisma.users.create({
         data: {
           login,
           email,
@@ -75,13 +75,35 @@ export class AuthController {
         }
       });
 
+      // 👇 ДОБАВЛЕНО: явное обновление lastLogin при регистрации
+      const updatedUser = await prisma.users.update({
+        where: { id: user.id },
+        data: { 
+          lastLogin: new Date()  // Устанавливаем время регистрации как первый вход
+        },
+        select: {
+          id: true,
+          login: true,
+          email: true,
+          name: true,
+          avatar: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          lastLogin: true,
+          rating: true,
+          activityPoints: true,
+          totalPosts: true,
+          violations: true
+        }
+      });
+
       // 👇 СОЗДАЕМ ЗАПИСЬ В ИСТОРИИ О РЕГИСТРАЦИИ
       try {
         await RatingService.awardPoints(user.id, 'registration');
         console.log(`[Auth] Бонус за регистрацию начислен пользователю ${user.id}`);
       } catch (ratingError) {
         console.error('[Auth] Ошибка при начислении бонуса за регистрацию:', ratingError);
-        // Не блокируем регистрацию из-за ошибки начисления
       }
 
       // Генерация токенов
@@ -100,16 +122,18 @@ export class AuthController {
       // Сохранение refresh токена
       await prisma.users.update({
         where: { id: user.id },
-        data: { refreshToken, lastLogin: new Date() }
+        data: { refreshToken }
       });
+
+      console.log(`✅ Новый пользователь зарегистрирован: ${login}, lastLogin: ${updatedUser.lastLogin}`);
 
       res.json(createSuccessResponse({
         token,
         refreshToken,
         user: {
-          ...user,
-          createdAt: user.createdAt.toISOString(),
-          lastLogin: user.lastLogin?.toISOString()
+          ...updatedUser,
+          createdAt: updatedUser.createdAt.toISOString(),
+          lastLogin: updatedUser.lastLogin?.toISOString()
         }
       }));
 
@@ -164,7 +188,6 @@ export class AuthController {
         }
       } catch (ratingError) {
         console.error('[Auth] Ошибка при начислении бонуса за вход:', ratingError);
-        // Не блокируем вход из-за ошибки начисления
       }
 
       // Генерация токенов
@@ -180,34 +203,53 @@ export class AuthController {
         { expiresIn: JWT_CONFIG.refreshExpiresIn as jwt.SignOptions['expiresIn'] }
       );
 
-      // Обновление refresh токена и времени последнего входа
-      await prisma.users.update({
+      // ИСПРАВЛЕНО: явное обновление lastLogin при входе и получение обновленных данных
+      const updatedUser = await prisma.users.update({
         where: { id: user.id },
-        data: { refreshToken, lastLogin: new Date() }
+        data: { 
+          refreshToken,
+          lastLogin: new Date()  // ОБЯЗАТЕЛЬНО обновляем lastLogin!
+        },
+        select: {
+          id: true,
+          login: true,
+          email: true,
+          name: true,
+          avatar: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          lastLogin: true,
+          rating: true,
+          activityPoints: true,
+          totalPosts: true,
+          violations: true
+        }
       });
 
+      console.log(`✅ Пользователь ${user.login} вошел в систему, lastLogin обновлен: ${updatedUser.lastLogin}`);
+
       const userData = {
-        id: user.id,
-        login: user.login,
-        email: user.email,
-        name: user.name,
-        avatar: user.avatar,
-        role: user.role,
-        isActive: user.isActive,
-        createdAt: user.createdAt.toISOString(),
-        lastLogin: new Date().toISOString(),
-        rating: user.rating,
-        activityPoints: user.activityPoints,
-        totalPosts: user.totalPosts,
-        violations: user.violations
+        id: updatedUser.id,
+        login: updatedUser.login,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        avatar: updatedUser.avatar,
+        role: updatedUser.role,
+        isActive: updatedUser.isActive,
+        createdAt: updatedUser.createdAt.toISOString(),
+        lastLogin: updatedUser.lastLogin?.toISOString(),
+        rating: updatedUser.rating,
+        activityPoints: updatedUser.activityPoints,
+        totalPosts: updatedUser.totalPosts,
+        violations: updatedUser.violations
       };
 
-      // 👇 ДОБАВЛЯЕМ ИНФОРМАЦИЮ О БОНУСЕ В ОТВЕТ
       res.json(createSuccessResponse({
         token,
         refreshToken,
         user: userData,
-        bonus: dailyLoginBonus // Будет null если бонус не начислен
+        bonus: dailyLoginBonus
       }));
 
     } catch (error) {
@@ -280,6 +322,8 @@ export class AuthController {
         where: { id: req.user.id },
         data: { refreshToken: null }
       });
+
+      console.log(`👋 Пользователь ${req.user.login} вышел из системы`);
 
       res.json(createSuccessResponse({ success: true, message: 'Выход выполнен успешно' }));
 

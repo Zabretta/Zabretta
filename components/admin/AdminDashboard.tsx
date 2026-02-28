@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from 'react'; // 👈 ДОБАВЛЕНО
 import { AdminStats } from '@/types/admin';
 import './AdminDashboard.css';
 
@@ -16,6 +17,14 @@ export default function AdminDashboard({
   realtime, 
   onToggleRealtime 
 }: AdminDashboardProps) {
+  // 👇 ДОБАВЛЕНО: флаг для определения клиентской стороны
+  const [isClient, setIsClient] = useState(false);
+
+  // 👇 ДОБАВЛЕНО: устанавливаем флаг клиента после монтирования
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   // Проверяем, загружены ли данные статистики
   const isLoading = !stats || Object.keys(stats).length === 0;
 
@@ -115,7 +124,8 @@ export default function AdminDashboard({
             {realtime ? '🟢' : '⚫'} Реальное время
           </button>
           <span className="last-update">
-            Обновлено: {new Date(stats.lastUpdate || new Date()).toLocaleTimeString()}
+            {/* 👇 ИСПРАВЛЕНО: показываем только на клиенте */}
+            Обновлено: {isClient ? new Date(stats.lastUpdate || new Date()).toLocaleTimeString() : '...'}
           </span>
         </div>
       </div>

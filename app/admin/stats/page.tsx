@@ -1,9 +1,18 @@
 "use client";
 
+import { useState, useEffect } from 'react'; // 👈 ДОБАВЛЕНО
 import { useAdminData } from '@/components/admin/AdminDataContext';
 import AdminStatsPanel from '@/components/admin/AdminStatsPanel';
 
 export default function AdminStatsPage() {
+  // 👇 ДОБАВЛЕНО: флаг для определения клиентской стороны
+  const [isClient, setIsClient] = useState(false);
+
+  // 👇 ДОБАВЛЕНО: устанавливаем флаг клиента после монтирования
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   // Используем данные из общего контекста
   const { stats, history, loading, handleAction, isBackendAvailable, error } = useAdminData();
 
@@ -69,7 +78,11 @@ export default function AdminStatsPage() {
           </span>
         </div>
         <div className="stats-timestamp">
-          Последнее обновление: {stats.lastUpdate ? new Date(stats.lastUpdate).toLocaleString('ru-RU') : 'только что'}
+          {/* 👇 ИСПРАВЛЕНО: показываем только на клиенте */}
+          Последнее обновление: {isClient 
+            ? (stats.lastUpdate ? new Date(stats.lastUpdate).toLocaleString('ru-RU') : 'только что')
+            : '...'
+          }
         </div>
       </div>
       

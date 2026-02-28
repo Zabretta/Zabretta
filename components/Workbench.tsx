@@ -8,7 +8,7 @@ import Marketplace from "./Marketplace";
 import SettingsModal from "./SettingsModal";
 import ProfileModal from "./ProfileModal";
 import NotificationsModal from "./NotificationsModal";
-import LibraryModal from "./LibraryModal"; // Импорт компонента библиотеки
+import LibraryModal from "./LibraryModal";
 import { useAuth } from "./useAuth";
 import { useSettings } from "./SettingsContext";
 import { useRating, RatingProvider } from "./RatingContext";
@@ -23,9 +23,15 @@ function WorkbenchContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isLibraryOpen, setIsLibraryOpen] = useState(false); // Состояние для библиотеки
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // 👇 ДОБАВЛЕНО: флаг для определения клиентской стороны
+  const [isClient, setIsClient] = useState(false);
+  
+  // 👇 ПОЛУЧАЕМ onlineCount ИЗ КОНТЕКСТА
+  const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen, isAdmin, onlineCount } = useAuth();
   
   // Реальные данные с бэкенда
   const [realStats, setRealStats] = useState({
@@ -46,18 +52,34 @@ function WorkbenchContent() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [showOrientationHint, setShowOrientationHint] = useState(false);
   
-  const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen, isAdmin } = useAuth();
-  
-  // 🔥 ИСПРАВЛЕНО: приводим роль к нижнему регистру для надежности
-  // В БД роль хранится как 'MODERATOR' (верхний регистр)
-  // toLowerCase() превращает в 'moderator' для правильного сравнения
   const userRole = user?.role?.toLowerCase();
-  
-  // 🔥 ИСПРАВЛЕНО: теперь проверка работает и для админа, и для модератора
   const canAccessAdmin = isAdmin || userRole === 'moderator';
   
   const { settings } = useSettings();
   const { userRating } = useRating();
+
+  // 👇 ДОБАВЛЕНО: устанавливаем флаг клиента после монтирования
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // 👇 ОБНОВЛЯЕМ displayStats КОГДА МЕНЯЕТСЯ onlineCount
+  useEffect(() => {
+    if (realStats && isClient) {
+      const simState = adminSimulationService.getState();
+      setDisplayStats({
+        online: simState.isOnlineSimulationActive 
+          ? onlineCount + simState.onlineFake 
+          : onlineCount,
+        total: simState.isTotalSimulationActive 
+          ? realStats.total + simState.totalFake 
+          : realStats.total,
+        projectsCreated: realStats.projectsCreated,
+        adviceGiven: realStats.adviceGiven
+      });
+      console.log(`[Workbench] Обновлен онлайн: ${onlineCount} реальных + ${simState.onlineFake} фиктивных = ${displayStats.online}`);
+    }
+  }, [onlineCount, realStats, isClient]);
 
   // Определяем мобильное устройство
   useEffect(() => {
@@ -110,7 +132,17 @@ function WorkbenchContent() {
       setRealStats(newRealStats);
       
       // Обновляем отображаемые данные с учётом симуляции
-      updateDisplayStats(newRealStats);
+      const simState = adminSimulationService.getState();
+      setDisplayStats({
+        online: simState.isOnlineSimulationActive 
+          ? onlineCount + simState.onlineFake 
+          : onlineCount,
+        total: simState.isTotalSimulationActive 
+          ? newRealStats.total + simState.totalFake 
+          : newRealStats.total,
+        projectsCreated: newRealStats.projectsCreated,
+        adviceGiven: newRealStats.adviceGiven
+      });
       
       console.log('[Workbench] Реальные данные установлены:', newRealStats);
     } catch (error) {
@@ -119,7 +151,7 @@ function WorkbenchContent() {
       setIsLoading(false);
       setIsInitialized(true);
     }
-  }, []);
+  }, [onlineCount]);
 
   // Обновление отображаемых данных (реальные + симуляция)
   const updateDisplayStats = useCallback((real: typeof realStats) => {
@@ -127,8 +159,8 @@ function WorkbenchContent() {
     
     const newDisplayStats = {
       online: simState.isOnlineSimulationActive 
-        ? real.online + simState.onlineFake 
-        : real.online,
+        ? onlineCount + simState.onlineFake 
+        : onlineCount,
       total: simState.isTotalSimulationActive 
         ? real.total + simState.totalFake 
         : real.total,
@@ -138,7 +170,7 @@ function WorkbenchContent() {
     
     setDisplayStats(newDisplayStats);
     console.log('[Workbench] Отображаемые данные обновлены:', newDisplayStats);
-  }, []);
+  }, [onlineCount]);
 
   // Подписка на изменения симуляции
   useEffect(() => {
@@ -187,8 +219,8 @@ function WorkbenchContent() {
         
         setDisplayStats({
           online: simState.isOnlineSimulationActive 
-            ? newRealStats.online + simState.onlineFake 
-            : newRealStats.online,
+            ? onlineCount + simState.onlineFake 
+            : onlineCount,
           total: simState.isTotalSimulationActive 
             ? newRealStats.total + simState.totalFake 
             : newRealStats.total,
@@ -203,9 +235,9 @@ function WorkbenchContent() {
     }, 30000);
     
     return () => clearInterval(interval);
-  }, [isInitialized]);
+  }, [isInitialized, onlineCount]);
 
-  // ✅ ИСПРАВЛЕНО: Загрузка реального количества непрочитанных уведомлений
+  // Загрузка уведомлений
   const loadUnreadCount = useCallback(async () => {
     if (!isAuthenticated || !user) return;
     
@@ -230,10 +262,8 @@ function WorkbenchContent() {
     }
   }, [isAuthenticated, user]);
 
-  // Загружаем уведомления при монтировании и периодически
   useEffect(() => {
     loadUnreadCount();
-    
     const interval = setInterval(loadUnreadCount, 30000);
     return () => clearInterval(interval);
   }, [loadUnreadCount]);
@@ -249,7 +279,6 @@ function WorkbenchContent() {
     }
   };
 
-  // 🔥 Функция для перехода в админку (работает и для админа, и для модератора)
   const handleAdminClick = () => {
     if (canAccessAdmin) {
       window.location.href = '/admin';
@@ -258,7 +287,6 @@ function WorkbenchContent() {
     }
   };
 
-  // Обработчик открытия библиотеки
   const handleLibraryClick = () => {
     setIsLibraryOpen(true);
     console.log('Открытие библиотеки');
@@ -308,7 +336,7 @@ function WorkbenchContent() {
     { id: "projects", label: "Лента проектов", icon: "📁", color: "#8B4513" },
     { id: "masters", label: "Мастера рядом", icon: "👥", color: "#A0522D" },
     { id: "help", label: "Ищут помощи", icon: "❓", color: "#8B7355" },
-    { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D", action: handleLibraryClick }, // Добавлен action
+    { id: "library", label: "Библиотека", icon: "📚", color: "#A0522D", action: handleLibraryClick },
     { id: "market", label: "Барахолка", icon: "🛒", color: "#D2691E", action: () => setIsMarketplaceOpen(true) },
     { id: "contests", label: "Правила", icon: "🎯", color: "#CD853F", action: handleRulesClick },
   ];
@@ -322,7 +350,6 @@ function WorkbenchContent() {
     { id: "logout", label: "Выйти", icon: "🚪", color: "#CD853F", action: () => logout() },
   ];
 
-  // ✅ МАССИВ С КНОПКОЙ УВЕДОМЛЕНИЙ
   const tools = [
     { id: "hammer", label: "Похвалить", icon: "🔨" },
     { id: "share", label: "Поделиться", icon: "📤" },
@@ -422,7 +449,6 @@ function WorkbenchContent() {
               {isAuthenticated && user && (
                 <div className="user-header-info">
                   <p className="user-greeting">Добро пожаловать, {user.login}!</p>
-                  {/* 🔥 ПОКАЗЫВАЕМ БЕЙДЖ ДЛЯ АДМИНОВ И МОДЕРАТОРОВ */}
                   {canAccessAdmin && (
                     <div className="admin-badge" onClick={handleAdminClick}>
                       <span className="admin-badge-text">
@@ -478,19 +504,28 @@ function WorkbenchContent() {
 
               <div className="community-stats">
                 <div className="stat-item" title="Реальные онлайн + фиктивные онлайн (диапазон 100-200)">
-                  <span className="stat-number">{displayStats.online.toLocaleString()}</span>
+                  <span className="stat-number">
+                    {isClient ? displayStats.online.toLocaleString() : '...'}
+                  </span>
                   <span className="stat-label">Кулибиных на сайте</span>
+                  {/* 👇 УБРАНО: детальная информация о реальных/фиктивных */}
                 </div>
                 <div className="stat-item" title="Реальные зарегистрированные + фиктивные">
-                  <span className="stat-number">{displayStats.total.toLocaleString()}</span>
+                  <span className="stat-number">
+                    {isClient ? displayStats.total.toLocaleString() : '...'}
+                  </span>
                   <span className="stat-label">Кулибиных всего</span>
                 </div>
                 <div className="stat-item">
-                  <span className="stat-number">{displayStats.projectsCreated.toLocaleString()}</span>
+                  <span className="stat-number">
+                    {isClient ? displayStats.projectsCreated.toLocaleString() : '...'}
+                  </span>
                   <span className="stat-label">Самоделок создано</span>
                 </div>
                 <div className="stat-item">
-                  <span className="stat-number">{displayStats.adviceGiven.toLocaleString()}</span>
+                  <span className="stat-number">
+                    {isClient ? displayStats.adviceGiven.toLocaleString() : '...'}
+                  </span>
                   <span className="stat-label">Ценных советов</span>
                 </div>
               </div>
@@ -522,7 +557,6 @@ function WorkbenchContent() {
             </button>
           ))}
           
-          {/* 🔥 КНОПКА АДМИНКИ В ПРАВОМ ТУЛБОКСЕ */}
           {canAccessAdmin && (
             <div className="admin-drawer">
               <div className="admin-drawer-content">
@@ -540,7 +574,6 @@ function WorkbenchContent() {
         </div>
       </div>
 
-      {/* 🔥 ПЛАВАЮЩАЯ КНОПКА АДМИНКИ */}
       {canAccessAdmin && (
         <div className="floating-admin-icon">
           <AdminIcon 
@@ -585,7 +618,6 @@ function WorkbenchContent() {
         />
       )}
 
-      {/* ✅ МОДАЛКА УВЕДОМЛЕНИЙ */}
       {isNotificationsOpen && (
         <NotificationsModal 
           isOpen={isNotificationsOpen}
@@ -593,7 +625,6 @@ function WorkbenchContent() {
         />
       )}
 
-      {/* ✅ МОДАЛКА БИБЛИОТЕКИ */}
       {isLibraryOpen && (
         <LibraryModal 
           isOpen={isLibraryOpen}

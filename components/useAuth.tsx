@@ -3,6 +3,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { authAPI } from '@/lib/api/auth';
 import type { User as ApiUser } from '@/lib/api/auth';
+import io, { Socket } from 'socket.io-client';
 
 // Расширяем тип User, добавляя поля для профиля
 interface ExtendedUser extends ApiUser {
@@ -30,6 +31,7 @@ interface AuthContextType {
   authModalOpen: boolean;
   setAuthModalOpen: (open: boolean) => void;
   refreshUser: () => Promise<void>;
+  onlineCount: number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,9 +44,61 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
-  // 🔧 ИСПРАВЛЕНО: используем переменную окружения для API
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+
+  // 👇 Инициализация WebSocket при авторизации
+  useEffect(() => {
+    if (user && !socket) {
+      // Подключаемся к WebSocket
+      const newSocket = io(SOCKET_URL, {
+        withCredentials: true,
+        transports: ['websocket', 'polling']
+      });
+
+      newSocket.on('connect', () => {
+        console.log('🔌 WebSocket подключен, socket id:', newSocket.id);
+        
+        // Отправляем информацию о пользователе на сервер
+        newSocket.emit('user-online', {
+          userId: user.id,
+          login: user.login
+        });
+      });
+
+      newSocket.on('online-count', (count: number) => {
+        console.log('👥 Онлайн пользователей:', count);
+        setOnlineCount(count);
+      });
+
+      newSocket.on('force-disconnect', (message: string) => {
+        console.log('⚠️ Принудительное отключение:', message);
+        alert(message);
+        logout();
+      });
+
+      newSocket.on('disconnect', () => {
+        console.log('🔌 WebSocket отключен');
+      });
+
+      newSocket.on('error', (error: Error) => {
+        console.error('❌ WebSocket ошибка:', error);
+      });
+
+      setSocket(newSocket);
+    }
+
+    // Очистка при размонтировании
+    return () => {
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
+    };
+  }, [user]); // Зависимость от user - переподключаемся при смене пользователя
 
   // Функция для загрузки полных данных пользователя
   const refreshUser = async () => {
@@ -52,7 +106,6 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       const token = localStorage.getItem('samodelkin_auth_token');
       if (!token) return;
 
-      // 🔧 ИСПРАВЛЕНО: добавляем полный URL бэкенда
       const response = await fetch(`${API_BASE}/api/user/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -61,11 +114,9 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
 
       if (response.ok) {
         const result = await response.json();
-        // Извлекаем данные (могут быть в result.data или в самом result)
         const userData = result.data || result;
         
         if (userData) {
-          // Объединяем с существующим пользователем
           setUser(prev => prev ? { ...prev, ...userData } : userData);
           localStorage.setItem('samodelkin_user', JSON.stringify(userData));
           console.log('✅ useAuth: пользователь обновлен', userData);
@@ -170,6 +221,13 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const logout = async (): Promise<void> => {
     console.log('🚪 useAuth: выход пользователя');
     
+    // Отправляем событие о выходе на сервер
+    if (socket) {
+      socket.emit('user-logout');
+      socket.disconnect();
+      setSocket(null);
+    }
+    
     try {
       await authAPI.logout();
     } catch (error) {
@@ -179,6 +237,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       localStorage.removeItem('samodelkin_user');
       setUser(null);
       setAuthModalOpen(false);
+      setOnlineCount(0);
       alert('Вы успешно вышли из системы');
     }
   };
@@ -199,7 +258,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       logout,
       authModalOpen,
       setAuthModalOpen,
-      refreshUser
+      refreshUser,
+      onlineCount
     }}>
       {children}
     </AuthContext.Provider>

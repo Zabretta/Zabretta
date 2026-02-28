@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from 'react'; // 👈 ДОБАВЛЕНО
 import { AdminStats, AdminStatsHistory } from '@/types/admin';
 import './AdminStatsPanel.css';
 
@@ -14,6 +15,14 @@ export default function AdminStatsPanel({
   history, 
   onAction 
 }: AdminStatsPanelProps) {
+  // 👇 ДОБАВЛЕНО: флаг для определения клиентской стороны
+  const [isClient, setIsClient] = useState(false);
+
+  // 👇 ДОБАВЛЕНО: устанавливаем флаг клиента после монтирования
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   // Проверяем, загружены ли данные
   const isLoading = !stats || Object.keys(stats).length === 0;
 
@@ -215,7 +224,8 @@ export default function AdminStatsPanel({
             {history.map((record, index) => (
               <div key={index} className="history-item">
                 <div className="history-time">
-                  {new Date(record.timestamp).toLocaleString()}
+                  {/* 👇 ИСПРАВЛЕНО: показываем только на клиенте */}
+                  {isClient ? new Date(record.timestamp).toLocaleString() : '...'}
                 </div>
                 <div className="history-action">{record.action}</div>
                 <div className="history-changes">

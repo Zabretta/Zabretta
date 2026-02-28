@@ -864,7 +864,7 @@ html, body {
   font-size: calc(1em * var(--font-size-multiplier, 1));
 }
 
-/* Особенности (6 окон) */
+/* Особенности (6 окон) - БЕЛЫЙ ФОН, КОРИЧНЕВЫЙ ТЕКСТ */
 .features {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -873,7 +873,7 @@ html, body {
 }
 
 .feature {
-  background: rgba(255, 255, 255, 0.95);
+  background: #FFFFFF !important; /* Белый фон */
   border: 2px solid #8B4513;
   border-radius: 10px;
   padding: 20px;
@@ -889,10 +889,46 @@ html, body {
 
 /* ИСПРАВЛЕНО: добавлен множитель */
 .feature-text {
-  color: #5D4037;
+  color: #5D4037 !important; /* Коричневый текст */
   font-size: calc(1em * var(--font-size-multiplier, 1));
   line-height: 1.4;
   font-weight: 600;
+}
+
+/* Статистика сообщества (4 окна) - БЕЛЫЙ ФОН, КОРИЧНЕВЫЙ ТЕКСТ */
+.community-stats {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #FFFFFF !important; /* Белый фон */
+  border: 2px solid #8B4513;
+  border-radius: 10px;
+  padding: 15px;
+  min-width: 120px;
+  flex: 1;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.stat-number {
+  color: #8B4513 !important; /* Коричневый цвет */
+  font-size: 2em;
+  font-weight: bold;
+}
+
+/* ИСПРАВЛЕНО: добавлен множитель */
+.stat-label {
+  color: #5D4037 !important; /* Коричневый текст */
+  font-size: calc(0.9em * var(--font-size-multiplier, 1));
+  text-align: center;
+  font-weight: 500;
 }
 
 /* Кнопка CTA */
@@ -926,40 +962,6 @@ html, body {
   font-size: calc(0.9em * var(--font-size-multiplier, 1));
   margin-top: 10px;
   font-style: italic;
-}
-
-/* Статистика сообщества */
-.community-stats {
-  display: flex;
-  justify-content: space-around;
-  flex-wrap: wrap;
-  gap: 15px;
-  margin-top: 25px;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.95);
-  border: 2px solid #8B4513;
-  border-radius: 10px;
-  padding: 15px;
-  min-width: 120px;
-  flex: 1;
-}
-
-.stat-number {
-  color: #8B4513;
-  font-size: 2em;
-  font-weight: bold;
-}
-
-/* ИСПРАВЛЕНО: добавлен множитель */
-.stat-label {
-  color: #5D4037;
-  font-size: calc(0.9em * var(--font-size-multiplier, 1));
-  text-align: center;
 }
 
 /* Декоративные элементы верстака */

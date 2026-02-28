@@ -1,32 +1,40 @@
 "use client";
 
+import { useState, useEffect } from 'react'; // 👈 ДОБАВЛЕНО useState
 import { useAdminData } from '@/components/admin/AdminDataContext';
 import AdminDashboard from '@/components/admin/AdminDashboard';
+import { useAuth } from '@/components/useAuth';
 
 export default function AdminPage() {
-  // Используем данные из общего контекста вместо локального состояния
+  // 👇 ДОБАВЛЕНО: флаг для определения клиентской стороны
+  const [isClient, setIsClient] = useState(false);
+  
+  // Используем данные из общего контекста
   const { stats, loading, realtime, toggleRealtime, handleAction } = useAdminData();
+  
+  // 👇 ПОЛУЧАЕМ onlineCount ИЗ КОНТЕКСТА АУТЕНТИФИКАЦИИ
+  const { onlineCount } = useAuth();
+
+  // 👇 ДОБАВЛЕНО: устанавливаем флаг клиента после монтирования
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Адаптируем handleAction для совместимости с AdminDashboard
-  // AdminDashboard ожидает старые названия действий
   const handleQuickAction = async (action: string) => {
-    // Маппинг старых action на новые (которые понимает handleAction)
+    // Маппинг старых action на новые
     const actionMap: Record<string, string> = {
-      'toggleSimulation': 'toggleOnlineSimulation', // старое → новое
+      'toggleSimulation': 'toggleOnlineSimulation',
       'refresh': 'refresh'
     };
     
-    // ИСПРАВЛЕНО: добавлен оператор ||
     const newAction = actionMap[action] || action;
     
-    // Если это resetTotal (старое действие), выполняем специальную логику
     if (action === 'resetTotal') {
-      // resetTotalToZero больше нет в API, используем новую логику
-      await handleAction('toggleTotalSimulation'); // Выключаем фиктивных
+      await handleAction('toggleTotalSimulation');
       return;
     }
     
-    // Для остальных действий используем стандартный handleAction
     await handleAction(newAction);
   };
 
@@ -39,11 +47,20 @@ export default function AdminPage() {
     );
   }
 
+  // 👇 создаем stats с учетом реального онлайн из WebSocket
+  const statsWithRealOnline = {
+    ...stats,
+    onlineReal: onlineCount,
+    onlineShown: stats.isOnlineSimulationActive 
+      ? onlineCount + stats.onlineFake 
+      : onlineCount,
+  };
+
   // Преобразуем stats из нового формата в старый для совместимости с AdminDashboard
   const compatibleStats = {
-    // Система 1: "Кулибиных на сайте"
-    onlineShown: stats.onlineShown,
-    onlineReal: stats.onlineReal,
+    // Система 1: "Кулибиных на сайте" с реальными данными
+    onlineShown: statsWithRealOnline.onlineShown,
+    onlineReal: onlineCount,
     onlineFake: stats.onlineFake,
     isOnlineSimulationActive: stats.isOnlineSimulationActive,
     
@@ -58,9 +75,9 @@ export default function AdminPage() {
     adviceGiven: stats.adviceGiven,
     lastUpdate: stats.lastUpdate,
     
-    // Старые поля для обратной совместимости (если AdminDashboard их требует)
-    shownOnline: stats.onlineShown,
-    realOnline: stats.onlineReal,
+    // Старые поля для обратной совместимости
+    shownOnline: statsWithRealOnline.onlineShown,
+    realOnline: onlineCount,
     fakeOnline: stats.onlineFake,
     shownTotal: stats.totalShown,
     realTotal: stats.totalReal,
@@ -68,12 +85,37 @@ export default function AdminPage() {
     isSimulationActive: stats.isOnlineSimulationActive
   };
 
+  // 👇 информация для отладки
+  console.log('📊 AdminPage: онлайн через WebSocket =', onlineCount);
+  console.log('📊 AdminPage: итоговые stats =', compatibleStats);
+
   return (
-    <AdminDashboard
-      stats={compatibleStats}
-      onQuickAction={handleQuickAction}
-      realtime={realtime}
-      onToggleRealtime={toggleRealtime}
-    />
+    <>
+      {/* 👇 ИСПРАВЛЕНО: виджет реального онлайн появляется только на клиенте */}
+      {isClient && (
+        <div className="realtime-online-widget" style={{
+          position: 'fixed',
+          top: '10px',
+          right: '10px',
+          background: '#2E8B57',
+          color: 'white',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          fontSize: '14px',
+          fontWeight: 'bold',
+          zIndex: 1000,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+        }}>
+          🔴 Онлайн сейчас: {onlineCount}
+        </div>
+      )}
+      
+      <AdminDashboard
+        stats={compatibleStats}
+        onQuickAction={handleQuickAction}
+        realtime={realtime}
+        onToggleRealtime={toggleRealtime}
+      />
+    </>
   );
 }

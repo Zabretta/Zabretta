@@ -1,5 +1,6 @@
 // backend/src/services/statsService.ts
 import { prisma } from '../config/database';
+import { getOnlineCount } from '../socket';
 
 export class StatsService {
 
@@ -7,10 +8,24 @@ export class StatsService {
    * Получение общей статистики системы для админ-панели.
    */
   static async getSystemStats() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Используем UTC для всех операций с датами
+    const now = new Date();
+    const today = new Date(now);
+    today.setUTCHours(0, 0, 0, 0);
+    
+    console.log('📊 StatsService.getSystemStats:');
+    console.log(`   Текущее время: ${now.toISOString()}`);
 
-    // ИСПРАВЛЕНО: user → users, content → content (оставляем как есть)
+    // Получаем количество онлайн пользователей через WebSocket
+    let onlineUsers = 0;
+    try {
+      onlineUsers = getOnlineCount();
+      console.log(`   Онлайн через WebSocket: ${onlineUsers}`);
+    } catch (error) {
+      console.error('❌ Ошибка получения онлайн через WebSocket:', error);
+      onlineUsers = 0;
+    }
+
     const [
       totalUsers,
       activeUsers,
@@ -37,7 +52,10 @@ export class StatsService {
       prisma.content.count({ where: { createdAt: { gte: today } } })
     ]);
 
-    // ИСПРАВЛЕНО: user → users
+    console.log(`   Всего пользователей: ${totalUsers}`);
+    console.log(`   Активных пользователей: ${activeUsers}`);
+    console.log(`   Онлайн пользователей (WebSocket): ${onlineUsers}`);
+
     const topRatedUsers = await prisma.users.findMany({
       take: 5,
       orderBy: { rating: 'desc' },
@@ -62,7 +80,6 @@ export class StatsService {
       }
     });
 
-    // ИСПРАВЛЕНО: добавляем тип для include
     const recentActivity = await prisma.content.findMany({
       take: 10,
       orderBy: { createdAt: 'desc' },
@@ -71,7 +88,7 @@ export class StatsService {
         type: true,
         title: true,
         createdAt: true,
-        users: {  // ИСПРАВЛЕНО: user → users
+        users: {
           select: {
             login: true,
             name: true
@@ -80,12 +97,12 @@ export class StatsService {
       }
     });
 
-    return {
+    const result = {
       users: {
         total: totalUsers,
         active: activeUsers,
         newToday: newUsersToday,
-        online: Math.floor(activeUsers * 0.1)
+        online: onlineUsers
       },
       content: {
         total: totalContent,
@@ -98,20 +115,20 @@ export class StatsService {
         totalLikes: totalLikes._sum.likes || 0
       },
       topUsers: {
-        byRating: topRatedUsers.map((user: any) => ({
+        byRating: topRatedUsers.map((user) => ({
           id: user.id,
           name: user.name || user.login,
           rating: user.rating,
           activity: user.activityPoints
         })),
-        byActivity: topActiveUsers.map((user: any) => ({
+        byActivity: topActiveUsers.map((user) => ({
           id: user.id,
           name: user.name || user.login,
           rating: user.rating,
           activity: user.activityPoints
         }))
       },
-      recentActivity: recentActivity.map((activity: any) => ({
+      recentActivity: recentActivity.map((activity) => ({
         id: activity.id,
         type: activity.type,
         title: activity.title,
@@ -126,6 +143,9 @@ export class StatsService {
         timestamp: new Date().toISOString()
       }
     };
+
+    console.log('✅ StatsService результат:', JSON.stringify(result, null, 2));
+    return result;
   }
 
   /**
@@ -137,10 +157,9 @@ export class StatsService {
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      const start = new Date(date.setHours(0, 0, 0, 0));
-      const end = new Date(date.setHours(23, 59, 59, 999));
+      const start = new Date(date.setUTCHours(0, 0, 0, 0));
+      const end = new Date(date.setUTCHours(23, 59, 59, 999));
 
-      // ИСПРАВЛЕНО: user → users, ratingAdjustment → rating_adjustments
       const [users, content, comments, likes, ratingAdjustments] = await Promise.all([
         prisma.users.count({ where: { createdAt: { gte: start, lt: end } } }),
         prisma.content.count({ where: { createdAt: { gte: start, lt: end } } }),
@@ -165,17 +184,26 @@ export class StatsService {
       });
     }
 
-    // ИСПРАВЛЕНО: добавляем типы для sum и day
+    const summary = {
+      totalUsers: 0,
+      totalContent: 0,
+      totalComments: 0,
+      totalLikes: 0,
+      totalRatingAdjustments: 0
+    };
+
+    for (const day of stats) {
+      summary.totalUsers += day.users;
+      summary.totalContent += day.content;
+      summary.totalComments += day.comments;
+      summary.totalLikes += day.likes;
+      summary.totalRatingAdjustments += day.ratingAdjustments;
+    }
+
     return {
       period: `${days} дней`,
       stats,
-      summary: {
-        totalUsers: stats.reduce((sum: number, day: any) => sum + day.users, 0),
-        totalContent: stats.reduce((sum: number, day: any) => sum + day.content, 0),
-        totalComments: stats.reduce((sum: number, day: any) => sum + day.comments, 0),
-        totalLikes: stats.reduce((sum: number, day: any) => sum + day.likes, 0),
-        totalRatingAdjustments: stats.reduce((sum: number, day: any) => sum + day.ratingAdjustments, 0)
-      }
+      summary
     };
   }
 
@@ -183,7 +211,6 @@ export class StatsService {
    * Получение расширенной статистики по контенту.
    */
   static async getContentStats() {
-    // ИСПРАВЛЕНО: добавляем типы для всех select
     const [byType, byStatus, byCategory, topViewed, topLiked, topCommented] = await Promise.all([
       prisma.content.groupBy({ by: ['type'], _count: true }),
       prisma.content.groupBy({ by: ['status'], _count: true }),
@@ -196,7 +223,7 @@ export class StatsService {
           type: true,
           title: true,
           views: true,
-          users: {  // ИСПРАВЛЕНО: user → users
+          users: {
             select: {
               login: true,
               name: true
@@ -212,7 +239,7 @@ export class StatsService {
           type: true,
           title: true,
           likes: true,
-          users: {  // ИСПРАВЛЕНО: user → users
+          users: {
             select: {
               login: true,
               name: true
@@ -228,7 +255,7 @@ export class StatsService {
           type: true,
           title: true,
           comments: true,
-          users: {  // ИСПРАВЛЕНО: user → users
+          users: {
             select: {
               login: true,
               name: true
@@ -238,35 +265,40 @@ export class StatsService {
       })
     ]);
 
-    // ИСПРАВЛЕНО: добавляем типы для reduce
+    const byTypeObj: Record<string, number> = {};
+    for (const item of byType) {
+      byTypeObj[item.type] = item._count;
+    }
+
+    const byStatusObj: Record<string, number> = {};
+    for (const item of byStatus) {
+      byStatusObj[item.status] = item._count;
+    }
+
+    const byCategoryObj: Record<string, number> = {};
+    for (const item of byCategory) {
+      byCategoryObj[item.category || 'Без категории'] = item._count;
+    }
+
     return {
-      byType: byType.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.type] = item._count;
-        return acc;
-      }, {}),
-      byStatus: byStatus.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.status] = item._count;
-        return acc;
-      }, {}),
-      byCategory: byCategory.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.category || 'Без категории'] = item._count;
-        return acc;
-      }, {}),
-      topViewed: topViewed.map((item: any) => ({
+      byType: byTypeObj,
+      byStatus: byStatusObj,
+      byCategory: byCategoryObj,
+      topViewed: topViewed.map((item) => ({
         id: item.id,
         type: item.type,
         title: item.title,
         views: item.views,
         author: item.users?.name || item.users?.login || 'Неизвестно'
       })),
-      topLiked: topLiked.map((item: any) => ({
+      topLiked: topLiked.map((item) => ({
         id: item.id,
         type: item.type,
         title: item.title,
         likes: item.likes,
         author: item.users?.name || item.users?.login || 'Неизвестно'
       })),
-      topCommented: topCommented.map((item: any) => ({
+      topCommented: topCommented.map((item) => ({
         id: item.id,
         type: item.type,
         title: item.title,
@@ -280,7 +312,6 @@ export class StatsService {
    * Получение статистики активности конкретного пользователя.
    */
   static async getUserActivityStats(userId: string) {
-    // ИСПРАВЛЕНО: user → users
     const [user, content, totalViews, totalLikes, totalComments, contentByType] = await Promise.all([
       prisma.users.findUnique({
         where: { id: userId },
@@ -292,7 +323,8 @@ export class StatsService {
           activityPoints: true,
           totalPosts: true,
           violations: true,
-          createdAt: true
+          createdAt: true,
+          lastLogin: true
         }
       }),
       prisma.content.findMany({
@@ -331,11 +363,16 @@ export class StatsService {
       throw new Error('Пользователь не найден');
     }
 
-    // ИСПРАВЛЕНО: добавляем типы для reduce
+    const contentByTypeObj: Record<string, number> = {};
+    for (const item of contentByType) {
+      contentByTypeObj[item.type] = item._count;
+    }
+
     return {
       user: {
         ...user,
-        createdAt: user.createdAt.toISOString()
+        createdAt: user.createdAt.toISOString(),
+        lastLogin: user.lastLogin?.toISOString() || null
       },
       stats: {
         totalContent: content.length,
@@ -346,11 +383,8 @@ export class StatsService {
         averageLikes: content.length > 0 ? (totalLikes._sum.likes || 0) / content.length : 0,
         averageComments: content.length > 0 ? (totalComments._sum.comments || 0) / content.length : 0
       },
-      contentByType: contentByType.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.type] = item._count;
-        return acc;
-      }, {}),
-      recentContent: content.slice(0, 10).map((item: any) => ({
+      contentByType: contentByTypeObj,
+      recentContent: content.slice(0, 10).map((item) => ({
         id: item.id,
         type: item.type,
         title: item.title,

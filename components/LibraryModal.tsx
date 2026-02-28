@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./LibraryModal.css";
 import { useAuth } from "./useAuth";
 import { useRating } from "./RatingContext";
@@ -30,6 +30,7 @@ interface Section {
   id: string;
   title: string;
   icon: string;
+  words?: string[]; // Для разделения на два слова на стеллаже
   subsections: Subsection[];
 }
 
@@ -53,18 +54,21 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   const [libraryData, setLibraryData] = useState<Section[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [likedItems, setLikedItems] = useState<Set<string>>(new Set());
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  
+  const mainContainerRef = useRef<HTMLDivElement>(null);
   
   const { user, isAuthenticated } = useAuth();
-  const ratingContext = useRating(); // Получаем весь контекст
+  const ratingContext = useRating();
 
-  // Заглушка данных (в реальном проекте загружать с бэкенда)
+  // Заглушка данных - исправленный порядок слов
   useEffect(() => {
-    // Имитация загрузки данных
     const mockData: Section[] = [
       {
         id: "recipes",
         title: "Рецепты",
         icon: "🍳",
+        words: ["РЕЦЕПТЫ"],
         subsections: [
           {
             id: "recipes-baking",
@@ -114,6 +118,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
         id: "advice",
         title: "Полезные советы",
         icon: "💡",
+        words: ["ПОЛЕЗНЫЕ", "СОВЕТЫ"], // ПОЛЕЗНЫЕ слева, СОВЕТЫ справа
         subsections: [
           {
             id: "advice-home",
@@ -153,6 +158,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
         id: "drawings",
         title: "Чертежи и схемы",
         icon: "📐",
+        words: ["ЧЕРТЕЖИ", "СХЕМЫ"], // ЧЕРТЕЖИ слева, СХЕМЫ справа
         subsections: [
           {
             id: "drawings-furniture",
@@ -193,6 +199,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
         id: "photos-videos",
         title: "Фото и видео",
         icon: "📷",
+        words: ["ФОТО", "ВИДЕО"], // ФОТО слева, ВИДЕО справа
         subsections: [
           {
             id: "photos",
@@ -234,6 +241,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
         id: "misc",
         title: "Разное",
         icon: "📦",
+        words: ["РАЗНОЕ"],
         subsections: [
           {
             id: "misc-ideas",
@@ -257,7 +265,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     
     setLibraryData(mockData);
     
-    // Загрузить лайки пользователя
     const savedLikes = localStorage.getItem('library_liked_items');
     if (savedLikes) {
       try {
@@ -268,6 +275,42 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (selectedSubsection && mainContainerRef.current) {
+      setShowScrollHint(true);
+      
+      const container = mainContainerRef.current;
+      const scrollWidth = container.scrollWidth;
+      const clientWidth = container.clientWidth;
+      
+      if (scrollWidth > clientWidth && container.scrollLeft < scrollWidth - clientWidth - 10) {
+        setShowScrollHint(true);
+        
+        const timer = setTimeout(() => {
+          setShowScrollHint(false);
+        }, 5000);
+        
+        return () => clearTimeout(timer);
+      } else {
+        setShowScrollHint(false);
+      }
+    } else {
+      setShowScrollHint(false);
+    }
+  }, [selectedSubsection]);
+
+  const handleScroll = () => {
+    if (mainContainerRef.current) {
+      const container = mainContainerRef.current;
+      const scrollWidth = container.scrollWidth;
+      const clientWidth = container.clientWidth;
+      
+      if (container.scrollLeft >= scrollWidth - clientWidth - 10) {
+        setShowScrollHint(false);
+      }
+    }
+  };
 
   // Закрытие модалки по ESC
   useEffect(() => {
@@ -290,15 +333,26 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     if (selectedShelf === shelfId) {
       setSelectedShelf(null);
       setSelectedSubsection(null);
+      setSelectedItem(null);
     } else {
       setSelectedShelf(shelfId);
       setSelectedSubsection(null);
+      setSelectedItem(null);
     }
   };
 
   const handleSubsectionClick = (subsectionId: string) => {
     setSelectedSubsection(subsectionId);
     setSelectedItem(null);
+    
+    setTimeout(() => {
+      if (mainContainerRef.current) {
+        mainContainerRef.current.scrollTo({
+          left: mainContainerRef.current.scrollWidth,
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
   };
 
   const handleItemClick = (item: LibraryItem) => {
@@ -319,19 +373,13 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     const isLiked = likedItems.has(itemId);
 
     try {
-      // Отправка лайка на бэкенд
-      // В реальном проекте здесь будет API вызов
-      
-      // Имитация API
       await new Promise(resolve => setTimeout(resolve, 300));
       
       const newLikedItems = new Set(likedItems);
       
       if (isLiked) {
-        // Убрать лайк
         newLikedItems.delete(itemId);
         
-        // Начислить бонусы (отрицательные) - если метод существует
         if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
           (ratingContext as any).addRating({
             userId: currentUser?.id || user?.id,
@@ -342,19 +390,16 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
         }
         
       } else {
-        // Поставить лайк
         newLikedItems.add(itemId);
         
-        // Начислить бонусы автору документа - если метод существует
         if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
           (ratingContext as any).addRating({
-            userId: item.authorLogin, // В реальном проекте - ID автора
+            userId: item.authorLogin,
             points: 5,
             reason: `library_item_liked_${itemId}`,
             timestamp: new Date().toISOString()
           });
           
-          // Начислить бонусы пользователю за активность
           (ratingContext as any).addRating({
             userId: currentUser?.id || user?.id,
             points: 1,
@@ -365,11 +410,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
       }
       
       setLikedItems(newLikedItems);
-      
-      // Сохранить в localStorage (используем вспомогательную функцию)
       localStorage.setItem('library_liked_items', JSON.stringify(setToArray(newLikedItems)));
       
-      // Обновить данные в библиотеке
       const updatedData = libraryData.map(section => ({
         ...section,
         subsections: section.subsections.map(sub => ({
@@ -424,8 +466,20 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           <p className="library-subtitle">Хранилище полезных документов и материалов</p>
         </div>
 
-        {/* Основное содержимое */}
-        <div className="library-main">
+        {/* Основное содержимое с ref и обработчиком скролла */}
+        <div 
+          className="library-main" 
+          ref={mainContainerRef}
+          onScroll={handleScroll}
+        >
+          
+          {/* Стрелка-подсказка */}
+          {showScrollHint && (
+            <div className="scroll-hint">
+              <div className="scroll-hint-arrow">→</div>
+              <div className="scroll-hint-text">Сдвиньте вправо</div>
+            </div>
+          )}
           
           {/* Стеллажи (левая панель) */}
           <div className="library-shelves">
@@ -433,16 +487,34 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
               const isLeftEdge = index === 0;
               const isRightEdge = index === libraryData.length - 1;
               
+              // Определяем специальный класс для стеллажа "Полезные советы"
+              const shelfClass = shelf.id === "advice" ? "advice-shelf" : "";
+              
               return (
                 <div 
                   key={shelf.id}
-                  className={`library-shelf ${selectedShelf === shelf.id ? 'active' : ''} 
+                  className={`library-shelf ${shelfClass} ${selectedShelf === shelf.id ? 'active' : ''} 
                     ${isLeftEdge ? 'left-edge' : ''} ${isRightEdge ? 'right-edge' : ''}`}
                   onClick={() => handleShelfClick(shelf.id)}
                 >
                   {/* Боковина стеллажа с надписью */}
                   <div className="shelf-side">
-                    <span className="shelf-label">{shelf.icon} {shelf.title}</span>
+                    <div className="shelf-label">
+                      <span className="shelf-icon">{shelf.icon}</span>
+                      {shelf.words ? (
+                        <div className="shelf-words">
+                          {shelf.words.map((word, idx) => (
+                            <span key={idx} className="shelf-word">
+                              {word}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="shelf-word">
+                          {shelf.title}
+                        </span>
+                      )}
+                    </div>
                     
                     {/* Корешки книг */}
                     <div className="book-spines">
@@ -530,69 +602,69 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
               </div>
             </div>
           )}
+        </div>
 
-          {/* Модалка просмотра документа */}
-          {selectedItem && (
-            <div className="item-view-modal">
-              <div className="item-view-content">
-                <button className="item-view-close" onClick={handleCloseItem}>✕</button>
+        {/* Модалка просмотра документа */}
+        {selectedItem && (
+          <div className="item-view-modal">
+            <div className="item-view-content">
+              <button className="item-view-close" onClick={handleCloseItem}>✕</button>
+              
+              <div className="item-view-header">
+                <h2>{selectedItem.title}</h2>
+                <div className="item-view-meta">
+                  <span>Автор: {selectedItem.author}</span>
+                  <span>Дата: {selectedItem.date}</span>
+                </div>
+              </div>
+
+              <div className="item-view-body">
+                {selectedItem.type === 'text' && (
+                  <div className="item-text-content">{selectedItem.content}</div>
+                )}
                 
-                <div className="item-view-header">
-                  <h2>{selectedItem.title}</h2>
-                  <div className="item-view-meta">
-                    <span>Автор: {selectedItem.author}</span>
-                    <span>Дата: {selectedItem.date}</span>
+                {(selectedItem.type === 'photo' || selectedItem.type === 'drawing') && (
+                  <div className="item-image-placeholder">
+                    <div className="placeholder-icon">🖼️</div>
+                    <p>{selectedItem.content}</p>
+                    {selectedItem.thumbnail && (
+                      <p className="image-note">[Здесь будет изображение: {selectedItem.thumbnail}]</p>
+                    )}
                   </div>
-                </div>
+                )}
+                
+                {selectedItem.type === 'video' && (
+                  <div className="item-video-placeholder">
+                    <div className="placeholder-icon">🎬</div>
+                    <p>{selectedItem.content}</p>
+                  </div>
+                )}
+              </div>
 
-                <div className="item-view-body">
-                  {selectedItem.type === 'text' && (
-                    <div className="item-text-content">{selectedItem.content}</div>
-                  )}
-                  
-                  {(selectedItem.type === 'photo' || selectedItem.type === 'drawing') && (
-                    <div className="item-image-placeholder">
-                      <div className="placeholder-icon">🖼️</div>
-                      <p>{selectedItem.content}</p>
-                      {selectedItem.thumbnail && (
-                        <p className="image-note">[Здесь будет изображение: {selectedItem.thumbnail}]</p>
-                      )}
-                    </div>
-                  )}
-                  
-                  {selectedItem.type === 'video' && (
-                    <div className="item-video-placeholder">
-                      <div className="placeholder-icon">🎬</div>
-                      <p>{selectedItem.content}</p>
-                    </div>
-                  )}
+              {/* Нижняя панель с логином и лайком */}
+              <div className="item-view-footer">
+                <div className="footer-left">
+                  <span className="footer-login">
+                    👤 {selectedItem.authorLogin}
+                  </span>
                 </div>
-
-                {/* Нижняя панель с логином и лайком */}
-                <div className="item-view-footer">
-                  <div className="footer-left">
-                    <span className="footer-login">
-                      👤 {selectedItem.authorLogin}
+                <div className="footer-right">
+                  <button 
+                    className={`like-button ${likedItems.has(selectedItem.id) ? 'liked' : ''}`}
+                    onClick={() => handleLike(selectedItem)}
+                    disabled={!isAuthenticated}
+                  >
+                    <span className="like-icon">❤️</span>
+                    <span className="like-count">{selectedItem.likes}</span>
+                    <span className="like-text">
+                      {likedItems.has(selectedItem.id) ? 'Вы поблагодарили' : 'Поблагодарить'}
                     </span>
-                  </div>
-                  <div className="footer-right">
-                    <button 
-                      className={`like-button ${likedItems.has(selectedItem.id) ? 'liked' : ''}`}
-                      onClick={() => handleLike(selectedItem)}
-                      disabled={!isAuthenticated}
-                    >
-                      <span className="like-icon">❤️</span>
-                      <span className="like-count">{selectedItem.likes}</span>
-                      <span className="like-text">
-                        {likedItems.has(selectedItem.id) ? 'Вы поблагодарили' : 'Поблагодарить'}
-                      </span>
-                    </button>
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

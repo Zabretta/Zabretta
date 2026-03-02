@@ -259,7 +259,7 @@ function WorkbenchContent() {
     console.log('Открытие библиотеки');
   };
 
-  // ИСПРАВЛЕНО: обработчик похвалы без явной типизации
+  // 👇 ИСПРАВЛЕНО: обработчик похвалы
   const handlePraise = async (praiseId: string) => {
     if (!isAuthenticated) {
       alert('Необходимо авторизоваться');
@@ -288,28 +288,27 @@ function WorkbenchContent() {
         type: currentContent.type
       });
 
-      // 👇 УБРАЛИ ЯВНУЮ ТИПИЗАЦИЮ - используем результат как есть
       const result = await praiseApi.createPraise({
         toUserId: currentContent.authorId,
         contentId: currentContent.id,
         praiseType: praiseId as any
       });
 
-      // 👇 ПРОВЕРЯЕМ НАЛИЧИЕ ПОЛЯ praise В ОТВЕТЕ
       if (result && result.praise) {
         alert(`✅ Вы похвалили "${currentContent.title}"! Автор получит +2 рейтинга и +3 активности`);
         
-        // Очищаем контекст после успешной похвалы
-        clearCurrentContent();
+        // 👇 ИЗМЕНЕНО: НЕ ОЧИЩАЕМ КОНТЕКСТ, ЧТОБЫ МОЖНО БЫЛО ПОХВАЛИТЬ СНОВА
+        // Просто закрываем модалку похвалы
         setIsPraiseModalOpen(false);
       } else {
-        // Проверяем наличие ошибки в ответе
         const errorMsg = (result as any)?.error || 'Не удалось отправить похвалу';
         alert(`Ошибка: ${errorMsg}`);
+        setIsPraiseModalOpen(false);
       }
     } catch (error) {
       console.error('[Workbench] Ошибка при отправке похвалы:', error);
       alert('Произошла ошибка при отправке похвалы');
+      setIsPraiseModalOpen(false);
     }
   };
 

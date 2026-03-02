@@ -1,6 +1,6 @@
 /* LibraryModal.css */
 
-/* Затемнение фона для всей библиотеки - ПРОЗРАЧНОЕ */
+/* Затемнение фона для всей библиотеки - ПРОЗРАЧНОЕ И НЕ КЛИКАБЕЛЬНОЕ */
 .library-modal-overlay {
   position: fixed;
   top: 0;
@@ -15,10 +15,12 @@
   padding-top: 60px;
   z-index: 10000;
   animation: fadeIn 0.3s ease-out;
+  pointer-events: none;  /* ← КЛИКИ ПРОХОДЯТ СКВОЗЬ */
 }
 
-/* Модальное окно библиотеки */
+/* Модальное окно библиотеки - должно быть кликабельным */
 .library-modal-content {
+  pointer-events: auto;  /* ← САМО ОКНО КЛИКАБЕЛЬНО */
   position: relative;
   width: calc(95vw + 36px);
   height: calc(85vh + 36px);
@@ -642,12 +644,12 @@
 .praise-stats-compact {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 5px;
-  font-size: 0.8em;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 0.7em;
   background: rgba(139, 69, 19, 0.3);
-  padding: 4px 10px;
-  border-radius: 15px;
+  padding: 3px 8px;
+  border-radius: 12px;
   border: 1px solid #D2691E;
   width: fit-content;
 }
@@ -655,7 +657,7 @@
 .praise-stats-compact .total {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   color: #FFD700;
   font-weight: bold;
 }
@@ -663,86 +665,80 @@
 .praise-stats-compact .top-emoji {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   color: #F5DEB3;
   background: rgba(0, 0, 0, 0.3);
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.9em;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.8em;
 }
 
-.praise-stats-compact .top-emoji:hover {
-  background: rgba(210, 105, 30, 0.5);
-  cursor: help;
-}
-
-/* Детальная статистика в модальном окне документа */
+/* Детальная статистика в модальном окне документа - УЛЬТРА КОМПАКТНАЯ */
 .praise-stats-detailed {
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  padding: 10px 20px;
+  gap: 3px;                    /* уменьшили с 6px до 3px */
+  padding: 4px 8px;            /* уменьшили с 6px 12px до 4px 8px */
   background: rgba(0, 0, 0, 0.4);
-  border-radius: 15px;
-  border: 2px solid #8B4513;
-  min-width: 250px;
-  max-width: 350px;
+  border-radius: 6px;          /* уменьшили с 10px до 6px */
+  border: 1px solid #8B4513;
+  min-width: 150px;            /* уменьшили с 200px до 150px */
+  max-width: 220px;            /* уменьшили с 280px до 220px */
 }
 
 .praise-total {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #D2691E;
+  gap: 3px;                    /* уменьшили с 4px до 3px */
+  padding-bottom: 2px;         /* уменьшили с 4px до 2px */
+  border-bottom: 1px solid #D2691E;
 }
 
 .total-icon {
-  font-size: 1.5em;
+  font-size: 0.8em;            /* уменьшили с 1em до 0.8em */
   color: #FFD700;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
 }
 
 .total-count {
-  font-size: 1.8em;
+  font-size: 1em;              /* уменьшили с 1.2em до 1em */
   font-weight: bold;
   color: #FFD700;
-  text-shadow: 2px 2px 0 #8B4513;
+  text-shadow: 1px 1px 0 #8B4513;
   line-height: 1;
 }
 
 .total-label {
-  font-size: 1em;
+  font-size: 0.65em;           /* уменьшили с 0.8em до 0.65em */
   color: #F5DEB3;
-  margin-left: 5px;
+  margin-left: 1px;
   text-transform: lowercase;
 }
 
 .praise-distribution {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 2px;                    /* уменьшили с 4px до 2px */
 }
 
 .praise-stat-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  position: relative;
-  padding: 4px 0;
+  gap: 3px;                    /* уменьшили с 4px до 3px */
+  padding: 1px 0;              /* уменьшили с 2px 0 до 1px 0 */
 }
 
 .stat-emoji {
-  font-size: 1.3em;
-  min-width: 32px;
+  font-size: 0.7em;            /* уменьшили с 0.9em до 0.7em */
+  min-width: 18px;             /* уменьшили с 24px до 18px */
   text-align: center;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
   z-index: 2;
 }
 
 .stat-count {
-  min-width: 35px;
-  font-size: 1em;
+  min-width: 22px;             /* уменьшили с 28px до 22px */
+  font-size: 0.65em;           /* уменьшили с 0.8em до 0.65em */
   font-weight: bold;
   color: #FFF8DC;
   text-align: right;
@@ -751,9 +747,9 @@
 
 .stat-bar-container {
   flex: 1;
-  height: 20px;
+  height: 8px;                 /* уменьшили с 12px до 8px */
   background: rgba(0, 0, 0, 0.5);
-  border-radius: 10px;
+  border-radius: 4px;          /* уменьшили с 6px до 4px */
   overflow: hidden;
   border: 1px solid #5D4037;
   position: relative;
@@ -763,9 +759,9 @@
 .stat-bar {
   height: 100%;
   background: linear-gradient(90deg, #D2691E, #FF8C00, #FFD700);
-  border-radius: 10px;
+  border-radius: 4px;          /* уменьшили с 6px до 4px */
   transition: width 0.3s ease;
-  box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  box-shadow: 0 0 3px rgba(255, 215, 0, 0.5);
   position: relative;
   overflow: hidden;
 }
@@ -804,59 +800,60 @@
 /* Адаптация для мобильных */
 @media (max-width: 768px) {
   .praise-stats-detailed {
-    min-width: 200px;
-    padding: 8px 12px;
+    min-width: 130px;          /* уменьшили с 160px до 130px */
+    padding: 3px 6px;          /* уменьшили с 4px 8px до 3px 6px */
+    gap: 2px;
   }
   
   .total-count {
-    font-size: 1.5em;
+    font-size: 0.9em;          /* уменьшили с 1em до 0.9em */
   }
   
   .total-label {
-    font-size: 0.9em;
+    font-size: 0.6em;          /* уменьшили с 0.7em до 0.6em */
   }
   
   .stat-emoji {
-    font-size: 1.1em;
-    min-width: 28px;
+    font-size: 0.65em;         /* уменьшили с 0.8em до 0.65em */
+    min-width: 16px;           /* уменьшили с 20px до 16px */
   }
   
   .stat-count {
-    min-width: 30px;
-    font-size: 0.9em;
+    min-width: 20px;           /* уменьшили с 24px до 20px */
+    font-size: 0.6em;          /* уменьшили с 0.7em до 0.6em */
   }
   
   .stat-bar-container {
-    height: 16px;
+    height: 7px;               /* уменьшили с 10px до 7px */
   }
 }
 
 @media (max-width: 480px) {
   .praise-stats-detailed {
-    min-width: 150px;
-    padding: 6px 10px;
+    min-width: 110px;          /* уменьшили с 130px до 110px */
+    padding: 2px 4px;          /* уменьшили с 3px 6px до 2px 4px */
   }
   
   .total-count {
-    font-size: 1.3em;
+    font-size: 0.8em;          /* уменьшили с 0.9em до 0.8em */
   }
   
   .total-icon {
-    font-size: 1.2em;
+    font-size: 0.75em;         /* уменьшили с 0.9em до 0.75em */
   }
   
   .stat-emoji {
-    font-size: 1em;
-    min-width: 24px;
+    font-size: 0.6em;          /* уменьшили с 0.7em до 0.6em */
+    min-width: 15px;           /* уменьшили с 18px до 15px */
   }
   
   .stat-count {
-    min-width: 25px;
-    font-size: 0.8em;
+    min-width: 18px;           /* уменьшили с 20px до 18px */
+    font-size: 0.55em;         /* уменьшили с 0.65em до 0.55em */
   }
   
   .stat-bar-container {
-    height: 14px;
+    height: 6px;               /* уменьшили с 8px до 6px */
   }
 }
 
@@ -904,26 +901,26 @@
   border-color: #FFD700;
 }
 
-/* Затемнение фона для модалки документа - ТЕПЕРЬ ПРОЗРАЧНОЕ! */
+/* Затемнение фона для модалки документа - ПРОЗРАЧНОЕ И НЕ КЛИКАБЕЛЬНОЕ */
 .item-view-modal {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: transparent;  /* ПРОЗРАЧНО */
-  backdrop-filter: none;          /* БЕЗ РАЗМЫТИЯ */
+  background-color: transparent;
+  backdrop-filter: none;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 11000;
   animation: fadeIn 0.3s ease-out;
-  pointer-events: none;            /* ПРОПУСКАЕМ КЛИКИ СКВОЗЬ ФОН */
+  pointer-events: none;  /* ← КЛИКИ ПРОХОДЯТ СКВОЗЬ ФОН */
 }
 
-/* Само окно документа должно принимать клики */
+/* Само окно документа - кликабельно */
 .item-view-content {
-  pointer-events: auto;            /* ОКНО ДОКУМЕНТА КЛИКАБЕЛЬНО */
+  pointer-events: auto;  /* ← ОКНО КЛИКАБЕЛЬНО */
   position: relative;
   width: calc(90% + 200px);
   max-width: 1200px;
@@ -936,7 +933,7 @@
   flex-direction: column;
   overflow: hidden;
   animation: scaleIn 0.3s ease-out;
-  margin-top: -12px;
+  margin-top: 130px;
   margin-bottom: 55px;
 }
 
@@ -1130,7 +1127,7 @@
   flex: 1;
   display: flex;
   justify-content: center;
-  min-width: 200px;
+  min-width: 150px;           /* уменьшили с 200px до 150px */
 }
 
 .footer-right {
@@ -1185,6 +1182,7 @@
 }
 
 /* ========== МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ ПОДРАЗДЕЛА ========== */
+/* ЭТО ДОЛЖНО БЫТЬ АКТИВНЫМ! */
 
 .add-subsection-modal-overlay {
   position: fixed;
@@ -1192,16 +1190,18 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(5px);
+  background-color: rgba(0, 0, 0, 0.8);  /* ТЕМНЫЙ ФОН */
+  backdrop-filter: blur(5px);             /* РАЗМЫТИЕ */
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 12000;
+  z-index: 30000;                         /* ВЫШЕ ВСЕХ! */
   animation: fadeIn 0.3s ease-out;
+  pointer-events: auto;                    /* ПЕРЕХВАТЫВАЕТ КЛИКИ */
 }
 
 .add-subsection-modal-content {
+  pointer-events: auto;                    /* ПЕРЕХВАТЫВАЕТ КЛИКИ */
   position: relative;
   width: 450px;
   max-width: 90vw;
@@ -1211,6 +1211,7 @@
   padding: 30px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
   animation: scaleIn 0.3s ease-out;
+  z-index: 30001;
 }
 
 .add-subsection-close-button {
@@ -1229,6 +1230,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
+  z-index: 30002;
 }
 
 .add-subsection-close-button:hover {
@@ -1262,6 +1264,7 @@
   font-size: 1.1em;
   margin-bottom: 25px;
   transition: all 0.3s ease;
+  pointer-events: auto;  /* ПОЛЕ ВВОДА ДОЛЖНО РАБОТАТЬ */
 }
 
 .add-subsection-input:focus {
@@ -1291,6 +1294,7 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
+  pointer-events: auto;
 }
 
 .add-subsection-cancel:hover {
@@ -1313,6 +1317,7 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
+  pointer-events: auto;
 }
 
 .add-subsection-submit:hover:not(:disabled) {
@@ -1332,6 +1337,7 @@
 }
 
 /* ========== МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ ДОКУМЕНТА ========== */
+/* ИСПРАВЛЕНО: ТЕПЕРЬ АКТИВНОЕ И ПЕРЕХВАТЫВАЕТ КЛИКИ */
 
 .add-document-modal-overlay {
   position: fixed;
@@ -1339,16 +1345,18 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(5px);
+  background-color: rgba(0, 0, 0, 0.8);  /* ТЕМНЫЙ ФОН */
+  backdrop-filter: blur(5px);             /* РАЗМЫТИЕ */
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 12000;
+  z-index: 30000;                         /* ВЫШЕ ВСЕХ! (как у модалки подраздела) */
   animation: fadeIn 0.3s ease-out;
+  pointer-events: auto;                    /* ПЕРЕХВАТЫВАЕТ КЛИКИ */
 }
 
 .add-document-modal-content {
+  pointer-events: auto;                    /* ПЕРЕХВАТЫВАЕТ КЛИКИ */
   position: relative;
   width: 600px;
   max-width: 95vw;
@@ -1360,6 +1368,7 @@
   padding: 30px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
   animation: scaleIn 0.3s ease-out;
+  z-index: 30001;
 }
 
 .add-document-close-button {
@@ -1378,7 +1387,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  z-index: 10;
+  z-index: 30002;
 }
 
 .add-document-close-button:hover {
@@ -1423,6 +1432,7 @@
   color: #FFF8DC;
   font-size: 1em;
   transition: all 0.3s ease;
+  pointer-events: auto;  /* ПОЛЕ ВВОДА ДОЛЖНО РАБОТАТЬ */
 }
 
 .add-document-input:focus {
@@ -1443,6 +1453,7 @@
   font-family: inherit;
   resize: vertical;
   transition: all 0.3s ease;
+  pointer-events: auto;  /* ТЕКСТАРЕА ДОЛЖНО РАБОТАТЬ */
 }
 
 .add-document-textarea:focus {
@@ -1467,6 +1478,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
+  pointer-events: auto;  /* ОБЛАСТЬ ЗАГРУЗКИ ДОЛЖНА РАБОТАТЬ */
 }
 
 .add-document-file-area:hover {
@@ -1515,6 +1527,7 @@
   padding: 15px;
   width: 100%;
   flex-wrap: wrap;
+  pointer-events: auto;  /* ИНФОРМАЦИЯ О ФАЙЛЕ ДОЛЖНА РАБОТАТЬ */
 }
 
 .file-icon {
@@ -1547,6 +1560,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
+  pointer-events: auto;  /* КНОПКА УДАЛЕНИЯ ДОЛЖНА РАБОТАТЬ */
 }
 
 .file-remove:hover {
@@ -1563,6 +1577,7 @@
   background: rgba(0, 0, 0, 0.3);
   max-height: 200px;
   overflow: hidden;
+  pointer-events: auto;  /* ПРЕВЬЮ ДОЛЖНО РАБОТАТЬ */
 }
 
 .add-document-preview img {
@@ -1590,6 +1605,7 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
+  pointer-events: auto;  /* КНОПКА ОТМЕНЫ ДОЛЖНА РАБОТАТЬ */
 }
 
 .add-document-cancel:hover {
@@ -1612,6 +1628,7 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
+  pointer-events: auto;  /* КНОПКА СОХРАНЕНИЯ ДОЛЖНА РАБОТАТЬ */
 }
 
 .add-document-submit:hover:not(:disabled) {
@@ -1813,7 +1830,8 @@
     align-self: flex-end;
   }
   
-  .add-subsection-modal-content {
+  .add-subsection-modal-content,
+  .add-document-modal-content {
     padding: 20px;
   }
   
@@ -1826,6 +1844,7 @@
   .footer-center {
     order: -1;
     margin-bottom: 5px;
+    min-width: 130px;          /* уменьшили с 150px до 130px */
   }
   
   .footer-left, .footer-right {
@@ -1956,7 +1975,7 @@
   }
   
   .footer-center {
-    min-width: 100%;
+    min-width: 110px;          /* уменьшили с 130px до 110px */
   }
   
   .praise-stats-detailed {

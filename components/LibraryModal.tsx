@@ -102,7 +102,7 @@ const RATING_POINTS = {
 };
 
 // 👇 ПРАВИЛЬНЫЙ МАССИВ ПОХВАЛ
-const PRAISE_EMOJIS = {
+const PRAISE_EMOJIS: Record<string, string> = {
   "👍": "Молодец!",
   "👏": "Отличная работа!",
   "🔨": "Мастер золотые руки!",
@@ -114,7 +114,7 @@ const PRAISE_EMOJIS = {
 };
 
 // Вспомогательная функция для генерации ID
-const generateId = () => {
+const generateId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
@@ -135,7 +135,7 @@ const PraiseStatsCompact: React.FC<{ item: LibraryItem }> = ({ item }) => {
         🔨 {item.praises.total}
       </span>
       {item.praises.topEmoji && item.praises.topCount > 0 && (
-        <span className="top-emoji" title={`${PRAISE_EMOJIS[item.praises.topEmoji as keyof typeof PRAISE_EMOJIS] || 'Похвала'}`}>
+        <span className="top-emoji" title={`${PRAISE_EMOJIS[item.praises.topEmoji] || 'Похвала'}`}>
           {item.praises.topEmoji} {item.praises.topCount}
         </span>
       )}
@@ -165,60 +165,31 @@ const PraiseStatsDetailed: React.FC<{ item: LibraryItem }> = ({ item }) => {
     );
   }
 
-  // Берем топ-4 эмоции по количеству
+  // Берем топ-4 эмоции по количеству (теперь всегда 4)
   const topEmotions = Object.entries(item.praises.distribution)
     .sort(([, a], [, b]) => (b as number) - (a as number))
     .slice(0, 4);
   
-  const maxCount = topEmotions[0]?.[1] as number || 1;
+  const maxCount = (topEmotions[0]?.[1] as number) || 1;
 
   return (
-    <div className="praise-stats-detailed" style={{
-      background: '#2c1e0e',
-      padding: '15px',
-      borderRadius: '8px',
-      border: '2px solid #8B4513',
-      minWidth: '250px'
-    }}>
-      <div className="praise-total" style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        borderBottom: '2px solid #D2691E',
-        paddingBottom: '8px',
-        marginBottom: '12px'
-      }}>
-        <span style={{ fontSize: '1.5em', color: '#FFD700' }}>🔨</span>
-        <span style={{ fontSize: '1.8em', fontWeight: 'bold', color: '#FFD700' }}>
-          {item.praises.total}
-        </span>
-        <span style={{ color: '#F5DEB3' }}>всего похвал</span>
+    <div className="praise-stats-detailed">
+      <div className="praise-total">
+        <span className="total-icon">🔨</span>
+        <span className="total-count">{item.praises.total}</span>
+        <span className="total-label">всего похвал</span>
       </div>
       
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div className="praise-distribution">
         {topEmotions.map(([emoji, count]) => (
-          <div key={emoji} style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <span style={{ fontSize: '1.3em', minWidth: '32px', color: 'white' }}>{emoji}</span>
-            <span style={{ minWidth: '35px', color: '#FFF8DC', fontWeight: 'bold' }}>
-              {count}
-            </span>
-            <div style={{
-              flex: 1,
-              height: '20px',
-              background: 'rgba(0,0,0,0.5)',
-              borderRadius: '10px',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                height: '100%',
-                width: `${((count as number) / maxCount) * 100}%`,
-                background: 'linear-gradient(90deg, #D2691E, #FF8C00, #FFD700)',
-                borderRadius: '10px'
-              }} />
+          <div key={emoji} className="praise-stat-item">
+            <span className="stat-emoji">{emoji}</span>
+            <span className="stat-count">{count}</span>
+            <div className="stat-bar-container">
+              <div 
+                className="stat-bar" 
+                style={{ width: `${((count as number) / maxCount) * 100}%` }}
+              />
             </div>
           </div>
         ))}
@@ -279,7 +250,7 @@ const AddSubsectionModal: React.FC<{
   );
 };
 
-// Модальное окно добавления документа
+// Модальное окно добавления документа - ИСПРАВЛЕНО!
 const AddDocumentModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -317,7 +288,7 @@ const AddDocumentModal: React.FC<{
 
     // Проверка расширения
     const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
-    if (fileExtensions.length > 0 && !fileExtensions.includes(fileExt)) {
+    if (fileExtensions.length > 0 && fileExt && !fileExtensions.includes(fileExt)) {
       alert(`Недопустимый формат файла. Разрешенные форматы: ${fileExtensions.join(', ')}`);
       return;
     }
@@ -379,12 +350,12 @@ const AddDocumentModal: React.FC<{
       fileSize: selectedFile?.size,
       fileType: selectedFile?.type,
       fileUrl: selectedFile ? URL.createObjectURL(selectedFile) : undefined,
-      // 👇 ДОБАВЛЯЕМ ТЕСТОВЫЕ ДАННЫЕ ПОХВАЛ
+      // 👇 ДОБАВЛЯЕМ ТЕСТОВЫЕ ДАННЫЕ ПОХВАЛ с 4 строками: 15, 9, 8, 7
       praises: {
-        total: 15,
-        distribution: { "👍": 8, "🔨": 4, "👏": 3 },
+        total: 39, // 15+9+8+7
+        distribution: { "👍": 15, "👏": 9, "🔨": 8, "💫": 7 },
         topEmoji: "👍",
-        topCount: 8
+        topCount: 15
       }
     };
 
@@ -399,7 +370,12 @@ const AddDocumentModal: React.FC<{
   return (
     <div 
       className="add-document-modal-overlay" 
-      onClick={onClose}
+      onClick={(e) => {
+        // Закрываем только при клике именно на оверлей
+        if ((e.target as HTMLElement).classList.contains('add-document-modal-overlay')) {
+          onClose();
+        }
+      }}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
@@ -552,12 +528,12 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user1",
                 date: "2024-02-15",
                 likes: 24,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ
+                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
-                  total: 42,
-                  distribution: { "👍": 23, "🔨": 12, "👏": 5, "💫": 2 },
+                  total: 39,
+                  distribution: { "👍": 15, "👏": 9, "🔨": 8, "💫": 7 },
                   topEmoji: "👍",
-                  topCount: 23
+                  topCount: 15
                 }
               },
               {
@@ -571,12 +547,12 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user2",
                 date: "2024-02-20",
                 likes: 15,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ
+                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
-                  total: 18,
-                  distribution: { "👏": 8, "👍": 6, "🔨": 4 },
+                  total: 39,
+                  distribution: { "👏": 15, "👍": 9, "🔨": 8, "💫": 7 },
                   topEmoji: "👏",
-                  topCount: 8
+                  topCount: 15
                 }
               }
             ]
@@ -596,10 +572,10 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user3",
                 date: "2024-02-18",
                 likes: 31,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ
+                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
-                  total: 31,
-                  distribution: { "🔨": 15, "👍": 10, "👏": 6 },
+                  total: 39,
+                  distribution: { "🔨": 15, "👍": 9, "👏": 8, "💫": 7 },
                   topEmoji: "🔨",
                   topCount: 15
                 }
@@ -632,12 +608,12 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user4",
                 date: "2024-02-10",
                 likes: 42,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ
+                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
-                  total: 56,
-                  distribution: { "🤝": 18, "👍": 14, "👏": 10, "🔨": 8, "💫": 4, "🎨": 2 },
+                  total: 39,
+                  distribution: { "🤝": 15, "👍": 9, "👏": 8, "🔨": 7 },
                   topEmoji: "🤝",
-                  topCount: 18
+                  topCount: 15
                 }
               }
             ]
@@ -657,12 +633,12 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user5",
                 date: "2024-02-12",
                 likes: 28,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ
+                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
-                  total: 34,
-                  distribution: { "👍": 10, "👏": 8, "🔨": 6, "🤝": 5, "💫": 3, "🎨": 2 },
+                  total: 39,
+                  distribution: { "👍": 15, "👏": 9, "🔨": 8, "🤝": 7 },
                   topEmoji: "👍",
-                  topCount: 10
+                  topCount: 15
                 }
               }
             ]
@@ -694,12 +670,12 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 date: "2024-02-05",
                 likes: 56,
                 thumbnail: "/thumbnails/bench.jpg",
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ
+                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
-                  total: 67,
-                  distribution: { "🔨": 34, "👍": 20, "👏": 10, "💫": 3 },
+                  total: 39,
+                  distribution: { "🔨": 15, "👍": 9, "👏": 8, "💫": 7 },
                   topEmoji: "🔨",
-                  topCount: 34
+                  topCount: 15
                 }
               }
             ]
@@ -719,12 +695,12 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user7",
                 date: "2024-02-08",
                 likes: 34,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ
+                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
-                  total: 45,
-                  distribution: { "🔨": 22, "👍": 15, "👏": 5, "💫": 3 },
+                  total: 39,
+                  distribution: { "🔨": 15, "👍": 9, "👏": 8, "💫": 7 },
                   topEmoji: "🔨",
-                  topCount: 22
+                  topCount: 15
                 }
               }
             ]
@@ -756,12 +732,12 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 date: "2024-02-14",
                 likes: 47,
                 thumbnail: "/thumbnails/workbench.jpg",
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ
+                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
-                  total: 78,
-                  distribution: { "👍": 40, "👏": 20, "🔨": 15, "💫": 3 },
+                  total: 39,
+                  distribution: { "👍": 15, "👏": 9, "🔨": 8, "💫": 7 },
                   topEmoji: "👍",
-                  topCount: 40
+                  topCount: 15
                 }
               }
             ]
@@ -782,12 +758,12 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 date: "2024-02-16",
                 likes: 89,
                 thumbnail: "/thumbnails/soldering.jpg",
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ
+                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
-                  total: 92,
-                  distribution: { "👏": 45, "👍": 30, "🔨": 12, "💫": 5 },
+                  total: 39,
+                  distribution: { "👏": 15, "👍": 9, "🔨": 8, "💫": 7 },
                   topEmoji: "👏",
-                  topCount: 45
+                  topCount: 15
                 }
               }
             ]
@@ -818,12 +794,12 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user10",
                 date: "2024-02-19",
                 likes: 23,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ
+                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
-                  total: 28,
-                  distribution: { "💡": 12, "👍": 8, "🔨": 5, "👏": 3 },
+                  total: 39,
+                  distribution: { "💡": 15, "👍": 9, "🔨": 8, "👏": 7 },
                   topEmoji: "💡",
-                  topCount: 12
+                  topCount: 15
                 }
               }
             ]
@@ -1147,7 +1123,15 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   const currentSubsection = getCurrentSubsection();
 
   return (
-    <div className="library-modal-overlay" onClick={onClose}>
+    <div 
+      className="library-modal-overlay" 
+      onClick={(e) => {
+        // Закрываем только при клике именно на оверлей
+        if ((e.target as HTMLElement).classList.contains('library-modal-overlay')) {
+          onClose();
+        }
+      }}
+    >
       <div className="library-modal-content" onClick={e => e.stopPropagation()}>
         
         {/* Кнопка закрытия */}

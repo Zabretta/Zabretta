@@ -192,14 +192,14 @@ export interface MarketModerationStats {
   rejected: number;
 }
 
-// ===== СУЩЕСТВУЮЩИЕ ТИПЫ РЕЙТИНГА =====
+// ===== ОБНОВЛЕННЫЕ ТИПЫ РЕЙТИНГА С ПОХВАЛОЙ =====
 
 export interface RatingRecord {
   id: string;
   userId: string;
-  type: 'PROJECT' | 'MASTER' | 'HELP' | 'LIBRARY' | 'DAILY' | 'REGISTRATION';
-  section: 'PROJECTS' | 'MASTERS' | 'HELP' | 'LIBRARY' | 'GENERAL';
-  action: 'CREATE' | 'LIKE_GIVEN' | 'LIKE_RECEIVED' | 'COMMENT' | 'DAILY_LOGIN';
+  type: 'PROJECT' | 'MASTER' | 'HELP' | 'LIBRARY' | 'DAILY' | 'REGISTRATION' | 'PRAISE';  // 👈 ДОБАВЛЕНО 'PRAISE'
+  section: 'PROJECTS' | 'MASTERS' | 'HELP' | 'LIBRARY' | 'GENERAL' | 'PRAISE';  // 👈 ДОБАВЛЕНО 'PRAISE'
+  action: 'CREATE' | 'LIKE_GIVEN' | 'LIKE_RECEIVED' | 'COMMENT' | 'DAILY_LOGIN' | 'PRAISE_RECEIVED';  // 👈 ДОБАВЛЕНО 'PRAISE_RECEIVED'
   points: number;
   ratingPoints: number;
   activityPoints: number;
@@ -224,6 +224,63 @@ export interface UserRating {
     likesReceived: number;
     commentsMade: number;
   };
+  // 👇 ДОБАВЛЕНЫ ПОЛЯ ДЛЯ СТАТИСТИКИ ПОХВАЛ (ОПЦИОНАЛЬНО)
+  praisesStats?: {
+    given: number;      // сколько похвал отправил пользователь
+    received: number;   // сколько похвал получил пользователь
+  };
+}
+
+// 👇 НОВЫЙ ИНТЕРФЕЙС ДЛЯ ДАННЫХ ПОХВАЛЫ
+export interface PraiseData {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  contentId?: string | null;
+  praiseType: 'GREAT' | 'EXCELLENT' | 'MASTER' | 'INSPIRING' | 'CREATIVE' | 'DETAILED' | 'HELPFUL' | 'THANKS';
+  message?: string | null;
+  createdAt: string;
+  fromUser?: {
+    id: string;
+    login: string;
+    name?: string | null;
+    avatar?: string | null;
+  };
+  toUser?: {
+    id: string;
+    login: string;
+    name?: string | null;
+    avatar?: string | null;
+  };
+  content?: {
+    id: string;
+    title: string;
+    type: ContentType;
+  } | null;
+}
+
+// 👇 НОВЫЙ ИНТЕРФЕЙС ДЛЯ ЗАПРОСА НА СОЗДАНИЕ ПОХВАЛЫ
+export interface CreatePraiseRequest {
+  toUserId: string;
+  contentId?: string;
+  praiseType: 'GREAT' | 'EXCELLENT' | 'MASTER' | 'INSPIRING' | 'CREATIVE' | 'DETAILED' | 'HELPFUL' | 'THANKS';
+  message?: string;
+}
+
+// 👇 НОВЫЙ ИНТЕРФЕЙС ДЛЯ ПАРАМЕТРОВ ПОЛУЧЕНИЯ ПОХВАЛ
+export interface GetPraisesParams {
+  userId?: string;
+  contentId?: string;
+  page?: number;
+  limit?: number;
+}
+
+// 👇 НОВЫЙ ИНТЕРФЕЙС ДЛЯ ОТВЕТА СО СПИСКОМ ПОХВАЛ
+export interface PraisesResponse {
+  praises: PraiseData[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export const USER_LEVELS = [

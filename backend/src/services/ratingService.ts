@@ -208,6 +208,8 @@ export class RatingService {
       { section: 'library', action: 'like_given', ratingPoints: 0, activityPoints: 2, description: 'Лайк публикации' },
       { section: 'general', action: 'registration', ratingPoints: 15, activityPoints: 0, description: 'Регистрация на сайте' },
       { section: 'general', action: 'daily_login', ratingPoints: 0, activityPoints: 2, description: 'Ежедневный вход' },
+      // 👇 ДОБАВЛЕНА ФОРМУЛА ДЛЯ ПОХВАЛЫ
+      { section: 'praise', action: 'praise_received', ratingPoints: 2, activityPoints: 3, description: 'Получил похвалу за полезный совет' }
     ];
     
     const recentAdjustments = await prisma.rating_adjustments.findMany({
@@ -292,6 +294,19 @@ export class RatingService {
             ratingChange: 0,
             activityChange: 0,
             message: 'Бонус за сегодня уже получен'
+          };
+        }
+      }
+
+      // 👇 ДОБАВЛЕНО: Проверка для похвалы (нельзя похвалить самого себя)
+      if (action === 'praise_received' && targetId) {
+        // Здесь проверка будет в praiseService, но оставим на всякий случай
+        if (userId === targetId) {
+          return {
+            awarded: false,
+            ratingChange: 0,
+            activityChange: 0,
+            message: 'Нельзя похвалить самого себя'
           };
         }
       }

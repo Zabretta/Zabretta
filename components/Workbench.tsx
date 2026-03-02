@@ -9,9 +9,12 @@ import SettingsModal from "./SettingsModal";
 import ProfileModal from "./ProfileModal";
 import NotificationsModal from "./NotificationsModal";
 import LibraryModal from "./LibraryModal";
+import PraiseModal from "./PraiseModal";
 import { useAuth } from "./useAuth";
 import { useSettings } from "./SettingsContext";
 import { useRating, RatingProvider } from "./RatingContext";
+import { usePraise } from "./PraiseContext";
+import { praiseApi } from "@/lib/api/praise";
 import { adminSimulationService } from "@/services/adminSimulationService";
 import AdminIcon from "./AdminIcon";
 
@@ -24,16 +27,15 @@ function WorkbenchContent() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isPraiseModalOpen, setIsPraiseModalOpen] = useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   
-  // 👇 ДОБАВЛЕНО: флаг для определения клиентской стороны
   const [isClient, setIsClient] = useState(false);
   
-  // 👇 ПОЛУЧАЕМ onlineCount ИЗ КОНТЕКСТА
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen, isAdmin, onlineCount } = useAuth();
+  const { currentContent, clearCurrentContent } = usePraise();
   
-  // Реальные данные с бэкенда
   const [realStats, setRealStats] = useState({
     online: 0,
     total: 0,
@@ -41,7 +43,6 @@ function WorkbenchContent() {
     adviceGiven: 0
   });
   
-  // Данные для отображения (реальные + симуляция)
   const [displayStats, setDisplayStats] = useState({
     online: 150,
     total: 207,
@@ -58,28 +59,38 @@ function WorkbenchContent() {
   const { settings } = useSettings();
   const { userRating } = useRating();
 
-  // 👇 ДОБАВЛЕНО: устанавливаем флаг клиента после монтирования
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // 👇 ОБНОВЛЯЕМ displayStats КОГДА МЕНЯЕТСЯ onlineCount
+  // Функция обновления отображаемой статистики
+  const updateDisplayStats = useCallback((real: typeof realStats, currentOnline: number) => {
+    const simState = adminSimulationService.getState();
+    
+    const newOnline = simState.isOnlineSimulationActive 
+      ? currentOnline + simState.onlineFake 
+      : currentOnline;
+    
+    const newTotal = simState.isTotalSimulationActive 
+      ? real.total + simState.totalFake 
+      : real.total;
+    
+    setDisplayStats({
+      online: newOnline,
+      total: newTotal,
+      projectsCreated: real.projectsCreated,
+      adviceGiven: real.adviceGiven
+    });
+    
+    console.log(`[Workbench] Обновлен онлайн: ${currentOnline} реальных + ${simState.onlineFake} фиктивных = ${newOnline}`);
+  }, []);
+
+  // Эффект для обновления при изменении данных
   useEffect(() => {
     if (realStats && isClient) {
-      const simState = adminSimulationService.getState();
-      setDisplayStats({
-        online: simState.isOnlineSimulationActive 
-          ? onlineCount + simState.onlineFake 
-          : onlineCount,
-        total: simState.isTotalSimulationActive 
-          ? realStats.total + simState.totalFake 
-          : realStats.total,
-        projectsCreated: realStats.projectsCreated,
-        adviceGiven: realStats.adviceGiven
-      });
-      console.log(`[Workbench] Обновлен онлайн: ${onlineCount} реальных + ${simState.onlineFake} фиктивных = ${displayStats.online}`);
+      updateDisplayStats(realStats, onlineCount);
     }
-  }, [onlineCount, realStats, isClient]);
+  }, [onlineCount, realStats, isClient, updateDisplayStats]);
 
   // Определяем мобильное устройство
   useEffect(() => {
@@ -121,7 +132,6 @@ function WorkbenchContent() {
       
       console.log('[Workbench] Данные с бэкенда:', data);
       
-      // Получаем реальные значения
       const newRealStats = {
         online: data.users?.online || 0,
         total: data.users?.total || 0,
@@ -130,47 +140,15 @@ function WorkbenchContent() {
       };
       
       setRealStats(newRealStats);
+      updateDisplayStats(newRealStats, onlineCount);
       
-      // Обновляем отображаемые данные с учётом симуляции
-      const simState = adminSimulationService.getState();
-      setDisplayStats({
-        online: simState.isOnlineSimulationActive 
-          ? onlineCount + simState.onlineFake 
-          : onlineCount,
-        total: simState.isTotalSimulationActive 
-          ? newRealStats.total + simState.totalFake 
-          : newRealStats.total,
-        projectsCreated: newRealStats.projectsCreated,
-        adviceGiven: newRealStats.adviceGiven
-      });
-      
-      console.log('[Workbench] Реальные данные установлены:', newRealStats);
     } catch (error) {
       console.error('[Workbench] Ошибка загрузки:', error);
     } finally {
       setIsLoading(false);
       setIsInitialized(true);
     }
-  }, [onlineCount]);
-
-  // Обновление отображаемых данных (реальные + симуляция)
-  const updateDisplayStats = useCallback((real: typeof realStats) => {
-    const simState = adminSimulationService.getState();
-    
-    const newDisplayStats = {
-      online: simState.isOnlineSimulationActive 
-        ? onlineCount + simState.onlineFake 
-        : onlineCount,
-      total: simState.isTotalSimulationActive 
-        ? real.total + simState.totalFake 
-        : real.total,
-      projectsCreated: real.projectsCreated,
-      adviceGiven: real.adviceGiven
-    };
-    
-    setDisplayStats(newDisplayStats);
-    console.log('[Workbench] Отображаемые данные обновлены:', newDisplayStats);
-  }, [onlineCount]);
+  }, [onlineCount, updateDisplayStats]);
 
   // Подписка на изменения симуляции
   useEffect(() => {
@@ -178,11 +156,13 @@ function WorkbenchContent() {
     
     const unsubscribe = adminSimulationService.subscribe(() => {
       console.log('[Workbench] Получено обновление симуляции');
-      updateDisplayStats(realStats);
+      if (realStats) {
+        updateDisplayStats(realStats, onlineCount);
+      }
     });
     
     return unsubscribe;
-  }, [realStats, updateDisplayStats]);
+  }, [realStats, onlineCount, updateDisplayStats]);
 
   // Загрузка данных при старте
   useEffect(() => {
@@ -214,28 +194,15 @@ function WorkbenchContent() {
         };
         
         setRealStats(newRealStats);
+        updateDisplayStats(newRealStats, onlineCount);
         
-        const simState = adminSimulationService.getState();
-        
-        setDisplayStats({
-          online: simState.isOnlineSimulationActive 
-            ? onlineCount + simState.onlineFake 
-            : onlineCount,
-          total: simState.isTotalSimulationActive 
-            ? newRealStats.total + simState.totalFake 
-            : newRealStats.total,
-          projectsCreated: newRealStats.projectsCreated,
-          adviceGiven: newRealStats.adviceGiven
-        });
-        
-        console.log('[Workbench] Фоновое обновление завершено');
       } catch (error) {
         console.error('[Workbench] Ошибка фонового обновления:', error);
       }
     }, 30000);
     
     return () => clearInterval(interval);
-  }, [isInitialized, onlineCount]);
+  }, [isInitialized, onlineCount, updateDisplayStats]);
 
   // Загрузка уведомлений
   const loadUnreadCount = useCallback(async () => {
@@ -290,6 +257,60 @@ function WorkbenchContent() {
   const handleLibraryClick = () => {
     setIsLibraryOpen(true);
     console.log('Открытие библиотеки');
+  };
+
+  // ИСПРАВЛЕНО: обработчик похвалы без явной типизации
+  const handlePraise = async (praiseId: string) => {
+    if (!isAuthenticated) {
+      alert('Необходимо авторизоваться');
+      setIsPraiseModalOpen(false);
+      return;
+    }
+
+    if (!currentContent) {
+      alert('Сначала откройте проект, мастерскую или материал для похвалы');
+      setIsPraiseModalOpen(false);
+      return;
+    }
+
+    // Нельзя похвалить самого себя
+    if (currentContent.authorId === user?.id || currentContent.authorId === user?.login) {
+      alert('Нельзя похвалить самого себя');
+      setIsPraiseModalOpen(false);
+      return;
+    }
+
+    try {
+      console.log(`[Workbench] Отправка похвалы:`, {
+        praiseId,
+        toUserId: currentContent.authorId,
+        contentId: currentContent.id,
+        type: currentContent.type
+      });
+
+      // 👇 УБРАЛИ ЯВНУЮ ТИПИЗАЦИЮ - используем результат как есть
+      const result = await praiseApi.createPraise({
+        toUserId: currentContent.authorId,
+        contentId: currentContent.id,
+        praiseType: praiseId as any
+      });
+
+      // 👇 ПРОВЕРЯЕМ НАЛИЧИЕ ПОЛЯ praise В ОТВЕТЕ
+      if (result && result.praise) {
+        alert(`✅ Вы похвалили "${currentContent.title}"! Автор получит +2 рейтинга и +3 активности`);
+        
+        // Очищаем контекст после успешной похвалы
+        clearCurrentContent();
+        setIsPraiseModalOpen(false);
+      } else {
+        // Проверяем наличие ошибки в ответе
+        const errorMsg = (result as any)?.error || 'Не удалось отправить похвалу';
+        alert(`Ошибка: ${errorMsg}`);
+      }
+    } catch (error) {
+      console.error('[Workbench] Ошибка при отправке похвалы:', error);
+      alert('Произошла ошибка при отправке похвалы');
+    }
   };
 
   const handleDrawerClick = (drawerId: string) => {
@@ -351,7 +372,7 @@ function WorkbenchContent() {
   ];
 
   const tools = [
-    { id: "hammer", label: "Похвалить", icon: "🔨" },
+    { id: "hammer", label: "Похвалить", icon: "🔨", action: () => setIsPraiseModalOpen(true) },
     { id: "share", label: "Поделиться", icon: "📤" },
     { id: "heart", label: "Избранное", icon: "❤️" },
     { id: "pencil", label: "Комментировать", icon: "✏️" },
@@ -503,12 +524,11 @@ function WorkbenchContent() {
               </div>
 
               <div className="community-stats">
-                <div className="stat-item" title="Реальные онлайн + фиктивные онлайн (диапазон 100-200)">
+                <div className="stat-item" title="Реальные онлайн + фиктивные онлайн">
                   <span className="stat-number">
                     {isClient ? displayStats.online.toLocaleString() : '...'}
                   </span>
                   <span className="stat-label">Кулибиных на сайте</span>
-                  {/* 👇 УБРАНО: детальная информация о реальных/фиктивных */}
                 </div>
                 <div className="stat-item" title="Реальные зарегистрированные + фиктивные">
                   <span className="stat-number">
@@ -632,6 +652,14 @@ function WorkbenchContent() {
           currentUser={user}
         />
       )}
+
+      <PraiseModal 
+        isOpen={isPraiseModalOpen}
+        onClose={() => setIsPraiseModalOpen(false)}
+        onPraise={handlePraise}
+        projectTitle={currentContent?.title || "текущий проект"}
+        authorName={currentContent?.authorName || currentContent?.authorId || "пользователь"}
+      />
     </div>
   );
 }

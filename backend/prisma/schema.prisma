@@ -39,6 +39,7 @@ model content {
   
   likeRecords   Like[]
   commentRecords Comment[]
+  praises       Praise[]      // 👈 Добавлена связь с похвалами
 
   @@map("content")
 }
@@ -73,6 +74,44 @@ model Comment {
   @@index([contentId])
   @@index([createdAt])
   @@map("comments")
+}
+
+// 👇 НОВАЯ МОДЕЛЬ ПОХВАЛ
+model Praise {
+  id          String        @id @default(cuid())
+  fromUserId  String        @map("from_user_id")
+  toUserId    String        @map("to_user_id")
+  contentId   String?       @map("content_id")     // За какой контент (проект, пост и т.д.)
+  praiseType  PraiseType    @map("praise_type")    // Тип похвалы (great, excellent, master...)
+  message     String?                              // Дополнительный текст
+  createdAt   DateTime      @default(now())        @map("created_at")
+
+  // Связи
+  fromUser    users         @relation("PraiseFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser      users         @relation("PraiseToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+  content     content?      @relation(fields: [contentId], references: [id], onDelete: SetNull)
+
+  // Уникальность: один пользователь может похвалить конкретный контент только один раз
+  @@unique([fromUserId, contentId])
+  // Индексы для быстрого поиска
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([contentId])
+  @@index([createdAt])
+  
+  @@map("praises")
+}
+
+// 👇 НОВЫЙ ENUM ДЛЯ ТИПОВ ПОХВАЛ
+enum PraiseType {
+  GREAT         // 👍 Молодец!
+  EXCELLENT     // 👏 Отличная работа!
+  MASTER        // 🔨 Мастер золотые руки!
+  INSPIRING     // 💫 Вдохновляет!
+  CREATIVE      // 🎨 Креативно!
+  DETAILED      // 🔍 Детально проработано
+  HELPFUL       // 🤝 Полезный совет
+  THANKS        // 🙏 Спасибо!
 }
 
 model UserNotification {
@@ -282,6 +321,11 @@ model users {
   showPhone          Boolean              @default(false)
   showEmail          Boolean              @default(false)
   showCity           Boolean              @default(false)
+  
+  // 👇 ДОБАВЛЕНЫ ПОЛЯ ДЛЯ ПОХВАЛ
+  praisesGiven      Praise[]      @relation("PraiseFromUser")  // Похвалы, которые дал пользователь
+  praisesReceived   Praise[]      @relation("PraiseToUser")    // Похвалы, которые получил пользователь
+  praisesCount      Int           @default(0)                  // Счетчик полученных похвал для быстрого доступа
   
   // Связи
   admin_logs         admin_logs[]

@@ -1,0 +1,317 @@
+/* PraiseModal.css */
+
+.praise-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.praise-modal {
+  background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+  border: 3px solid #8B4513;
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 700px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), 0 0 0 2px #5D4037 inset;
+  position: relative;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Кастомный скроллбар для модального окна */
+.praise-modal::-webkit-scrollbar {
+  width: 12px;
+}
+
+.praise-modal::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 6px;
+  border: 1px solid #5D4037;
+}
+
+.praise-modal::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  border-radius: 6px;
+  border: 2px solid #5D4037;
+}
+
+.praise-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #8B4513;
+}
+
+.praise-modal-title {
+  color: #F5DEB3;
+  font-size: 28px;
+  font-weight: bold;
+  text-shadow: 2px 2px 0 #5D4037;
+  margin: 0;
+}
+
+.praise-modal-close {
+  background: none;
+  border: 2px solid #8B4513;
+  color: #F5DEB3;
+  font-size: 24px;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.praise-modal-close:hover {
+  background: #8B4513;
+  color: white;
+  transform: scale(1.1);
+}
+
+.praise-modal-subtitle {
+  color: #D2B48C;
+  font-size: 16px;
+  margin-bottom: 25px;
+  padding: 10px;
+  background: rgba(139, 69, 19, 0.2);
+  border-radius: 8px;
+  border: 1px solid #8B4513;
+}
+
+.praise-modal-author {
+  color: #F5DEB3;
+  font-size: 14px;
+  display: block;
+  margin-top: 5px;
+}
+
+.praise-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.praise-modal-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 10px;
+  background: linear-gradient(135deg, #333, #222);
+  border: 2px solid #5D4037;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.praise-modal-option::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--option-color);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.praise-modal-option:hover::before {
+  opacity: 0.2;
+}
+
+.praise-modal-option:hover {
+  transform: translateY(-5px);
+  border-color: var(--option-color);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.praise-modal-option.selected {
+  border-color: var(--option-color);
+  box-shadow: 0 0 20px var(--option-color);
+  background: linear-gradient(135deg, #444, #333);
+}
+
+.praise-modal-option.selected::before {
+  opacity: 0.3;
+}
+
+.praise-modal-option.submitting {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.praise-option-emoji {
+  font-size: 32px;
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 2;
+}
+
+.praise-option-text {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  color: #F5DEB3;
+}
+
+.praise-modal-feedback {
+  text-align: center;
+  padding: 15px;
+  background: rgba(139, 69, 19, 0.3);
+  border-radius: 8px;
+  margin-top: 15px;
+  border: 1px solid #8B4513;
+}
+
+.feedback-spinner {
+  font-size: 24px;
+  margin-bottom: 10px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.feedback-text {
+  color: #F5DEB3;
+  font-size: 14px;
+}
+
+.praise-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid #8B4513;
+}
+
+.praise-modal-cancel {
+  background: linear-gradient(135deg, #4a4a4a, #333);
+  border: 2px solid #666;
+  border-radius: 8px;
+  color: white;
+  padding: 10px 25px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.praise-modal-cancel:hover {
+  background: linear-gradient(135deg, #666, #4a4a4a);
+  border-color: #888;
+}
+
+.praise-modal-hint {
+  color: #D2B48C;
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 768px) {
+  .praise-modal {
+    padding: 20px;
+    width: 95%;
+  }
+  
+  .praise-modal-title {
+    font-size: 22px;
+  }
+  
+  .praise-modal-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  
+  .praise-modal-option {
+    padding: 15px 8px;
+  }
+  
+  .praise-option-emoji {
+    font-size: 24px;
+  }
+  
+  .praise-option-text {
+    font-size: 12px;
+  }
+  
+  .praise-modal-footer {
+    flex-direction: column-reverse;
+    gap: 15px;
+    align-items: stretch;
+  }
+  
+  .praise-modal-hint {
+    text-align: center;
+    font-size: 12px;
+  }
+  
+  .praise-modal-cancel {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .praise-modal-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .praise-modal-option {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 15px;
+    padding: 12px 15px;
+  }
+  
+  .praise-option-emoji {
+    font-size: 28px;
+    margin-bottom: 0;
+  }
+  
+  .praise-option-text {
+    font-size: 14px;
+  }
+}

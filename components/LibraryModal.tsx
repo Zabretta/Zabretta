@@ -27,7 +27,7 @@ interface LibraryItem {
   fileSize?: number;
   fileType?: string;
   
-  // 👇 НОВОЕ: статистика похвал
+  // 👇 Статистика похвал
   praises?: {
     total: number;
     distribution: Record<string, number>;
@@ -101,7 +101,7 @@ const RATING_POINTS = {
   RECEIVE_PRAISE: 5
 };
 
-// 👇 ПРАВИЛЬНЫЙ МАССИВ ПОХВАЛ
+// Массив похвал
 const PRAISE_EMOJIS: Record<string, string> = {
   "👍": "Молодец!",
   "👏": "Отличная работа!",
@@ -145,19 +145,9 @@ const PraiseStatsCompact: React.FC<{ item: LibraryItem }> = ({ item }) => {
 
 // 👇 КОМПОНЕНТ: детальная статистика похвал для модального окна
 const PraiseStatsDetailed: React.FC<{ item: LibraryItem }> = ({ item }) => {
-  // Для отладки - всегда показываем, даже если нет данных
-  console.log('PraiseStatsDetailed рендерится для:', item.title);
-  
-  // Если нет данных, показываем заглушку
   if (!item.praises) {
     return (
-      <div className="praise-stats-detailed" style={{ 
-        background: '#333', 
-        padding: '15px', 
-        borderRadius: '8px',
-        border: '2px solid orange',
-        minWidth: '250px'
-      }}>
+      <div className="praise-stats-detailed">
         <div style={{ color: 'white', textAlign: 'center' }}>
           ⏳ Нет данных о похвалах
         </div>
@@ -165,7 +155,6 @@ const PraiseStatsDetailed: React.FC<{ item: LibraryItem }> = ({ item }) => {
     );
   }
 
-  // Берем топ-4 эмоции по количеству (теперь всегда 4)
   const topEmotions = Object.entries(item.praises.distribution)
     .sort(([, a], [, b]) => (b as number) - (a as number))
     .slice(0, 4);
@@ -198,6 +187,374 @@ const PraiseStatsDetailed: React.FC<{ item: LibraryItem }> = ({ item }) => {
   );
 };
 
+// ========== МОДАЛЬНЫЕ ОКНА ДЛЯ РЕДАКТИРОВАНИЯ И УДАЛЕНИЯ ==========
+
+// Модальное окно редактирования подраздела
+const EditSubsectionModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (newTitle: string) => void;
+  currentTitle: string;
+  shelfTitle: string;
+}> = ({ isOpen, onClose, onSave, currentTitle, shelfTitle }) => {
+  const [title, setTitle] = useState(currentTitle);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (title.trim() && title.trim() !== currentTitle) {
+      onSave(title.trim());
+      onClose();
+    }
+  };
+
+  return (
+    <div className="edit-subsection-modal-overlay" onClick={onClose}>
+      <div className="edit-subsection-modal-content" onClick={e => e.stopPropagation()}>
+        <button className="edit-subsection-close-button" onClick={onClose}>✕</button>
+        <h2 className="edit-subsection-title">✏️ Редактировать раздел</h2>
+        <p className="edit-subsection-subtitle">в разделе «{shelfTitle}»</p>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="edit-subsection-form-group">
+            <label>Название раздела</label>
+            <input
+              type="text"
+              className="edit-subsection-input"
+              placeholder="Введите новое название"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              autoFocus
+              maxLength={50}
+            />
+          </div>
+          
+          <div className="edit-subsection-warning">
+            <span className="warning-icon">⚠️</span>
+            <span className="warning-text">Изменение названия раздела может повлиять на навигацию пользователей.</span>
+          </div>
+
+          <div className="edit-subsection-buttons">
+            <button type="button" className="edit-subsection-cancel" onClick={onClose}>Отмена</button>
+            <button 
+              type="submit" 
+              className="edit-subsection-submit" 
+              disabled={!title.trim() || title.trim() === currentTitle}
+            >
+              Сохранить изменения
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Модальное окно удаления подраздела
+const DeleteSubsectionModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  subsectionTitle: string;
+  itemsCount: number;
+}> = ({ isOpen, onClose, onConfirm, subsectionTitle, itemsCount }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="delete-subsection-modal-overlay" onClick={onClose}>
+      <div className="delete-subsection-modal-content" onClick={e => e.stopPropagation()}>
+        <button className="delete-subsection-close-button" onClick={onClose}>✕</button>
+        <h2 className="delete-subsection-title">🗑️ Удалить раздел</h2>
+        
+        <div className="delete-subsection-info">
+          <div className="info-item">
+            <span className="info-label">Раздел:</span>
+            <span className="info-value">{subsectionTitle}</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Документов в разделе:</span>
+            <span className="info-value">{itemsCount}</span>
+          </div>
+        </div>
+        
+        <p className="delete-subsection-warning">
+          Это действие <strong>нельзя будет отменить</strong>. Все документы внутри раздела будут безвозвратно удалены.
+        </p>
+
+        <div className="delete-subsection-buttons">
+          <button type="button" className="delete-subsection-cancel" onClick={onClose}>Отмена</button>
+          <button type="button" className="delete-subsection-confirm" onClick={onConfirm}>
+            Удалить раздел
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Модальное окно редактирования документа
+const EditDocumentModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (docData: any) => void;
+  document: LibraryItem;
+  shelf: Section;
+}> = ({ isOpen, onClose, onSave, document, shelf }) => {
+  const [docTitle, setDocTitle] = useState(document.title);
+  const [docContent, setDocContent] = useState(document.content);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const config = SHELF_CONFIG[shelf.id] || {};
+  const allowedTypes = config.allowedTypes || ["text", "photo", "drawing", "video", "other"];
+  const maxFileSize = config.maxFileSize || 10 * 1024 * 1024;
+  const fileExtensions = config.fileExtensions || [];
+
+  if (!isOpen) return null;
+
+  const handleFileSelect = (file: File | null) => {
+    if (!file) {
+      setSelectedFile(null);
+      setFilePreview(null);
+      return;
+    }
+
+    if (file.size > maxFileSize) {
+      alert(`Файл слишком большой. Максимальный размер: ${formatFileSize(maxFileSize)}`);
+      return;
+    }
+
+    const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (fileExtensions.length > 0 && fileExt && !fileExtensions.includes(fileExt)) {
+      alert(`Недопустимый формат файла. Разрешенные форматы: ${fileExtensions.join(', ')}`);
+      return;
+    }
+
+    setSelectedFile(file);
+
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => setFilePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    handleFileSelect(file);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!docTitle.trim()) {
+      alert('Введите название документа');
+      return;
+    }
+
+    let docType: LibraryItem['type'] = document.type;
+    if (selectedFile) {
+      if (selectedFile.type.startsWith('image/')) docType = 'photo';
+      else if (selectedFile.type.startsWith('video/')) docType = 'video';
+      else if (selectedFile.name.match(/\.(dwg|pdf)$/i)) docType = 'drawing';
+      else docType = 'other';
+    }
+
+    const updatedDoc = {
+      ...document,
+      title: docTitle.trim(),
+      content: docContent.trim(),
+      type: docType,
+      ...(selectedFile && {
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.type,
+        fileUrl: URL.createObjectURL(selectedFile)
+      })
+    };
+
+    onSave(updatedDoc);
+    onClose();
+  };
+
+  return (
+    <div 
+      className="edit-document-modal-overlay" 
+      onClick={(e) => {
+        if ((e.target as HTMLElement).classList.contains('edit-document-modal-overlay')) {
+          onClose();
+        }
+      }}
+      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={handleDrop}
+    >
+      <div className="edit-document-modal-content" onClick={e => e.stopPropagation()}>
+        <button className="edit-document-close-button" onClick={onClose}>✕</button>
+        <h2 className="edit-document-title">✏️ Редактировать документ</h2>
+        <p className="edit-document-subtitle">«{document.title}»</p>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="edit-document-form-group">
+            <label>Название:</label>
+            <input
+              type="text"
+              className="edit-document-input"
+              value={docTitle}
+              onChange={(e) => setDocTitle(e.target.value)}
+              placeholder="Введите название документа"
+              maxLength={100}
+              required
+            />
+          </div>
+
+          {allowedTypes.includes('text') && (
+            <div className="edit-document-form-group">
+              <label>Содержание:</label>
+              <textarea
+                className="edit-document-textarea"
+                value={docContent}
+                onChange={(e) => setDocContent(e.target.value)}
+                placeholder="Введите текст документа"
+                rows={5}
+              />
+            </div>
+          )}
+
+          <div className="edit-document-form-group">
+            <label>Заменить файл (необязательно):</label>
+            <div 
+              className={`edit-document-file-area ${isDragging ? 'dragging' : ''}`}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+                accept={fileExtensions.join(',')}
+                style={{ display: 'none' }}
+              />
+              {selectedFile ? (
+                <div className="edit-document-file-info">
+                  <span className="file-icon">📎</span>
+                  <span className="file-name">{selectedFile.name}</span>
+                  <span className="file-size">({formatFileSize(selectedFile.size)})</span>
+                  <button 
+                    type="button"
+                    className="file-remove"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleFileSelect(null);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="file-upload-icon">📂</div>
+                  <p>Нажмите для выбора файла или перетащите</p>
+                  <p className="file-upload-hint">Текущий файл: {document.fileName || 'не прикреплен'}</p>
+                </>
+              )}
+            </div>
+          </div>
+
+          {filePreview && (
+            <div className="edit-document-preview">
+              <img src={filePreview} alt="Preview" />
+            </div>
+          )}
+
+          <div className="edit-document-warning">
+            <span className="warning-icon">⚠️</span>
+            <span className="warning-text">Изменения будут видны всем пользователям сразу после сохранения.</span>
+          </div>
+
+          <div className="edit-document-buttons">
+            <button type="button" className="edit-document-cancel" onClick={onClose}>
+              Отмена
+            </button>
+            <button 
+              type="submit" 
+              className="edit-document-submit"
+              disabled={!docTitle.trim()}
+            >
+              Сохранить изменения
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Модальное окно удаления документа
+const DeleteDocumentModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  documentTitle: string;
+  documentType: string;
+  authorName: string;
+}> = ({ isOpen, onClose, onConfirm, documentTitle, documentType, authorName }) => {
+  if (!isOpen) return null;
+
+  const getTypeLabel = (type: string) => {
+    switch(type) {
+      case 'text': return 'Текстовый документ';
+      case 'photo': return 'Фотография';
+      case 'drawing': return 'Чертеж/Схема';
+      case 'video': return 'Видео';
+      default: return 'Документ';
+    }
+  };
+
+  return (
+    <div className="delete-document-modal-overlay" onClick={onClose}>
+      <div className="delete-document-modal-content" onClick={e => e.stopPropagation()}>
+        <button className="delete-document-close-button" onClick={onClose}>✕</button>
+        <h2 className="delete-document-title">🗑️ Удалить документ</h2>
+        
+        <div className="delete-document-info">
+          <div className="info-item">
+            <span className="info-label">Название:</span>
+            <span className="info-value">{documentTitle}</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Тип:</span>
+            <span className="info-value">{getTypeLabel(documentType)}</span>
+          </div>
+          <div className="info-item">
+            <span className="info-label">Автор:</span>
+            <span className="info-value">{authorName}</span>
+          </div>
+        </div>
+        
+        <p className="delete-document-warning">
+          Это действие <strong>нельзя будет отменить</strong>. Документ будет безвозвратно удален из библиотеки.
+        </p>
+
+        <div className="delete-document-buttons">
+          <button type="button" className="delete-document-cancel" onClick={onClose}>Отмена</button>
+          <button type="button" className="delete-document-confirm" onClick={onConfirm}>
+            Удалить документ
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ========== МОДАЛЬНЫЕ ОКНА ДОБАВЛЕНИЯ ==========
+
 // Модальное окно добавления подраздела
 const AddSubsectionModal: React.FC<{
   isOpen: boolean;
@@ -225,15 +582,18 @@ const AddSubsectionModal: React.FC<{
         <h2 className="add-subsection-title">➕ Добавить раздел</h2>
         <p className="add-subsection-subtitle">в раздел «{shelfTitle}»</p>
         <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            className="add-subsection-input"
-            placeholder="Введите название раздела"
-            value={subsectionTitle}
-            onChange={(e) => setSubsectionTitle(e.target.value)}
-            autoFocus
-            maxLength={50}
-          />
+          <div className="add-subsection-form-group">
+            <label>Название раздела</label>
+            <input
+              type="text"
+              className="add-subsection-input"
+              placeholder="Введите название раздела"
+              value={subsectionTitle}
+              onChange={(e) => setSubsectionTitle(e.target.value)}
+              autoFocus
+              maxLength={50}
+            />
+          </div>
           <div className="add-subsection-buttons">
             <button type="button" className="add-subsection-cancel" onClick={onClose}>Отмена</button>
             <button 
@@ -250,7 +610,7 @@ const AddSubsectionModal: React.FC<{
   );
 };
 
-// Модальное окно добавления документа - ИСПРАВЛЕНО!
+// Модальное окно добавления документа
 const AddDocumentModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -280,13 +640,11 @@ const AddDocumentModal: React.FC<{
       return;
     }
 
-    // Проверка размера
     if (file.size > maxFileSize) {
       alert(`Файл слишком большой. Максимальный размер: ${formatFileSize(maxFileSize)}`);
       return;
     }
 
-    // Проверка расширения
     const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
     if (fileExtensions.length > 0 && fileExt && !fileExtensions.includes(fileExt)) {
       alert(`Недопустимый формат файла. Разрешенные форматы: ${fileExtensions.join(', ')}`);
@@ -295,7 +653,6 @@ const AddDocumentModal: React.FC<{
 
     setSelectedFile(file);
 
-    // Создаем превью для изображений
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (e) => setFilePreview(e.target?.result as string);
@@ -325,7 +682,6 @@ const AddDocumentModal: React.FC<{
       return;
     }
 
-    // Определяем тип документа
     let docType: LibraryItem['type'] = 'text';
     if (selectedFile) {
       if (selectedFile.type.startsWith('image/')) docType = 'photo';
@@ -334,7 +690,6 @@ const AddDocumentModal: React.FC<{
       else docType = 'other';
     }
 
-    // 👇 ДЛЯ ТЕСТА: добавляем демо-данные похвал в каждый новый документ
     const newDoc = {
       id: generateId(),
       contentId: generateId(),
@@ -350,9 +705,8 @@ const AddDocumentModal: React.FC<{
       fileSize: selectedFile?.size,
       fileType: selectedFile?.type,
       fileUrl: selectedFile ? URL.createObjectURL(selectedFile) : undefined,
-      // 👇 ДОБАВЛЯЕМ ТЕСТОВЫЕ ДАННЫЕ ПОХВАЛ с 4 строками: 15, 9, 8, 7
       praises: {
-        total: 39, // 15+9+8+7
+        total: 39,
         distribution: { "👍": 15, "👏": 9, "🔨": 8, "💫": 7 },
         topEmoji: "👍",
         topCount: 15
@@ -371,7 +725,6 @@ const AddDocumentModal: React.FC<{
     <div 
       className="add-document-modal-overlay" 
       onClick={(e) => {
-        // Закрываем только при клике именно на оверлей
         if ((e.target as HTMLElement).classList.contains('add-document-modal-overlay')) {
           onClose();
         }
@@ -481,6 +834,8 @@ const AddDocumentModal: React.FC<{
   );
 };
 
+// ========== ОСНОВНОЙ КОМПОНЕНТ ==========
+
 const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUser }) => {
   const [selectedShelf, setSelectedShelf] = useState<string | null>(null);
   const [selectedSubsection, setSelectedSubsection] = useState<string | null>(null);
@@ -489,11 +844,21 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   const [likedItems, setLikedItems] = useState<Set<string>>(new Set());
   const [showScrollHint, setShowScrollHint] = useState(false);
   
-  // Состояния для модалок
+  // Состояния для модалок добавления
   const [showAddSubsection, setShowAddSubsection] = useState(false);
   const [showAddDocument, setShowAddDocument] = useState(false);
   const [selectedShelfForAdd, setSelectedShelfForAdd] = useState<Section | null>(null);
   const [selectedSubsectionForAdd, setSelectedSubsectionForAdd] = useState<Subsection | null>(null);
+  
+  // Состояния для модалок редактирования/удаления подразделов
+  const [showEditSubsection, setShowEditSubsection] = useState(false);
+  const [showDeleteSubsection, setShowDeleteSubsection] = useState(false);
+  const [editingSubsection, setEditingSubsection] = useState<{ shelf: Section; subsection: Subsection } | null>(null);
+  
+  // Состояния для модалок редактирования/удаления документов
+  const [showEditDocument, setShowEditDocument] = useState(false);
+  const [showDeleteDocument, setShowDeleteDocument] = useState(false);
+  const [editingDocument, setEditingDocument] = useState<{ shelf: Section; document: LibraryItem } | null>(null);
   
   const mainContainerRef = useRef<HTMLDivElement>(null);
   
@@ -501,7 +866,21 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   const ratingContext = useRating();
   const praiseContext = usePraise();
 
-  // 👇 ЗАГРУЗКА ДЕМО-ДАННЫХ С ПОЛЯМИ PRAISES
+  // ========== RBAC: ПРОВЕРКА ПРАВ ДОСТУПА ==========
+  const canEdit = (itemUserId?: string): boolean => {
+    if (!isAuthenticated || !user) return false;
+    
+    // Админ имеет полный доступ ко всему
+    if (user.role === 'admin') return true;
+    
+    // Модератор имеет полный доступ ко всему
+    if (user.role === 'moderator') return true;
+    
+    // Обычный пользователь может редактировать только свои материалы
+    return itemUserId === user.id;
+  };
+
+  // Загрузка демо-данных
   useEffect(() => {
     const mockData: Section[] = [
       {
@@ -516,6 +895,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           {
             id: "recipes-baking",
             title: "Выпечка",
+            createdBy: "user1",
+            createdAt: "2024-02-15",
             items: [
               {
                 id: "recipe-1",
@@ -528,7 +909,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user1",
                 date: "2024-02-15",
                 likes: 24,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
                   total: 39,
                   distribution: { "👍": 15, "👏": 9, "🔨": 8, "💫": 7 },
@@ -547,7 +927,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user2",
                 date: "2024-02-20",
                 likes: 15,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
                   total: 39,
                   distribution: { "👏": 15, "👍": 9, "🔨": 8, "💫": 7 },
@@ -560,6 +939,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           {
             id: "recipes-main",
             title: "Основные блюда",
+            createdBy: "user3",
+            createdAt: "2024-02-18",
             items: [
               {
                 id: "recipe-3",
@@ -572,7 +953,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user3",
                 date: "2024-02-18",
                 likes: 31,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
                   total: 39,
                   distribution: { "🔨": 15, "👍": 9, "👏": 8, "💫": 7 },
@@ -596,6 +976,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           {
             id: "advice-home",
             title: "Домашние хитрости",
+            createdBy: "user1",
+            createdAt: "2024-02-10",
             items: [
               {
                 id: "advice-1",
@@ -605,10 +987,9 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 type: "text",
                 author: "Михаил Волков",
                 authorLogin: "misha_master",
-                userId: "user4",
+                userId: "user1",
                 date: "2024-02-10",
                 likes: 42,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
                   total: 39,
                   distribution: { "🤝": 15, "👍": 9, "👏": 8, "🔨": 7 },
@@ -621,6 +1002,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           {
             id: "advice-garden",
             title: "Сад и огород",
+            createdBy: "user2",
+            createdAt: "2024-02-12",
             items: [
               {
                 id: "advice-2",
@@ -630,10 +1013,9 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 type: "text",
                 author: "Светлана Петрова",
                 authorLogin: "sveta_garden",
-                userId: "user5",
+                userId: "user2",
                 date: "2024-02-12",
                 likes: 28,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
                   total: 39,
                   distribution: { "👍": 15, "👏": 9, "🔨": 8, "🤝": 7 },
@@ -657,6 +1039,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           {
             id: "drawings-furniture",
             title: "Мебель",
+            createdBy: "user6",
+            createdAt: "2024-02-05",
             items: [
               {
                 id: "drawing-1",
@@ -670,7 +1054,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 date: "2024-02-05",
                 likes: 56,
                 thumbnail: "/thumbnails/bench.jpg",
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
                   total: 39,
                   distribution: { "🔨": 15, "👍": 9, "👏": 8, "💫": 7 },
@@ -683,6 +1066,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           {
             id: "drawings-tools",
             title: "Инструменты и приспособления",
+            createdBy: "user7",
+            createdAt: "2024-02-08",
             items: [
               {
                 id: "drawing-2",
@@ -695,7 +1080,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user7",
                 date: "2024-02-08",
                 likes: 34,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
                   total: 39,
                   distribution: { "🔨": 15, "👍": 9, "👏": 8, "💫": 7 },
@@ -719,6 +1103,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           {
             id: "photos",
             title: "Фотографии",
+            createdBy: "user8",
+            createdAt: "2024-02-14",
             items: [
               {
                 id: "photo-1",
@@ -732,7 +1118,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 date: "2024-02-14",
                 likes: 47,
                 thumbnail: "/thumbnails/workbench.jpg",
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
                   total: 39,
                   distribution: { "👍": 15, "👏": 9, "🔨": 8, "💫": 7 },
@@ -745,6 +1130,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           {
             id: "videos",
             title: "Видеоуроки",
+            createdBy: "user9",
+            createdAt: "2024-02-16",
             items: [
               {
                 id: "video-1",
@@ -758,7 +1145,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 date: "2024-02-16",
                 likes: 89,
                 thumbnail: "/thumbnails/soldering.jpg",
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
                   total: 39,
                   distribution: { "👏": 15, "👍": 9, "🔨": 8, "💫": 7 },
@@ -782,6 +1168,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           {
             id: "misc-ideas",
             title: "Идеи и вдохновение",
+            createdBy: "user10",
+            createdAt: "2024-02-19",
             items: [
               {
                 id: "idea-1",
@@ -794,7 +1182,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 userId: "user10",
                 date: "2024-02-19",
                 likes: 23,
-                // 👇 ДЕМО-ДАННЫЕ ПОХВАЛ с 4 строками
                 praises: {
                   total: 39,
                   distribution: { "💡": 15, "👍": 9, "🔨": 8, "👏": 7 },
@@ -808,7 +1195,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
       }
     ];
     
-    // Загружаем сохраненные данные из localStorage
     const savedData = localStorage.getItem('library_data');
     if (savedData) {
       try {
@@ -893,7 +1279,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     };
   }, [isOpen, onClose]);
 
-  // Добавление нового подраздела через модальное окно
+  // ========== ОБРАБОТЧИКИ ДЛЯ ПОДРАЗДЕЛОВ ==========
+
   const handleAddSubsection = (subsectionTitle: string) => {
     if (!selectedShelfForAdd || !isAuthenticated || !user) {
       alert('Необходимо авторизоваться');
@@ -914,7 +1301,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
         : shelf
     ));
 
-    // Начисляем баллы за создание подраздела
     if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
       (ratingContext as any).addRating({
         userId: user.id,
@@ -925,7 +1311,64 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     }
   };
 
-  // Добавление документа
+  const handleEditSubsection = (shelf: Section, subsection: Subsection) => {
+    if (!canEdit(subsection.createdBy)) {
+      alert('У вас нет прав на редактирование этого раздела');
+      return;
+    }
+    setEditingSubsection({ shelf, subsection });
+    setShowEditSubsection(true);
+  };
+
+  const handleSaveSubsection = (newTitle: string) => {
+    if (!editingSubsection) return;
+
+    setLibraryData(prev => prev.map(shelf => 
+      shelf.id === editingSubsection.shelf.id
+        ? {
+            ...shelf,
+            subsections: shelf.subsections.map(sub =>
+              sub.id === editingSubsection.subsection.id
+                ? { ...sub, title: newTitle }
+                : sub
+            )
+          }
+        : shelf
+    ));
+  };
+
+  const handleDeleteSubsection = (shelf: Section, subsection: Subsection) => {
+    if (!canEdit(subsection.createdBy)) {
+      alert('У вас нет прав на удаление этого раздела');
+      return;
+    }
+    setEditingSubsection({ shelf, subsection });
+    setShowDeleteSubsection(true);
+  };
+
+  const handleConfirmDeleteSubsection = () => {
+    if (!editingSubsection) return;
+
+    setLibraryData(prev => prev.map(shelf => 
+      shelf.id === editingSubsection.shelf.id
+        ? {
+            ...shelf,
+            subsections: shelf.subsections.filter(sub => sub.id !== editingSubsection.subsection.id)
+          }
+        : shelf
+    ));
+
+    if (selectedSubsection === editingSubsection.subsection.id) {
+      setSelectedSubsection(null);
+      setSelectedItem(null);
+    }
+
+    setShowDeleteSubsection(false);
+    setEditingSubsection(null);
+  };
+
+  // ========== ОБРАБОТЧИКИ ДЛЯ ДОКУМЕНТОВ ==========
+
   const handleAddDocument = (docData: any) => {
     if (!selectedSubsectionForAdd || !isAuthenticated || !user) return;
 
@@ -942,7 +1385,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
         : shelf
     ));
 
-    // Начисляем баллы за добавление документа
     if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
       let points = RATING_POINTS.ADD_DOCUMENT;
       if (docData.type === 'photo') points = RATING_POINTS.ADD_PHOTO;
@@ -958,13 +1400,74 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     }
   };
 
-  // Открытие модалки добавления подраздела
+  const handleEditDocument = (shelf: Section, document: LibraryItem) => {
+    if (!canEdit(document.userId)) {
+      alert('У вас нет прав на редактирование этого документа');
+      return;
+    }
+    setEditingDocument({ shelf, document });
+    setShowEditDocument(true);
+  };
+
+  const handleSaveDocument = (updatedDoc: LibraryItem) => {
+    if (!editingDocument) return;
+
+    setLibraryData(prev => prev.map(shelf => 
+      shelf.id === editingDocument.shelf.id
+        ? {
+            ...shelf,
+            subsections: shelf.subsections.map(sub => ({
+              ...sub,
+              items: sub.items.map(item =>
+                item.id === updatedDoc.id ? updatedDoc : item
+              )
+            }))
+          }
+        : shelf
+    ));
+
+    setSelectedItem(updatedDoc);
+  };
+
+  const handleDeleteDocument = (shelf: Section, document: LibraryItem) => {
+    if (!canEdit(document.userId)) {
+      alert('У вас нет прав на удаление этого документа');
+      return;
+    }
+    setEditingDocument({ shelf, document });
+    setShowDeleteDocument(true);
+  };
+
+  const handleConfirmDeleteDocument = () => {
+    if (!editingDocument) return;
+
+    setLibraryData(prev => prev.map(shelf => 
+      shelf.id === editingDocument.shelf.id
+        ? {
+            ...shelf,
+            subsections: shelf.subsections.map(sub => ({
+              ...sub,
+              items: sub.items.filter(item => item.id !== editingDocument.document.id)
+            }))
+          }
+        : shelf
+    ));
+
+    if (selectedItem?.id === editingDocument.document.id) {
+      setSelectedItem(null);
+    }
+
+    setShowDeleteDocument(false);
+    setEditingDocument(null);
+  };
+
+  // ========== ОСТАЛЬНЫЕ ОБРАБОТЧИКИ ==========
+
   const openAddSubsectionModal = (shelf: Section) => {
     setSelectedShelfForAdd(shelf);
     setShowAddSubsection(true);
   };
 
-  // Открытие модалки добавления документа
   const openAddDocumentModal = (shelf: Section, subsection: Subsection) => {
     setSelectedShelfForAdd(shelf);
     setSelectedSubsectionForAdd(subsection);
@@ -997,11 +1500,9 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     }, 100);
   };
 
-  // 👇 При клике на документ просто устанавливаем выбранный элемент
   const handleItemClick = (item: LibraryItem) => {
     setSelectedItem(item);
     
-    // Устанавливаем контент для системы похвалы
     praiseContext.setCurrentContent({
       id: item.contentId,
       authorId: item.userId,
@@ -1045,7 +1546,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
       } else {
         newLikedItems.add(itemId);
         
-        // Начисляем баллы автору за лайк
         if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
           (ratingContext as any).addRating({
             userId: item.userId,
@@ -1054,7 +1554,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
             timestamp: new Date().toISOString()
           });
           
-          // Начисляем баллы пользователю за активность
           (ratingContext as any).addRating({
             userId: user?.id,
             points: 1,
@@ -1067,7 +1566,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
       setLikedItems(newLikedItems);
       localStorage.setItem('library_liked_items', JSON.stringify(Array.from(newLikedItems)));
       
-      // Обновить данные в библиотеке
       const updatedData = libraryData.map(section => ({
         ...section,
         subsections: section.subsections.map(sub => ({
@@ -1126,7 +1624,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     <div 
       className="library-modal-overlay" 
       onClick={(e) => {
-        // Закрываем только при клике именно на оверлей
         if ((e.target as HTMLElement).classList.contains('library-modal-overlay')) {
           onClose();
         }
@@ -1134,23 +1631,19 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     >
       <div className="library-modal-content" onClick={e => e.stopPropagation()}>
         
-        {/* Кнопка закрытия */}
         <button className="library-close-button" onClick={onClose}>✕</button>
         
-        {/* Заголовок (центрированный) */}
         <div className="library-header">
           <h2 className="library-title">Библиотека знаний</h2>
           <p className="library-subtitle">Хранилище полезных документов и материалов</p>
         </div>
 
-        {/* Основное содержимое */}
         <div 
           className="library-main" 
           ref={mainContainerRef}
           onScroll={handleScroll}
         >
           
-          {/* Стрелка-подсказка */}
           {showScrollHint && (
             <div className="scroll-hint">
               <div className="scroll-hint-arrow">→</div>
@@ -1158,7 +1651,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
             </div>
           )}
           
-          {/* Стеллажи (левая панель) */}
           <div className="library-shelves">
             {libraryData.map((shelf, index) => {
               const isLeftEdge = index === 0;
@@ -1215,7 +1707,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
             })}
           </div>
 
-          {/* Панель с подразделами */}
           {selectedShelf && currentSection && (
             <div className="library-subsections-panel">
               <h3 className="subsections-title">
@@ -1231,21 +1722,47 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
               )}
               <div className="subsections-list">
                 {currentSection.subsections.map(sub => (
-                  <button
-                    key={sub.id}
-                    className={`subsection-button ${selectedSubsection === sub.id ? 'active' : ''}`}
-                    onClick={() => handleSubsectionClick(sub.id)}
-                  >
-                    <span className="subsection-icon">📁</span>
-                    <span className="subsection-name">{sub.title}</span>
-                    <span className="subsection-count">{sub.items.length}</span>
-                  </button>
+                  <div key={sub.id} className="subsection-item">
+                    <button
+                      className={`subsection-button ${selectedSubsection === sub.id ? 'active' : ''}`}
+                      onClick={() => handleSubsectionClick(sub.id)}
+                    >
+                      <span className="subsection-icon">📁</span>
+                      <span className="subsection-name">{sub.title}</span>
+                      <span className="subsection-count">{sub.items.length}</span>
+                    </button>
+                    
+                    {/* Кнопки редактирования/удаления для подраздела */}
+                    {canEdit(sub.createdBy) && (
+                      <div className="subsection-actions">
+                        <button
+                          className="subsection-edit-button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditSubsection(currentSection, sub);
+                          }}
+                          title="Редактировать раздел"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          className="subsection-delete-button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSubsection(currentSection, sub);
+                          }}
+                          title="Удалить раздел"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Панель со списком документов */}
           {selectedSubsection && (
             <div className="library-items-panel">
               <div className="items-header">
@@ -1319,6 +1836,36 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                     <span>Файл: {selectedItem.fileName} ({formatFileSize(selectedItem.fileSize || 0)})</span>
                   )}
                 </div>
+                
+                {/* Кнопки редактирования/удаления в модалке документа - всегда под заголовком */}
+                {canEdit(selectedItem.userId) && (
+                  <div className="item-view-actions">
+                    <button
+                      className="item-view-edit-button"
+                      onClick={() => {
+                        if (currentSection) {
+                          handleEditDocument(currentSection, selectedItem);
+                        }
+                      }}
+                      title="Редактировать документ"
+                    >
+                      <span>✏️</span>
+                      <span>Редактировать</span>
+                    </button>
+                    <button
+                      className="item-view-delete-button"
+                      onClick={() => {
+                        if (currentSection) {
+                          handleDeleteDocument(currentSection, selectedItem);
+                        }
+                      }}
+                      title="Удалить документ"
+                    >
+                      <span>🗑️</span>
+                      <span>Удалить</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="item-view-body">
@@ -1378,7 +1925,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 )}
               </div>
 
-              {/* Нижняя панель */}
               <div className="item-view-footer">
                 <div className="footer-left">
                   <span className="footer-login">
@@ -1386,7 +1932,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                   </span>
                 </div>
 
-                {/* 👇 СТАТИСТИКА ПОХВАЛ - ТЕПЕРЬ ВСЕГДА ВИДНА */}
                 <div className="footer-center">
                   <PraiseStatsDetailed item={selectedItem} />
                 </div>
@@ -1410,7 +1955,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
         )}
       </div>
 
-      {/* Модалка добавления подраздела */}
+      {/* Модалки для подразделов */}
       <AddSubsectionModal
         isOpen={showAddSubsection}
         onClose={() => {
@@ -1421,7 +1966,29 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
         shelfTitle={selectedShelfForAdd?.title || ''}
       />
 
-      {/* Модалка добавления документа */}
+      <EditSubsectionModal
+        isOpen={showEditSubsection}
+        onClose={() => {
+          setShowEditSubsection(false);
+          setEditingSubsection(null);
+        }}
+        onSave={handleSaveSubsection}
+        currentTitle={editingSubsection?.subsection.title || ''}
+        shelfTitle={editingSubsection?.shelf.title || ''}
+      />
+
+      <DeleteSubsectionModal
+        isOpen={showDeleteSubsection}
+        onClose={() => {
+          setShowDeleteSubsection(false);
+          setEditingSubsection(null);
+        }}
+        onConfirm={handleConfirmDeleteSubsection}
+        subsectionTitle={editingSubsection?.subsection.title || ''}
+        itemsCount={editingSubsection?.subsection.items.length || 0}
+      />
+
+      {/* Модалки для документов */}
       {selectedSubsectionForAdd && selectedShelfForAdd && (
         <AddDocumentModal
           isOpen={showAddDocument}
@@ -1435,6 +2002,33 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           shelf={selectedShelfForAdd}
           currentUser={user}
         />
+      )}
+
+      {editingDocument && (
+        <>
+          <EditDocumentModal
+            isOpen={showEditDocument}
+            onClose={() => {
+              setShowEditDocument(false);
+              setEditingDocument(null);
+            }}
+            onSave={handleSaveDocument}
+            document={editingDocument.document}
+            shelf={editingDocument.shelf}
+          />
+
+          <DeleteDocumentModal
+            isOpen={showDeleteDocument}
+            onClose={() => {
+              setShowDeleteDocument(false);
+              setEditingDocument(null);
+            }}
+            onConfirm={handleConfirmDeleteDocument}
+            documentTitle={editingDocument.document.title}
+            documentType={editingDocument.document.type}
+            authorName={editingDocument.document.author}
+          />
+        </>
       )}
     </div>
   );

@@ -61,14 +61,31 @@ export interface LibraryFilters {
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 
 const checkUserPermissions = (userId: string, itemUserId: string, userRole?: UserRole): boolean => {
+  console.log('🔍 checkUserPermissions:', { 
+    userId, 
+    itemUserId, 
+    userRole,
+    isAdmin: userRole === 'ADMIN',
+    isModerator: userRole === 'MODERATOR',
+    isOwner: userId === itemUserId
+  });
+  
   // Админ может всё
-  if (userRole === 'ADMIN') return true;
+  if (userRole === 'ADMIN') {
+    console.log('✅ Админ - полный доступ');
+    return true;
+  }
   
   // Модератор может всё
-  if (userRole === 'MODERATOR') return true;
+  if (userRole === 'MODERATOR') {
+    console.log('✅ Модератор - полный доступ');
+    return true;
+  }
   
   // Обычный пользователь может только своё
-  return userId === itemUserId;
+  const result = userId === itemUserId;
+  console.log(`👤 Обычный пользователь - ${result ? 'доступ есть' : 'доступа нет'}`);
+  return result;
 };
 
 // ========== ОСНОВНОЙ СЕРВИС ==========
@@ -116,6 +133,8 @@ export class LibraryService {
    */
   static async getAllSections(userId?: string) {
     try {
+      console.log('🔍 getAllSections - userId:', userId || 'не авторизован');
+      
       const sections = await prisma.librarySection.findMany({
         where: { 
           isDeleted: false,
@@ -135,6 +154,8 @@ export class LibraryService {
         }
       });
 
+      console.log(`📦 Найдено разделов: ${sections.length}`);
+
       // Форматируем ответ с подсчетом количества документов и правами
       const formattedSections = await Promise.all(sections.map(async (section) => {
         const itemCount = section.subsections.reduce(
@@ -151,6 +172,7 @@ export class LibraryService {
             select: { role: true }
           });
           
+          console.log(`👤 Для раздела ${section.id} (createdBy: ${section.createdBy})`);
           canEdit = checkUserPermissions(userId, section.createdBy, user?.role);
           canDelete = checkUserPermissions(userId, section.createdBy, user?.role);
         }
@@ -189,6 +211,8 @@ export class LibraryService {
    */
   static async getSectionById(sectionId: string, userId?: string) {
     try {
+      console.log(`🔍 getSectionById - sectionId: ${sectionId}, userId: ${userId || 'не авторизован'}`);
+      
       const section = await prisma.librarySection.findUnique({
         where: { id: sectionId, isDeleted: false },
         include: {
@@ -260,6 +284,8 @@ export class LibraryService {
    */
   static async getSubsections(sectionId: string, userId?: string) {
     try {
+      console.log(`🔍 getSubsections - sectionId: ${sectionId}, userId: ${userId || 'не авторизован'}`);
+      
       // Проверяем существование раздела
       const section = await prisma.librarySection.findUnique({
         where: { id: sectionId, isDeleted: false }
@@ -291,17 +317,25 @@ export class LibraryService {
           select: { role: true }
         });
         userRole = user?.role;
+        console.log(`👤 Роль пользователя ${userId}: ${userRole}`);
       }
 
-      return subsections.map(sub => ({
-        id: sub.id,
-        title: sub.title,
-        itemCount: sub.items.length,
-        createdBy: sub.createdBy,
-        createdAt: sub.createdAt.toISOString(),
-        canEdit: checkUserPermissions(userId || '', sub.createdBy, userRole),
-        canDelete: checkUserPermissions(userId || '', sub.createdBy, userRole)
-      }));
+      return subsections.map(sub => {
+        const canEdit = checkUserPermissions(userId || '', sub.createdBy, userRole);
+        const canDelete = checkUserPermissions(userId || '', sub.createdBy, userRole);
+        
+        console.log(`📦 Подраздел ${sub.id} (createdBy: ${sub.createdBy}): canEdit=${canEdit}, canDelete=${canDelete}`);
+        
+        return {
+          id: sub.id,
+          title: sub.title,
+          itemCount: sub.items.length,
+          createdBy: sub.createdBy,
+          createdAt: sub.createdAt.toISOString(),
+          canEdit,
+          canDelete
+        };
+      });
     } catch (error) {
       console.error('❌ Ошибка получения подразделов:', error);
       throw error;
@@ -313,6 +347,8 @@ export class LibraryService {
    */
   static async getSubsectionById(subsectionId: string, userId?: string) {
     try {
+      console.log(`🔍 getSubsectionById - subsectionId: ${subsectionId}, userId: ${userId || 'не авторизован'}`);
+      
       const subsection = await prisma.librarySubsection.findUnique({
         where: { id: subsectionId, isDeleted: false },
         include: {
@@ -338,6 +374,9 @@ export class LibraryService {
         userRole = user?.role;
       }
 
+      const canEdit = checkUserPermissions(userId || '', subsection.createdBy, userRole);
+      const canDelete = checkUserPermissions(userId || '', subsection.createdBy, userRole);
+
       return {
         id: subsection.id,
         title: subsection.title,
@@ -346,8 +385,8 @@ export class LibraryService {
         itemCount: subsection.items.length,
         createdBy: subsection.createdBy,
         createdAt: subsection.createdAt.toISOString(),
-        canEdit: checkUserPermissions(userId || '', subsection.createdBy, userRole),
-        canDelete: checkUserPermissions(userId || '', subsection.createdBy, userRole)
+        canEdit,
+        canDelete
       };
     } catch (error) {
       console.error('❌ Ошибка получения подраздела:', error);
@@ -360,6 +399,8 @@ export class LibraryService {
    */
   static async getItems(subsectionId: string, userId?: string, page: number = 1, limit: number = 20) {
     try {
+      console.log(`🔍 getItems - subsectionId: ${subsectionId}, userId: ${userId || 'не авторизован'}, page: ${page}, limit: ${limit}`);
+      
       // Проверяем существование подраздела
       const subsection = await prisma.librarySubsection.findUnique({
         where: { id: subsectionId, isDeleted: false }
@@ -404,6 +445,8 @@ export class LibraryService {
         })
       ]);
 
+      console.log(`📦 Найдено документов: ${items.length}, всего: ${total}`);
+
       // Получаем роль пользователя для проверки прав
       let userRole: UserRole | undefined;
       if (userId) {
@@ -412,6 +455,7 @@ export class LibraryService {
           select: { role: true }
         });
         userRole = user?.role;
+        console.log(`👤 Роль пользователя ${userId}: ${userRole}`);
       }
 
       // Форматируем документы и считаем статистику похвал
@@ -432,6 +476,11 @@ export class LibraryService {
             topCount = count;
           }
         });
+
+        const canEdit = checkUserPermissions(userId || '', item.createdBy, userRole);
+        const canDelete = checkUserPermissions(userId || '', item.createdBy, userRole);
+
+        console.log(`📄 Документ ${item.id} (createdBy: ${item.createdBy}): canEdit=${canEdit}, canDelete=${canDelete}`);
 
         return {
           id: item.id,
@@ -457,8 +506,8 @@ export class LibraryService {
             topEmoji,
             topCount
           },
-          canEdit: checkUserPermissions(userId || '', item.createdBy, userRole),
-          canDelete: checkUserPermissions(userId || '', item.createdBy, userRole)
+          canEdit,
+          canDelete
         };
       });
 
@@ -479,6 +528,8 @@ export class LibraryService {
    */
   static async getItemById(itemId: string, userId?: string) {
     try {
+      console.log(`🔍 getItemById - itemId: ${itemId}, userId: ${userId || 'не авторизован'}`);
+      
       const item = await prisma.libraryItem.findUnique({
         where: { id: itemId, isDeleted: false },
         include: {
@@ -550,6 +601,9 @@ export class LibraryService {
         userRole = user?.role;
       }
 
+      const canEdit = checkUserPermissions(userId || '', item.createdBy, userRole);
+      const canDelete = checkUserPermissions(userId || '', item.createdBy, userRole);
+
       return {
         id: item.id,
         title: item.title,
@@ -578,8 +632,8 @@ export class LibraryService {
           topEmoji,
           topCount
         },
-        canEdit: checkUserPermissions(userId || '', item.createdBy, userRole),
-        canDelete: checkUserPermissions(userId || '', item.createdBy, userRole),
+        canEdit,
+        canDelete,
         createdAt: item.date.toISOString(),
         updatedAt: updatedAt ? updatedAt.toISOString() : new Date().toISOString()
       };
@@ -594,6 +648,8 @@ export class LibraryService {
    */
   static async createSubsection(data: CreateSubsectionData) {
     try {
+      console.log('📝 createSubsection - data:', data);
+      
       // Проверяем существование раздела
       const section = await prisma.librarySection.findUnique({
         where: { id: data.sectionId, isDeleted: false }
@@ -622,6 +678,8 @@ export class LibraryService {
         }
       });
 
+      console.log('✅ Подраздел создан:', subsection.id);
+
       return {
         id: subsection.id,
         title: subsection.title,
@@ -640,6 +698,8 @@ export class LibraryService {
    */
   static async createItem(data: CreateItemData) {
     try {
+      console.log('📝 createItem - data:', data);
+      
       // Проверяем существование раздела и подраздела
       const [section, subsection] = await Promise.all([
         prisma.librarySection.findUnique({
@@ -689,6 +749,8 @@ export class LibraryService {
         }
       });
 
+      console.log('✅ Документ создан:', item.id);
+
       return {
         id: item.id,
         title: item.title,
@@ -719,6 +781,8 @@ export class LibraryService {
    */
   static async updateSubsection(subsectionId: string, userId: string, data: UpdateSubsectionData) {
     try {
+      console.log(`📝 updateSubsection - subsectionId: ${subsectionId}, userId: ${userId}, data:`, data);
+      
       const subsection = await prisma.librarySubsection.findUnique({
         where: { id: subsectionId, isDeleted: false }
       });
@@ -747,6 +811,8 @@ export class LibraryService {
         }
       });
 
+      console.log('✅ Подраздел обновлен:', updatedSubsection.id);
+
       return {
         id: updatedSubsection.id,
         title: updatedSubsection.title,
@@ -764,6 +830,8 @@ export class LibraryService {
    */
   static async updateItem(itemId: string, userId: string, data: UpdateItemData) {
     try {
+      console.log(`📝 updateItem - itemId: ${itemId}, userId: ${userId}, data:`, data);
+      
       const item = await prisma.libraryItem.findUnique({
         where: { id: itemId, isDeleted: false }
       });
@@ -805,6 +873,8 @@ export class LibraryService {
       // 👇 ИСПОЛЬЗУЕМ ПРИВЕДЕНИЕ ТИПА ДЛЯ updatedAt
       const updatedAt = (updatedItem as any).updatedAt;
 
+      console.log('✅ Документ обновлен:', updatedItem.id);
+
       return {
         id: updatedItem.id,
         title: updatedItem.title,
@@ -828,6 +898,8 @@ export class LibraryService {
    */
   static async deleteSubsection(subsectionId: string, userId: string) {
     try {
+      console.log(`🗑️ deleteSubsection - subsectionId: ${subsectionId}, userId: ${userId}`);
+      
       const subsection = await prisma.librarySubsection.findUnique({
         where: { id: subsectionId, isDeleted: false }
       });
@@ -867,6 +939,8 @@ export class LibraryService {
         })
       ]);
 
+      console.log('✅ Подраздел удален');
+
       return { success: true };
     } catch (error) {
       console.error('❌ Ошибка удаления подраздела:', error);
@@ -879,6 +953,8 @@ export class LibraryService {
    */
   static async deleteItem(itemId: string, userId: string) {
     try {
+      console.log(`🗑️ deleteItem - itemId: ${itemId}, userId: ${userId}`);
+      
       const item = await prisma.libraryItem.findUnique({
         where: { id: itemId, isDeleted: false }
       });
@@ -907,6 +983,8 @@ export class LibraryService {
         }
       });
 
+      console.log('✅ Документ удален');
+
       return { success: true };
     } catch (error) {
       console.error('❌ Ошибка удаления документа:', error);
@@ -919,6 +997,8 @@ export class LibraryService {
    */
   static async likeItem(itemId: string, userId: string) {
     try {
+      console.log(`❤️ likeItem - itemId: ${itemId}, userId: ${userId}`);
+      
       const item = await prisma.libraryItem.findUnique({
         where: { id: itemId, isDeleted: false }
       });
@@ -972,6 +1052,8 @@ export class LibraryService {
         });
       }
 
+      console.log(`✅ Лайк поставлен, всего лайков: ${updatedItem.likes}`);
+
       return { 
         likes: updatedItem.likes,
         userLiked: true 
@@ -987,6 +1069,8 @@ export class LibraryService {
    */
   static async unlikeItem(itemId: string, userId: string) {
     try {
+      console.log(`💔 unlikeItem - itemId: ${itemId}, userId: ${userId}`);
+      
       const item = await prisma.libraryItem.findUnique({
         where: { id: itemId, isDeleted: false }
       });
@@ -1018,6 +1102,8 @@ export class LibraryService {
         data: { likes: { decrement: 1 } }
       });
 
+      console.log(`✅ Лайк убран, всего лайков: ${updatedItem.likes}`);
+
       return { 
         likes: updatedItem.likes,
         userLiked: false 
@@ -1033,6 +1119,8 @@ export class LibraryService {
    */
   static async canEditItem(itemId: string, userId: string): Promise<boolean> {
     try {
+      console.log(`🔍 canEditItem - itemId: ${itemId}, userId: ${userId}`);
+      
       const item = await prisma.libraryItem.findUnique({
         where: { id: itemId, isDeleted: false }
       });
@@ -1046,7 +1134,10 @@ export class LibraryService {
         select: { role: true }
       });
 
-      return checkUserPermissions(userId, item.createdBy, user?.role);
+      const result = checkUserPermissions(userId, item.createdBy, user?.role);
+      console.log(`✅ Результат проверки: ${result}`);
+
+      return result;
     } catch (error) {
       console.error('❌ Ошибка проверки прав:', error);
       return false;
@@ -1058,6 +1149,8 @@ export class LibraryService {
    */
   static async canEditSubsection(subsectionId: string, userId: string): Promise<boolean> {
     try {
+      console.log(`🔍 canEditSubsection - subsectionId: ${subsectionId}, userId: ${userId}`);
+      
       const subsection = await prisma.librarySubsection.findUnique({
         where: { id: subsectionId, isDeleted: false }
       });
@@ -1071,7 +1164,10 @@ export class LibraryService {
         select: { role: true }
       });
 
-      return checkUserPermissions(userId, subsection.createdBy, user?.role);
+      const result = checkUserPermissions(userId, subsection.createdBy, user?.role);
+      console.log(`✅ Результат проверки: ${result}`);
+
+      return result;
     } catch (error) {
       console.error('❌ Ошибка проверки прав:', error);
       return false;
@@ -1083,6 +1179,8 @@ export class LibraryService {
    */
   static async getStats() {
     try {
+      console.log('📊 getStats - получение статистики библиотеки');
+      
       const [totalItems, totalSections, totalSubsections, byType] = await Promise.all([
         prisma.libraryItem.count({ where: { isDeleted: false } }),
         prisma.librarySection.count({ where: { isDeleted: false, isActive: true } }),
@@ -1114,6 +1212,8 @@ export class LibraryService {
         byTypeObj[item.type] = item._count;
       });
 
+      console.log('📊 Статистика получена');
+
       return {
         totalItems,
         totalSections,
@@ -1139,6 +1239,8 @@ export class LibraryService {
    */
   static async search(params: SearchParams, userId?: string) {
     try {
+      console.log('🔍 search - params:', params, 'userId:', userId);
+      
       const { query, type, sectionId, page, limit } = params;
       const skip = (page - 1) * limit;
 
@@ -1218,6 +1320,8 @@ export class LibraryService {
         subsectionTitle: item.subsection.title,
         canEdit: checkUserPermissions(userId || '', item.createdBy, userRole)
       }));
+
+      console.log(`✅ Найдено ${formattedItems.length} документов из ${total}`);
 
       return {
         data: formattedItems,

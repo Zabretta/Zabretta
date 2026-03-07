@@ -6,53 +6,48 @@ import { useAuth } from "./useAuth";
 import { useRating } from "./RatingContext";
 import { usePraise } from "./PraiseContext";
 import { praiseApi } from "@/lib/api/praise";
+import { libraryApi, LibrarySection as ApiLibrarySection, LibrarySubsection as ApiLibrarySubsection, LibraryItem as ApiLibraryItem } from "@/lib/api/library";
+import { SECTION_UPLOAD_CONFIG, UPLOAD_LIMITS, formatFileSize as configFormatFileSize, validateFile } from "@/lib/config/uploads";
 
-// Типы данных
-interface LibraryItem {
-  id: string;
-  title: string;
-  content: string;
-  type: "text" | "photo" | "drawing" | "video" | "other";
-  author: string;
-  authorLogin: string;
-  userId: string;
-  contentId: string;
-  date: string;
-  likes: number;
-  userLiked?: boolean;
-  thumbnail?: string;
-  url?: string;
-  fileUrl?: string;
-  fileName?: string;
-  fileSize?: number;
-  fileType?: string;
-  
-  // 👇 Статистика похвал
-  praises?: {
-    total: number;
-    distribution: Record<string, number>;
-    topEmoji: string;
-    topCount: number;
-  };
+// Типы для ответов API
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  timestamp: string;
 }
 
-interface Subsection {
-  id: string;
-  title: string;
+interface ItemsResponse {
+  data: ApiLibraryItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+// Расширяем типы из API, добавляя нужные поля
+interface ExtendedApiLibraryItem extends ApiLibraryItem {
+  canEdit?: boolean;
+  canDelete?: boolean;
+}
+
+interface ExtendedApiLibrarySubsection extends ApiLibrarySubsection {
+  canEdit?: boolean;
+  canDelete?: boolean;
+}
+
+// Типы данных (используем расширенные типы)
+interface LibraryItem extends ExtendedApiLibraryItem {
+  contentId: string;
+  userLiked?: boolean;
+}
+
+interface Subsection extends Omit<ExtendedApiLibrarySubsection, 'items'> {
   items: LibraryItem[];
   createdBy?: string;
   createdAt?: string;
 }
 
-interface Section {
-  id: string;
-  title: string;
-  icon: string;
-  words?: string[];
+interface Section extends Omit<ApiLibrarySection, 'subsections'> {
   subsections: Subsection[];
-  allowedTypes: ("text" | "photo" | "drawing" | "video" | "other")[];
-  fileExtensions?: string[];
-  maxFileSize?: number;
 }
 
 interface LibraryModalProps {
@@ -61,33 +56,34 @@ interface LibraryModalProps {
   currentUser?: any;
 }
 
-// Конфигурация стеллажей
-const SHELF_CONFIG: Record<string, Partial<Section>> = {
-  recipes: {
-    allowedTypes: ["text", "photo"],
-    fileExtensions: [".txt", ".md", ".jpg", ".jpeg", ".png", ".gif"],
-    maxFileSize: 10 * 1024 * 1024 // 10MB
-  },
-  advice: {
-    allowedTypes: ["text", "photo"],
-    fileExtensions: [".txt", ".md", ".jpg", ".jpeg", ".png"],
-    maxFileSize: 10 * 1024 * 1024
-  },
-  drawings: {
-    allowedTypes: ["drawing", "photo"],
-    fileExtensions: [".jpg", ".jpeg", ".png", ".gif", ".pdf", ".dwg"],
-    maxFileSize: 20 * 1024 * 1024
-  },
-  "photos-videos": {
-    allowedTypes: ["photo", "video"],
-    fileExtensions: [".jpg", ".jpeg", ".png", ".gif", ".mp4", ".avi", ".mov", ".webm"],
-    maxFileSize: 100 * 1024 * 1024
-  },
-  misc: {
-    allowedTypes: ["text", "photo", "drawing", "video", "other"],
-    fileExtensions: [".txt", ".md", ".pdf", ".zip", ".rar", ".jpg", ".png"],
-    maxFileSize: 50 * 1024 * 1024
-  }
+// Типы для конфигурации загрузок
+interface TextContentConfig {
+  type: 'text';
+  fileRequired: boolean;
+  description: string;
+}
+
+interface FileContentConfig {
+  type: string;
+  fileRequired: boolean;
+  MAX_SIZE: number;
+  ALLOWED_TYPES: string[];
+  ALLOWED_EXTENSIONS: string[];
+  DESCRIPTION: string;
+}
+
+type ContentTypeConfig = TextContentConfig | FileContentConfig;
+
+// Получаем конфигурацию для библиотеки из центрального конфига
+const LIBRARY_CONFIG = SECTION_UPLOAD_CONFIG.LIBRARY;
+
+// Маппинг ID стеллажей на ключи в конфиге
+const SHELF_ID_TO_CONFIG_KEY: Record<string, string> = {
+  recipes: 'recipes',
+  advice: 'advice',
+  drawings: 'drawings',
+  'photos-videos': 'photos-videos',
+  misc: 'misc'
 };
 
 // Система баллов
@@ -113,17 +109,10 @@ const PRAISE_EMOJIS: Record<string, string> = {
   "🙏": "Спасибо!"
 };
 
-// Вспомогательная функция для генерации ID
-const generateId = (): string => {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-};
-
-// Форматирование размера файла
-const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-};
+// Вспомогательная функция для проверки, является ли конфиг файловым
+function isFileConfig(config: ContentTypeConfig): config is FileContentConfig {
+  return 'MAX_SIZE' in config;
+}
 
 // 👇 КОМПОНЕНТ: статистика похвал для карточки документа
 const PraiseStatsCompact: React.FC<{ item: LibraryItem }> = ({ item }) => {
@@ -306,31 +295,41 @@ const EditDocumentModal: React.FC<{
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const config = SHELF_CONFIG[shelf.id] || {};
-  const allowedTypes = config.allowedTypes || ["text", "photo", "drawing", "video", "other"];
-  const maxFileSize = config.maxFileSize || 10 * 1024 * 1024;
-  const fileExtensions = config.fileExtensions || [];
+  // Получаем конфигурацию для текущего стеллажа и типа документа
+  const shelfConfigKey = SHELF_ID_TO_CONFIG_KEY[shelf.id] || 'misc';
+  const shelfConfig = LIBRARY_CONFIG.SHELVES[shelfConfigKey as keyof typeof LIBRARY_CONFIG.SHELVES];
+  
+  // Определяем разрешенные типы для текущего документа
+  const contentType = document.type;
+  const contentTypeConfig = LIBRARY_CONFIG.CONTENT_TYPES[contentType as keyof typeof LIBRARY_CONFIG.CONTENT_TYPES] as ContentTypeConfig;
 
   if (!isOpen) return null;
 
   const handleFileSelect = (file: File | null) => {
+    setFileError(null);
+    
     if (!file) {
       setSelectedFile(null);
       setFilePreview(null);
       return;
     }
 
-    if (file.size > maxFileSize) {
-      alert(`Файл слишком большой. Максимальный размер: ${formatFileSize(maxFileSize)}`);
+    // Проверяем, разрешен ли тип файла для этого стеллажа
+    if (!shelfConfig.allowedTypes.includes(contentType)) {
+      setFileError(`Этот стеллаж не поддерживает файлы типа ${contentType}`);
       return;
     }
 
-    const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
-    if (fileExtensions.length > 0 && fileExt && !fileExtensions.includes(fileExt)) {
-      alert(`Недопустимый формат файла. Разрешенные форматы: ${fileExtensions.join(', ')}`);
-      return;
+    // Валидируем файл только если это файловый тип
+    if (isFileConfig(contentTypeConfig)) {
+      const validation = validateFile(file, contentTypeConfig);
+      if (!validation.valid) {
+        setFileError(validation.error);
+        return;
+      }
     }
 
     setSelectedFile(file);
@@ -359,28 +358,23 @@ const EditDocumentModal: React.FC<{
       return;
     }
 
-    let docType: LibraryItem['type'] = document.type;
-    if (selectedFile) {
-      if (selectedFile.type.startsWith('image/')) docType = 'photo';
-      else if (selectedFile.type.startsWith('video/')) docType = 'video';
-      else if (selectedFile.name.match(/\.(dwg|pdf)$/i)) docType = 'drawing';
-      else docType = 'other';
+    if (fileError) {
+      alert(fileError);
+      return;
     }
 
-    const updatedDoc = {
-      ...document,
+    onSave({
+      id: document.id,
       title: docTitle.trim(),
       content: docContent.trim(),
-      type: docType,
+      type: document.type,
       ...(selectedFile && {
         fileName: selectedFile.name,
         fileSize: selectedFile.size,
         fileType: selectedFile.type,
         fileUrl: URL.createObjectURL(selectedFile)
       })
-    };
-
-    onSave(updatedDoc);
+    });
     onClose();
   };
 
@@ -415,7 +409,7 @@ const EditDocumentModal: React.FC<{
             />
           </div>
 
-          {allowedTypes.includes('text') && (
+          {contentType === 'text' && (
             <div className="edit-document-form-group">
               <label>Содержание:</label>
               <textarea
@@ -428,44 +422,60 @@ const EditDocumentModal: React.FC<{
             </div>
           )}
 
-          <div className="edit-document-form-group">
-            <label>Заменить файл (необязательно):</label>
-            <div 
-              className={`edit-document-file-area ${isDragging ? 'dragging' : ''}`}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
-                accept={fileExtensions.join(',')}
-                style={{ display: 'none' }}
-              />
-              {selectedFile ? (
-                <div className="edit-document-file-info">
-                  <span className="file-icon">📎</span>
-                  <span className="file-name">{selectedFile.name}</span>
-                  <span className="file-size">({formatFileSize(selectedFile.size)})</span>
-                  <button 
-                    type="button"
-                    className="file-remove"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleFileSelect(null);
-                    }}
-                  >
-                    ✕
-                  </button>
+          {contentType !== 'text' && isFileConfig(contentTypeConfig) && (
+            <div className="edit-document-form-group">
+              <label>Заменить файл (необязательно):</label>
+              <div 
+                className={`edit-document-file-area ${isDragging ? 'dragging' : ''} ${fileError ? 'has-error' : ''}`}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+                  accept={contentTypeConfig.ALLOWED_EXTENSIONS.join(',')}
+                  style={{ display: 'none' }}
+                />
+                {selectedFile ? (
+                  <div className="edit-document-file-info">
+                    <span className="file-icon">📎</span>
+                    <span className="file-name">{selectedFile.name}</span>
+                    <span className="file-size">({configFormatFileSize(selectedFile.size)})</span>
+                    <button 
+                      type="button"
+                      className="file-remove"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFileSelect(null);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="file-upload-icon">📂</div>
+                    <p>Нажмите для выбора файла или перетащите</p>
+                    <p className="file-upload-hint">Текущий файл: {document.fileName || 'не прикреплен'}</p>
+                    <p className="file-upload-extensions">
+                      Поддерживаются: {contentTypeConfig.ALLOWED_EXTENSIONS.join(', ')}
+                    </p>
+                    <p className="file-upload-size">
+                      Макс. размер: {configFormatFileSize(contentTypeConfig.MAX_SIZE)}
+                    </p>
+                    <p className="file-upload-description">
+                      {contentTypeConfig.DESCRIPTION}
+                    </p>
+                  </>
+                )}
+              </div>
+              {fileError && (
+                <div className="file-error-message">
+                  ⚠️ {fileError}
                 </div>
-              ) : (
-                <>
-                  <div className="file-upload-icon">📂</div>
-                  <p>Нажмите для выбора файла или перетащите</p>
-                  <p className="file-upload-hint">Текущий файл: {document.fileName || 'не прикреплен'}</p>
-                </>
               )}
             </div>
-          </div>
+          )}
 
           {filePreview && (
             <div className="edit-document-preview">
@@ -485,7 +495,7 @@ const EditDocumentModal: React.FC<{
             <button 
               type="submit" 
               className="edit-document-submit"
-              disabled={!docTitle.trim()}
+              disabled={!docTitle.trim() || (fileError !== null)}
             >
               Сохранить изменения
             </button>
@@ -621,34 +631,44 @@ const AddDocumentModal: React.FC<{
 }> = ({ isOpen, onClose, onAdd, subsection, shelf, currentUser }) => {
   const [docTitle, setDocTitle] = useState("");
   const [docContent, setDocContent] = useState("");
+  const [docType, setDocType] = useState<"text" | "photo" | "drawing" | "video" | "other">("text");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const config = SHELF_CONFIG[shelf.id] || {};
-  const allowedTypes = config.allowedTypes || ["text", "photo", "drawing", "video", "other"];
-  const maxFileSize = config.maxFileSize || 10 * 1024 * 1024;
-  const fileExtensions = config.fileExtensions || [];
+  // Получаем конфигурацию для текущего стеллажа
+  const shelfConfigKey = SHELF_ID_TO_CONFIG_KEY[shelf.id] || 'misc';
+  const shelfConfig = LIBRARY_CONFIG.SHELVES[shelfConfigKey as keyof typeof LIBRARY_CONFIG.SHELVES];
+  
+  // Получаем конфигурацию для выбранного типа контента
+  const contentTypeConfig = LIBRARY_CONFIG.CONTENT_TYPES[docType as keyof typeof LIBRARY_CONFIG.CONTENT_TYPES] as ContentTypeConfig;
 
   if (!isOpen) return null;
 
   const handleFileSelect = (file: File | null) => {
+    setFileError(null);
+    
     if (!file) {
       setSelectedFile(null);
       setFilePreview(null);
       return;
     }
 
-    if (file.size > maxFileSize) {
-      alert(`Файл слишком большой. Максимальный размер: ${formatFileSize(maxFileSize)}`);
+    // Проверяем, разрешен ли тип файла для этого стеллажа
+    if (!shelfConfig.allowedTypes.includes(docType)) {
+      setFileError(`Этот стеллаж не поддерживает файлы типа ${docType}`);
       return;
     }
 
-    const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
-    if (fileExtensions.length > 0 && fileExt && !fileExtensions.includes(fileExt)) {
-      alert(`Недопустимый формат файла. Разрешенные форматы: ${fileExtensions.join(', ')}`);
-      return;
+    // Валидируем файл только если это файловый тип
+    if (isFileConfig(contentTypeConfig)) {
+      const validation = validateFile(file, contentTypeConfig);
+      if (!validation.valid) {
+        setFileError(validation.error);
+        return;
+      }
     }
 
     setSelectedFile(file);
@@ -669,6 +689,13 @@ const AddDocumentModal: React.FC<{
     handleFileSelect(file);
   };
 
+  const handleTypeChange = (type: "text" | "photo" | "drawing" | "video" | "other") => {
+    setDocType(type);
+    setSelectedFile(null);
+    setFilePreview(null);
+    setFileError(null);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -677,47 +704,43 @@ const AddDocumentModal: React.FC<{
       return;
     }
 
-    if (!docContent.trim() && !selectedFile) {
-      alert('Добавьте содержание или выберите файл');
+    if (docType === 'text' && !docContent.trim()) {
+      alert('Добавьте содержание документа');
       return;
     }
 
-    let docType: LibraryItem['type'] = 'text';
-    if (selectedFile) {
-      if (selectedFile.type.startsWith('image/')) docType = 'photo';
-      else if (selectedFile.type.startsWith('video/')) docType = 'video';
-      else if (selectedFile.name.match(/\.(dwg|pdf)$/i)) docType = 'drawing';
-      else docType = 'other';
+    if (docType !== 'text' && !selectedFile) {
+      alert('Выберите файл для загрузки');
+      return;
     }
 
-    const newDoc = {
-      id: generateId(),
-      contentId: generateId(),
+    if (fileError) {
+      alert(fileError);
+      return;
+    }
+
+    const newDoc: any = {
       title: docTitle.trim(),
       content: docContent.trim(),
       type: docType,
-      author: currentUser?.name || currentUser?.login || 'Пользователь',
-      authorLogin: currentUser?.login || 'user',
-      userId: currentUser?.id || 'unknown',
-      date: new Date().toISOString().split('T')[0],
-      likes: 0,
-      fileName: selectedFile?.name,
-      fileSize: selectedFile?.size,
-      fileType: selectedFile?.type,
-      fileUrl: selectedFile ? URL.createObjectURL(selectedFile) : undefined,
-      praises: {
-        total: 0,
-        distribution: {},
-        topEmoji: "",
-        topCount: 0
-      }
+      sectionId: shelf.id,
+      subsectionId: subsection.id
     };
+
+    if (selectedFile) {
+      newDoc.fileName = selectedFile.name;
+      newDoc.fileSize = selectedFile.size;
+      newDoc.fileType = selectedFile.type;
+      newDoc.fileUrl = URL.createObjectURL(selectedFile);
+    }
 
     onAdd(newDoc);
     setDocTitle("");
     setDocContent("");
+    setDocType("text");
     setSelectedFile(null);
     setFilePreview(null);
+    setFileError(null);
     onClose();
   };
 
@@ -752,7 +775,27 @@ const AddDocumentModal: React.FC<{
             />
           </div>
 
-          {allowedTypes.includes('text') && (
+          <div className="add-document-form-group">
+            <label>Тип документа:</label>
+            <div className="document-type-selector">
+              {shelfConfig.allowedTypes.map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  className={`type-button ${docType === type ? 'active' : ''}`}
+                  onClick={() => handleTypeChange(type as any)}
+                >
+                  {type === 'text' && '📄 Текст'}
+                  {type === 'photo' && '🖼️ Фото'}
+                  {type === 'drawing' && '📐 Чертеж'}
+                  {type === 'video' && '🎬 Видео'}
+                  {type === 'other' && '📦 Другое'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {docType === 'text' && (
             <div className="add-document-form-group">
               <label>Содержание:</label>
               <textarea
@@ -761,54 +804,65 @@ const AddDocumentModal: React.FC<{
                 onChange={(e) => setDocContent(e.target.value)}
                 placeholder="Введите текст документа"
                 rows={5}
+                required={docType === 'text'}
               />
             </div>
           )}
 
-          <div className="add-document-form-group">
-            <label>ИЛИ загрузите файл:</label>
-            <div 
-              className={`add-document-file-area ${isDragging ? 'dragging' : ''}`}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
-                accept={fileExtensions.join(',')}
-                style={{ display: 'none' }}
-              />
-              {selectedFile ? (
-                <div className="add-document-file-info">
-                  <span className="file-icon">📎</span>
-                  <span className="file-name">{selectedFile.name}</span>
-                  <span className="file-size">({formatFileSize(selectedFile.size)})</span>
-                  <button 
-                    type="button"
-                    className="file-remove"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleFileSelect(null);
-                    }}
-                  >
-                    ✕
-                  </button>
+          {docType !== 'text' && isFileConfig(contentTypeConfig) && (
+            <div className="add-document-form-group">
+              <label>Загрузите файл:</label>
+              <div 
+                className={`add-document-file-area ${isDragging ? 'dragging' : ''} ${fileError ? 'has-error' : ''}`}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+                  accept={contentTypeConfig.ALLOWED_EXTENSIONS.join(',')}
+                  style={{ display: 'none' }}
+                />
+                {selectedFile ? (
+                  <div className="add-document-file-info">
+                    <span className="file-icon">📎</span>
+                    <span className="file-name">{selectedFile.name}</span>
+                    <span className="file-size">({configFormatFileSize(selectedFile.size)})</span>
+                    <button 
+                      type="button"
+                      className="file-remove"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFileSelect(null);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="file-upload-icon">📂</div>
+                    <p>Нажмите для выбора файла</p>
+                    <p className="file-upload-hint">или перетащите его сюда</p>
+                    <p className="file-upload-extensions">
+                      Поддерживаются: {contentTypeConfig.ALLOWED_EXTENSIONS.join(', ')}
+                    </p>
+                    <p className="file-upload-size">
+                      Макс. размер: {configFormatFileSize(contentTypeConfig.MAX_SIZE)}
+                    </p>
+                    <p className="file-upload-description">
+                      {contentTypeConfig.DESCRIPTION}
+                    </p>
+                  </>
+                )}
+              </div>
+              {fileError && (
+                <div className="file-error-message">
+                  ⚠️ {fileError}
                 </div>
-              ) : (
-                <>
-                  <div className="file-upload-icon">📂</div>
-                  <p>Нажмите для выбора файла</p>
-                  <p className="file-upload-hint">или перетащите его сюда</p>
-                  <p className="file-upload-extensions">
-                    Поддерживаются: {fileExtensions.join(', ')}
-                  </p>
-                  <p className="file-upload-size">
-                    Макс. размер: {formatFileSize(maxFileSize)}
-                  </p>
-                </>
               )}
             </div>
-          </div>
+          )}
 
           {filePreview && (
             <div className="add-document-preview">
@@ -823,7 +877,12 @@ const AddDocumentModal: React.FC<{
             <button 
               type="submit" 
               className="add-document-submit"
-              disabled={!docTitle.trim() || (!docContent.trim() && !selectedFile)}
+              disabled={
+                !docTitle.trim() || 
+                (docType === 'text' && !docContent.trim()) ||
+                (docType !== 'text' && !selectedFile) ||
+                fileError !== null
+              }
             >
               Сохранить
             </button>
@@ -843,6 +902,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   const [libraryData, setLibraryData] = useState<Section[]>([]);
   const [likedItems, setLikedItems] = useState<Set<string>>(new Set());
   const [showScrollHint, setShowScrollHint] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Состояния для модалок добавления
   const [showAddSubsection, setShowAddSubsection] = useState(false);
@@ -871,371 +931,86 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     console.log('👤 LibraryModal - Текущий пользователь:', user);
     console.log('👤 LibraryModal - Роль пользователя:', user?.role);
     console.log('👤 LibraryModal - isAuthenticated:', isAuthenticated);
-    console.log('👤 LibraryModal - user.role (original):', user?.role);
-    console.log('👤 LibraryModal - user.role (uppercase):', user?.role?.toUpperCase());
   }, [user, isAuthenticated]);
 
-  // ========== RBAC: ПРОВЕРКА ПРАВ ДОСТУПА ==========
-  const canEdit = (itemUserId?: string): boolean => {
-    if (!isAuthenticated || !user) {
-      console.log('🔒 canEdit: пользователь не авторизован');
-      return false;
-    }
-    
-    const userRole = user.role?.toUpperCase(); // Приводим к верхнему регистру как в БД
-    console.log('🔒 canEdit: userRole =', userRole);
-    
-    // Админ имеет полный доступ ко всему
-    if (userRole === 'ADMIN') {
-      console.log('✅ canEdit: Админ - полный доступ');
-      return true;
-    }
-    
-    // Модератор имеет полный доступ ко всему
-    if (userRole === 'MODERATOR') {
-      console.log('✅ canEdit: Модератор - полный доступ');
-      return true;
-    }
-    
-    // Обычный пользователь может редактировать только свои материалы
-    const hasAccess = itemUserId === user.id;
-    console.log('👤 canEdit: Обычный пользователь -', hasAccess ? 'доступ есть' : 'доступа нет');
-    return hasAccess;
-  };
-
-  // Проверка на возможность добавления (только авторизация)
-  const canAdd = (): boolean => {
-    return isAuthenticated;
-  };
-
-  // Загрузка демо-данных
+  // Загрузка данных с сервера
   useEffect(() => {
-    const mockData: Section[] = [
-      {
-        id: "recipes",
-        title: "Рецепты",
-        icon: "🍳",
-        words: ["РЕЦЕПТЫ"],
-        allowedTypes: ["text", "photo"],
-        fileExtensions: [".txt", ".md", ".jpg", ".jpeg", ".png", ".gif"],
-        maxFileSize: 10 * 1024 * 1024,
-        subsections: [
-          {
-            id: "recipes-baking",
-            title: "Выпечка",
-            createdBy: "user1",
-            createdAt: "2024-02-15",
-            items: [
-              {
-                id: "recipe-1",
-                contentId: "content-1",
-                title: "Домашний хлеб на закваске",
-                content: "Ингредиенты: мука 500г, вода 350мл, закваска 150г, соль 10г...",
-                type: "text",
-                author: "Петр Иванов",
-                authorLogin: "petr_baker",
-                userId: "user1",
-                date: "2024-02-15",
-                likes: 24,
-                praises: {
-                  total: 39,
-                  distribution: { "👍": 15, "👏": 9, "🔨": 8, "💫": 7 },
-                  topEmoji: "👍",
-                  topCount: 15
-                }
-              },
-              {
-                id: "recipe-2",
-                contentId: "content-2",
-                title: "Пирожки с капустой",
-                content: "Тесто: мука 600г, молоко 250мл, дрожжи 10г, сахар 2ст.л...",
-                type: "text",
-                author: "Анна Смирнова",
-                authorLogin: "anna_cook",
-                userId: "user2",
-                date: "2024-02-20",
-                likes: 15,
-                praises: {
-                  total: 39,
-                  distribution: { "👏": 15, "👍": 9, "🔨": 8, "💫": 7 },
-                  topEmoji: "👏",
-                  topCount: 15
-                }
-              }
-            ]
-          },
-          {
-            id: "recipes-main",
-            title: "Основные блюда",
-            createdBy: "user3",
-            createdAt: "2024-02-18",
-            items: [
-              {
-                id: "recipe-3",
-                contentId: "content-3",
-                title: "Борщ по-домашнему",
-                content: "Свекла 2шт, капуста 300г, картофель 4шт, морковь 1шт...",
-                type: "text",
-                author: "Елена Кузнецова",
-                authorLogin: "elena_cook",
-                userId: "user3",
-                date: "2024-02-18",
-                likes: 31,
-                praises: {
-                  total: 39,
-                  distribution: { "🔨": 15, "👍": 9, "👏": 8, "💫": 7 },
-                  topEmoji: "🔨",
-                  topCount: 15
-                }
-              }
-            ]
-          }
-        ]
-      },
-      {
-        id: "advice",
-        title: "Полезные советы",
-        icon: "💡",
-        words: ["СОВЕТЫ", "ПОЛЕЗНЫЕ"],
-        allowedTypes: ["text", "photo"],
-        fileExtensions: [".txt", ".md", ".jpg", ".jpeg", ".png"],
-        maxFileSize: 10 * 1024 * 1024,
-        subsections: [
-          {
-            id: "advice-home",
-            title: "Домашние хитрости",
-            createdBy: "user1",
-            createdAt: "2024-02-10",
-            items: [
-              {
-                id: "advice-1",
-                contentId: "content-4",
-                title: "Как удалить ржавчину с инструментов",
-                content: "Смешайте уксус с солью в пропорции 1:1, нанесите на ржавчину...",
-                type: "text",
-                author: "Михаил Волков",
-                authorLogin: "misha_master",
-                userId: "user1",
-                date: "2024-02-10",
-                likes: 42,
-                praises: {
-                  total: 39,
-                  distribution: { "🤝": 15, "👍": 9, "👏": 8, "🔨": 7 },
-                  topEmoji: "🤝",
-                  topCount: 15
-                }
-              }
-            ]
-          },
-          {
-            id: "advice-garden",
-            title: "Сад и огород",
-            createdBy: "user2",
-            createdAt: "2024-02-12",
-            items: [
-              {
-                id: "advice-2",
-                contentId: "content-5",
-                title: "Натуральное удобрение из банановой кожуры",
-                content: "Банановую кожуру залейте водой и настаивайте 3 дня...",
-                type: "text",
-                author: "Светлана Петрова",
-                authorLogin: "sveta_garden",
-                userId: "user2",
-                date: "2024-02-12",
-                likes: 28,
-                praises: {
-                  total: 39,
-                  distribution: { "👍": 15, "👏": 9, "🔨": 8, "🤝": 7 },
-                  topEmoji: "👍",
-                  topCount: 15
-                }
-              }
-            ]
-          }
-        ]
-      },
-      {
-        id: "drawings",
-        title: "Чертежи и схемы",
-        icon: "📐",
-        words: ["ЧЕРТЕЖИ", "СХЕМЫ"],
-        allowedTypes: ["drawing", "photo"],
-        fileExtensions: [".jpg", ".jpeg", ".png", ".gif", ".pdf", ".dwg"],
-        maxFileSize: 20 * 1024 * 1024,
-        subsections: [
-          {
-            id: "drawings-furniture",
-            title: "Мебель",
-            createdBy: "user6",
-            createdAt: "2024-02-05",
-            items: [
-              {
-                id: "drawing-1",
-                contentId: "content-6",
-                title: "Чертеж садовой скамейки",
-                content: "Чертеж садовой скамейки из дерева. Размеры: 1200х400х450мм",
-                type: "drawing",
-                author: "Алексей Смирнов",
-                authorLogin: "alex_wood",
-                userId: "user6",
-                date: "2024-02-05",
-                likes: 56,
-                thumbnail: "/thumbnails/bench.jpg",
-                praises: {
-                  total: 39,
-                  distribution: { "🔨": 15, "👍": 9, "👏": 8, "💫": 7 },
-                  topEmoji: "🔨",
-                  topCount: 15
-                }
-              }
-            ]
-          },
-          {
-            id: "drawings-tools",
-            title: "Инструменты и приспособления",
-            createdBy: "user7",
-            createdAt: "2024-02-08",
-            items: [
-              {
-                id: "drawing-2",
-                contentId: "content-7",
-                title: "Самодельный струбцина",
-                content: "Чертеж быстрозажимной струбцины из металла",
-                type: "drawing",
-                author: "Дмитрий Ковалев",
-                authorLogin: "dmitry_metal",
-                userId: "user7",
-                date: "2024-02-08",
-                likes: 34,
-                praises: {
-                  total: 39,
-                  distribution: { "🔨": 15, "👍": 9, "👏": 8, "💫": 7 },
-                  topEmoji: "🔨",
-                  topCount: 15
-                }
-              }
-            ]
-          }
-        ]
-      },
-      {
-        id: "photos-videos",
-        title: "Фото и видео",
-        icon: "📷",
-        words: ["ВИДЕО", "ФОТО"],
-        allowedTypes: ["photo", "video"],
-        fileExtensions: [".jpg", ".jpeg", ".png", ".gif", ".mp4", ".avi", ".mov", ".webm"],
-        maxFileSize: 100 * 1024 * 1024,
-        subsections: [
-          {
-            id: "photos",
-            title: "Фотографии",
-            createdBy: "user8",
-            createdAt: "2024-02-14",
-            items: [
-              {
-                id: "photo-1",
-                contentId: "content-8",
-                title: "Реконструкция старого верстака",
-                content: "Фото процесса реконструкции верстака 1950-х годов",
-                type: "photo",
-                author: "Игорь Николаев",
-                authorLogin: "igor_restore",
-                userId: "user8",
-                date: "2024-02-14",
-                likes: 47,
-                thumbnail: "/thumbnails/workbench.jpg",
-                praises: {
-                  total: 39,
-                  distribution: { "👍": 15, "👏": 9, "🔨": 8, "💫": 7 },
-                  topEmoji: "👍",
-                  topCount: 15
-                }
-              }
-            ]
-          },
-          {
-            id: "videos",
-            title: "Видеоуроки",
-            createdBy: "user9",
-            createdAt: "2024-02-16",
-            items: [
-              {
-                id: "video-1",
-                contentId: "content-9",
-                title: "Как правильно паять микросхемы",
-                content: "Видеоурок по пайке SMD компонентов",
-                type: "video",
-                author: "Сергей Радиолюбитель",
-                authorLogin: "sergey_electronics",
-                userId: "user9",
-                date: "2024-02-16",
-                likes: 89,
-                thumbnail: "/thumbnails/soldering.jpg",
-                praises: {
-                  total: 39,
-                  distribution: { "👏": 15, "👍": 9, "🔨": 8, "💫": 7 },
-                  topEmoji: "👏",
-                  topCount: 15
-                }
-              }
-            ]
-          }
-        ]
-      },
-      {
-        id: "misc",
-        title: "Разное",
-        icon: "📦",
-        words: ["РАЗНОЕ"],
-        allowedTypes: ["text", "photo", "drawing", "video", "other"],
-        fileExtensions: [".txt", ".md", ".pdf", ".zip", ".rar", ".jpg", ".png"],
-        maxFileSize: 50 * 1024 * 1024,
-        subsections: [
-          {
-            id: "misc-ideas",
-            title: "Идеи и вдохновение",
-            createdBy: "user10",
-            createdAt: "2024-02-19",
-            items: [
-              {
-                id: "idea-1",
-                contentId: "content-10",
-                title: "Органайзер для мелочей из пластиковых бутылок",
-                content: "Идея создания органайзера из подручных материалов",
-                type: "other",
-                author: "Ольга Творческая",
-                authorLogin: "olga_creative",
-                userId: "user10",
-                date: "2024-02-19",
-                likes: 23,
-                praises: {
-                  total: 39,
-                  distribution: { "💡": 15, "👍": 9, "🔨": 8, "👏": 7 },
-                  topEmoji: "💡",
-                  topCount: 15
-                }
-              }
-            ]
-          }
-        ]
-      }
-    ];
+    if (!isOpen) return;
     
-    const savedData = localStorage.getItem('library_data');
-    if (savedData) {
+    const fetchLibraryData = async () => {
+      setIsLoading(true);
       try {
-        const parsed = JSON.parse(savedData);
-        setLibraryData(parsed);
-      } catch (e) {
-        console.error('Ошибка загрузки данных библиотеки:', e);
-        setLibraryData(mockData);
+        console.log('📥 Загрузка данных библиотеки...');
+        
+        // Получаем все разделы
+        const sectionsResponse = await libraryApi.getAllSections() as unknown as ApiResponse<ApiLibrarySection[]>;
+        console.log('✅ Получены разделы:', sectionsResponse);
+        
+        // Извлекаем data из ответа
+        const sections = sectionsResponse.data || [];
+        
+        // Преобразуем данные в нужный формат и загружаем документы для каждого подраздела
+        const formattedSections: Section[] = await Promise.all(
+          sections.map(async (section: ApiLibrarySection) => {
+            // Получаем подразделы для раздела
+            let subsections: ApiLibrarySubsection[] = [];
+            try {
+              const subsectionsResponse = await libraryApi.getSubsections(section.id) as unknown as ApiResponse<ApiLibrarySubsection[]>;
+              subsections = subsectionsResponse.data || [];
+            } catch (error) {
+              console.warn(`⚠️ Не удалось загрузить подразделы для раздела ${section.id}`, error);
+            }
+            
+            // Для каждого подраздела получаем документы
+            const formattedSubsections: Subsection[] = await Promise.all(
+              subsections.map(async (sub: ApiLibrarySubsection) => {
+                let items: ApiLibraryItem[] = [];
+                try {
+                  const itemsResponse = await libraryApi.getItems(sub.id, { page: 1, limit: 100 }) as unknown as ApiResponse<ItemsResponse>;
+                  items = itemsResponse.data?.data || [];
+                } catch (error) {
+                  console.warn(`⚠️ Не удалось загрузить документы для подраздела ${sub.id}`, error);
+                }
+                
+                return {
+                  ...sub,
+                  items: items.map((item: ApiLibraryItem) => ({
+                    ...item,
+                    contentId: item.id,
+                    userLiked: false,
+                    canEdit: (item as any).canEdit,
+                    canDelete: (item as any).canDelete
+                  })),
+                  canEdit: (sub as any).canEdit,
+                  canDelete: (sub as any).canDelete
+                } as Subsection;
+              })
+            );
+            
+            return {
+              ...section,
+              subsections: formattedSubsections
+            } as Section;
+          })
+        );
+        
+        setLibraryData(formattedSections);
+        console.log('✅ Данные библиотеки загружены:', formattedSections);
+        
+      } catch (error) {
+        console.error('❌ Ошибка загрузки библиотеки:', error);
+        // Показываем пустой массив при ошибке
+        setLibraryData([]);
+      } finally {
+        setIsLoading(false);
       }
-    } else {
-      setLibraryData(mockData);
-    }
+    };
     
+    fetchLibraryData();
+  }, [isOpen]);
+
+  // Сохраняем лайки в localStorage (как временное решение)
+  useEffect(() => {
     const savedLikes = localStorage.getItem('library_liked_items');
     if (savedLikes) {
       try {
@@ -1246,13 +1021,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
       }
     }
   }, []);
-
-  // Сохраняем данные при изменениях
-  useEffect(() => {
-    if (libraryData.length > 0) {
-      localStorage.setItem('library_data', JSON.stringify(libraryData));
-    }
-  }, [libraryData]);
 
   useEffect(() => {
     if (selectedSubsection && mainContainerRef.current) {
@@ -1309,38 +1077,59 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
 
   // ========== ОБРАБОТЧИКИ ДЛЯ ПОДРАЗДЕЛОВ ==========
 
-  const handleAddSubsection = (subsectionTitle: string) => {
+  const handleAddSubsection = async (subsectionTitle: string) => {
     if (!selectedShelfForAdd || !isAuthenticated || !user) {
       alert('Необходимо авторизоваться');
       return;
     }
 
-    const newSubsection: Subsection = {
-      id: generateId(),
-      title: subsectionTitle,
-      items: [],
-      createdBy: user.id,
-      createdAt: new Date().toISOString()
-    };
+    try {
+      setIsLoading(true);
+      console.log('📝 Создание подраздела:', { title: subsectionTitle, sectionId: selectedShelfForAdd.id });
+      
+      const response = await libraryApi.createSubsection({
+        title: subsectionTitle,
+        sectionId: selectedShelfForAdd.id
+      }) as unknown as ApiResponse<ApiLibrarySubsection>;
+      
+      const newSubsection = response.data;
+      console.log('✅ Подраздел создан:', newSubsection);
+      
+      // Обновляем локальные данные
+      setLibraryData(prev => prev.map(shelf => 
+        shelf.id === selectedShelfForAdd.id
+          ? { 
+              ...shelf, 
+              subsections: [...shelf.subsections, { 
+                ...newSubsection, 
+                items: [],
+                canEdit: true,
+                canDelete: true
+              }] 
+            }
+          : shelf
+      ));
 
-    setLibraryData(prev => prev.map(shelf => 
-      shelf.id === selectedShelfForAdd.id
-        ? { ...shelf, subsections: [...shelf.subsections, newSubsection] }
-        : shelf
-    ));
-
-    if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
-      (ratingContext as any).addRating({
-        userId: user.id,
-        points: RATING_POINTS.CREATE_SUBSECTION,
-        reason: `created_subsection_${newSubsection.id}`,
-        timestamp: new Date().toISOString()
-      });
+      if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
+        (ratingContext as any).addRating({
+          userId: user.id,
+          points: RATING_POINTS.CREATE_SUBSECTION,
+          reason: `created_subsection_${newSubsection.id}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Ошибка создания подраздела:', error);
+      alert(`Ошибка: ${error instanceof Error ? error.message : 'Не удалось создать раздел'}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleEditSubsection = (shelf: Section, subsection: Subsection) => {
-    if (!canEdit(subsection.createdBy)) {
+    // Используем поле canEdit из данных, которое пришло с сервера
+    if (!subsection.canEdit) {
       alert('У вас нет прав на редактирование этого раздела');
       return;
     }
@@ -1348,25 +1137,44 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     setShowEditSubsection(true);
   };
 
-  const handleSaveSubsection = (newTitle: string) => {
+  const handleSaveSubsection = async (newTitle: string) => {
     if (!editingSubsection) return;
 
-    setLibraryData(prev => prev.map(shelf => 
-      shelf.id === editingSubsection.shelf.id
-        ? {
-            ...shelf,
-            subsections: shelf.subsections.map(sub =>
-              sub.id === editingSubsection.subsection.id
-                ? { ...sub, title: newTitle }
-                : sub
-            )
-          }
-        : shelf
-    ));
+    try {
+      setIsLoading(true);
+      console.log('📝 Обновление подраздела:', editingSubsection.subsection.id, newTitle);
+      
+      const response = await libraryApi.updateSubsection(
+        editingSubsection.subsection.id,
+        { title: newTitle }
+      ) as unknown as ApiResponse<ApiLibrarySubsection>;
+      
+      console.log('✅ Подраздел обновлен:', response.data);
+      
+      setLibraryData(prev => prev.map(shelf => 
+        shelf.id === editingSubsection.shelf.id
+          ? {
+              ...shelf,
+              subsections: shelf.subsections.map(sub =>
+                sub.id === editingSubsection.subsection.id
+                  ? { ...sub, title: newTitle }
+                  : sub
+              )
+            }
+          : shelf
+      ));
+      
+    } catch (error) {
+      console.error('❌ Ошибка обновления подраздела:', error);
+      alert('Не удалось обновить раздел. Попробуйте позже.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDeleteSubsection = (shelf: Section, subsection: Subsection) => {
-    if (!canEdit(subsection.createdBy)) {
+    // Используем поле canDelete из данных, которое пришло с сервера
+    if (!subsection.canDelete) {
       alert('У вас нет прав на удаление этого раздела');
       return;
     }
@@ -1374,62 +1182,103 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     setShowDeleteSubsection(true);
   };
 
-  const handleConfirmDeleteSubsection = () => {
+  const handleConfirmDeleteSubsection = async () => {
     if (!editingSubsection) return;
 
-    setLibraryData(prev => prev.map(shelf => 
-      shelf.id === editingSubsection.shelf.id
-        ? {
-            ...shelf,
-            subsections: shelf.subsections.filter(sub => sub.id !== editingSubsection.subsection.id)
-          }
-        : shelf
-    ));
+    try {
+      setIsLoading(true);
+      console.log('🗑️ Удаление подраздела:', editingSubsection.subsection.id);
+      
+      await libraryApi.deleteSubsection(editingSubsection.subsection.id);
+      
+      console.log('✅ Подраздел удален');
+      
+      setLibraryData(prev => prev.map(shelf => 
+        shelf.id === editingSubsection.shelf.id
+          ? {
+              ...shelf,
+              subsections: shelf.subsections.filter(sub => sub.id !== editingSubsection.subsection.id)
+            }
+          : shelf
+      ));
 
-    if (selectedSubsection === editingSubsection.subsection.id) {
-      setSelectedSubsection(null);
-      setSelectedItem(null);
+      if (selectedSubsection === editingSubsection.subsection.id) {
+        setSelectedSubsection(null);
+        setSelectedItem(null);
+      }
+      
+    } catch (error) {
+      console.error('❌ Ошибка удаления подраздела:', error);
+      alert('Не удалось удалить раздел. Попробуйте позже.');
+    } finally {
+      setShowDeleteSubsection(false);
+      setEditingSubsection(null);
+      setIsLoading(false);
     }
-
-    setShowDeleteSubsection(false);
-    setEditingSubsection(null);
   };
 
   // ========== ОБРАБОТЧИКИ ДЛЯ ДОКУМЕНТОВ ==========
 
-  const handleAddDocument = (docData: any) => {
+  const handleAddDocument = async (docData: any) => {
     if (!selectedSubsectionForAdd || !isAuthenticated || !user) return;
 
-    setLibraryData(prev => prev.map(shelf => 
-      shelf.id === selectedShelfForAdd?.id
-        ? {
-            ...shelf,
-            subsections: shelf.subsections.map(sub =>
-              sub.id === selectedSubsectionForAdd.id
-                ? { ...sub, items: [...sub.items, docData] }
-                : sub
-            )
-          }
-        : shelf
-    ));
+    try {
+      setIsLoading(true);
+      console.log('📝 Создание документа:', docData);
+      
+      const response = await libraryApi.createItem(docData) as unknown as ApiResponse<ApiLibraryItem>;
+      const newItem = response.data;
+      
+      console.log('✅ Документ создан:', newItem);
+      
+      // Обновляем локальные данные
+      setLibraryData(prev => prev.map(shelf => 
+        shelf.id === selectedShelfForAdd?.id
+          ? {
+              ...shelf,
+              subsections: shelf.subsections.map(sub =>
+                sub.id === selectedSubsectionForAdd.id
+                  ? { 
+                      ...sub, 
+                      items: [...sub.items, { 
+                        ...newItem, 
+                        contentId: newItem.id, 
+                        userLiked: false,
+                        canEdit: true,
+                        canDelete: true
+                      }] 
+                    }
+                  : sub
+              )
+            }
+          : shelf
+      ));
 
-    if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
-      let points = RATING_POINTS.ADD_DOCUMENT;
-      if (docData.type === 'photo') points = RATING_POINTS.ADD_PHOTO;
-      if (docData.type === 'video') points = RATING_POINTS.ADD_VIDEO;
-      if (docData.type === 'drawing') points = RATING_POINTS.ADD_DRAWING;
+      if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
+        let points = RATING_POINTS.ADD_DOCUMENT;
+        if (docData.type === 'photo') points = RATING_POINTS.ADD_PHOTO;
+        if (docData.type === 'video') points = RATING_POINTS.ADD_VIDEO;
+        if (docData.type === 'drawing') points = RATING_POINTS.ADD_DRAWING;
 
-      (ratingContext as any).addRating({
-        userId: user.id,
-        points,
-        reason: `added_${docData.type}_${docData.id}`,
-        timestamp: new Date().toISOString()
-      });
+        (ratingContext as any).addRating({
+          userId: user.id,
+          points,
+          reason: `added_${docData.type}_${newItem.id}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Ошибка создания документа:', error);
+      alert(`Ошибка: ${error instanceof Error ? error.message : 'Не удалось создать документ'}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleEditDocument = (shelf: Section, document: LibraryItem) => {
-    if (!canEdit(document.userId)) {
+    // Используем поле canEdit из данных, которое пришло с сервера
+    if (!document.canEdit) {
       alert('У вас нет прав на редактирование этого документа');
       return;
     }
@@ -1437,28 +1286,53 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     setShowEditDocument(true);
   };
 
-  const handleSaveDocument = (updatedDoc: LibraryItem) => {
+  const handleSaveDocument = async (updatedDoc: any) => {
     if (!editingDocument) return;
 
-    setLibraryData(prev => prev.map(shelf => 
-      shelf.id === editingDocument.shelf.id
-        ? {
-            ...shelf,
-            subsections: shelf.subsections.map(sub => ({
-              ...sub,
-              items: sub.items.map(item =>
-                item.id === updatedDoc.id ? updatedDoc : item
-              )
-            }))
-          }
-        : shelf
-    ));
+    try {
+      setIsLoading(true);
+      console.log('📝 Обновление документа:', updatedDoc);
+      
+      const response = await libraryApi.updateItem(updatedDoc.id, {
+        title: updatedDoc.title,
+        content: updatedDoc.content,
+        fileName: updatedDoc.fileName,
+        fileSize: updatedDoc.fileSize,
+        fileType: updatedDoc.fileType,
+        fileUrl: updatedDoc.fileUrl
+      }) as unknown as ApiResponse<ApiLibraryItem>;
+      
+      console.log('✅ Документ обновлен:', response.data);
+      
+      setLibraryData(prev => prev.map(shelf => 
+        shelf.id === editingDocument.shelf.id
+          ? {
+              ...shelf,
+              subsections: shelf.subsections.map(sub => ({
+                ...sub,
+                items: sub.items.map(item =>
+                  item.id === updatedDoc.id 
+                    ? { ...item, ...updatedDoc, contentId: item.id }
+                    : item
+                )
+              }))
+            }
+          : shelf
+      ));
 
-    setSelectedItem(updatedDoc);
+      setSelectedItem(prev => prev ? { ...prev, ...updatedDoc } : null);
+      
+    } catch (error) {
+      console.error('❌ Ошибка обновления документа:', error);
+      alert('Не удалось обновить документ. Попробуйте позже.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDeleteDocument = (shelf: Section, document: LibraryItem) => {
-    if (!canEdit(document.userId)) {
+    // Используем поле canDelete из данных, которое пришло с сервера
+    if (!document.canDelete) {
       alert('У вас нет прав на удаление этого документа');
       return;
     }
@@ -1466,27 +1340,41 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     setShowDeleteDocument(true);
   };
 
-  const handleConfirmDeleteDocument = () => {
+  const handleConfirmDeleteDocument = async () => {
     if (!editingDocument) return;
 
-    setLibraryData(prev => prev.map(shelf => 
-      shelf.id === editingDocument.shelf.id
-        ? {
-            ...shelf,
-            subsections: shelf.subsections.map(sub => ({
-              ...sub,
-              items: sub.items.filter(item => item.id !== editingDocument.document.id)
-            }))
-          }
-        : shelf
-    ));
+    try {
+      setIsLoading(true);
+      console.log('🗑️ Удаление документа:', editingDocument.document.id);
+      
+      await libraryApi.deleteItem(editingDocument.document.id);
+      
+      console.log('✅ Документ удален');
+      
+      setLibraryData(prev => prev.map(shelf => 
+        shelf.id === editingDocument.shelf.id
+          ? {
+              ...shelf,
+              subsections: shelf.subsections.map(sub => ({
+                ...sub,
+                items: sub.items.filter(item => item.id !== editingDocument.document.id)
+              }))
+            }
+          : shelf
+      ));
 
-    if (selectedItem?.id === editingDocument.document.id) {
-      setSelectedItem(null);
+      if (selectedItem?.id === editingDocument.document.id) {
+        setSelectedItem(null);
+      }
+      
+    } catch (error) {
+      console.error('❌ Ошибка удаления документа:', error);
+      alert('Не удалось удалить документ. Попробуйте позже.');
+    } finally {
+      setShowDeleteDocument(false);
+      setEditingDocument(null);
+      setIsLoading(false);
     }
-
-    setShowDeleteDocument(false);
-    setEditingDocument(null);
   };
 
   // ========== ОСТАЛЬНЫЕ ОБРАБОТЧИКИ ==========
@@ -1532,7 +1420,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     setSelectedItem(item);
     
     praiseContext.setCurrentContent({
-      id: item.contentId,
+      id: item.contentId || item.id,
       authorId: item.userId,
       title: item.title,
       type: 'LIBRARY',
@@ -1555,61 +1443,66 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     const isLiked = likedItems.has(itemId);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
+      setIsLoading(true);
+      
+      let result;
+      if (isLiked) {
+        result = await libraryApi.unlikeItem(itemId) as { likes: number; userLiked: boolean };
+      } else {
+        result = await libraryApi.likeItem(itemId) as { likes: number; userLiked: boolean };
+      }
+      
+      console.log('✅ Лайк обработан:', result);
       
       const newLikedItems = new Set(likedItems);
-      
       if (isLiked) {
         newLikedItems.delete(itemId);
-        
-        if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
-          (ratingContext as any).addRating({
-            userId: user?.id,
-            points: -1,
-            reason: `unlike_library_item_${itemId}`,
-            timestamp: new Date().toISOString()
-          });
-        }
-        
       } else {
         newLikedItems.add(itemId);
-        
-        if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
-          (ratingContext as any).addRating({
-            userId: item.userId,
-            points: RATING_POINTS.RECEIVE_LIKE,
-            reason: `received_like_${itemId}`,
-            timestamp: new Date().toISOString()
-          });
-          
-          (ratingContext as any).addRating({
-            userId: user?.id,
-            points: 1,
-            reason: `like_activity_${itemId}`,
-            timestamp: new Date().toISOString()
-          });
-        }
       }
       
       setLikedItems(newLikedItems);
       localStorage.setItem('library_liked_items', JSON.stringify(Array.from(newLikedItems)));
       
-      const updatedData = libraryData.map(section => ({
+      // Обновляем данные в состоянии
+      setLibraryData(prev => prev.map(section => ({
         ...section,
         subsections: section.subsections.map(sub => ({
           ...sub,
           items: sub.items.map(i => 
             i.id === itemId 
-              ? { ...i, likes: isLiked ? i.likes - 1 : i.likes + 1, userLiked: !isLiked }
+              ? { ...i, likes: result.likes, userLiked: !isLiked }
               : i
           )
         }))
-      }));
+      })));
       
-      setLibraryData(updatedData);
+      if (selectedItem?.id === itemId) {
+        setSelectedItem(prev => prev ? { ...prev, likes: result.likes } : null);
+      }
+      
+      // Начисляем баллы за лайк (только если поставили, а не убрали)
+      if (!isLiked && ratingContext && typeof (ratingContext as any).addRating === 'function') {
+        (ratingContext as any).addRating({
+          userId: item.userId,
+          points: RATING_POINTS.RECEIVE_LIKE,
+          reason: `received_like_${itemId}`,
+          timestamp: new Date().toISOString()
+        });
+        
+        (ratingContext as any).addRating({
+          userId: user?.id,
+          points: 1,
+          reason: `like_activity_${itemId}`,
+          timestamp: new Date().toISOString()
+        });
+      }
       
     } catch (error) {
-      console.error('Ошибка при обработке лайка:', error);
+      console.error('❌ Ошибка при обработке лайка:', error);
+      alert('Не удалось обработать лайк. Попробуйте позже.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1640,6 +1533,11 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
       }
     }
     return null;
+  };
+
+  // Проверка на возможность добавления (только авторизация)
+  const canAdd = (): boolean => {
+    return isAuthenticated;
   };
 
   if (!isOpen) return null;
@@ -1676,6 +1574,13 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
             <div className="scroll-hint">
               <div className="scroll-hint-arrow">→</div>
               <div className="scroll-hint-text">Сдвиньте вправо</div>
+            </div>
+          )}
+          
+          {isLoading && (
+            <div className="library-loading">
+              <div className="loading-spinner"></div>
+              <p>Загрузка...</p>
             </div>
           )}
           
@@ -1746,6 +1651,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 <button 
                   className="add-subsection-button"
                   onClick={() => openAddSubsectionModal(currentSection)}
+                  disabled={isLoading}
                 >
                   ➕ Добавить раздел
                 </button>
@@ -1763,29 +1669,33 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                       <span className="subsection-count">{sub.items.length}</span>
                     </button>
                     
-                    {/* Кнопки редактирования/удаления для подраздела - с проверкой прав */}
-                    {canEdit(sub.createdBy) && (
+                    {/* Кнопки редактирования/удаления для подраздела - используем canEdit/canDelete с сервера */}
+                    {(sub.canEdit || sub.canDelete) && (
                       <div className="subsection-actions">
-                        <button
-                          className="subsection-edit-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditSubsection(currentSection, sub);
-                          }}
-                          title="Редактировать раздел"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          className="subsection-delete-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSubsection(currentSection, sub);
-                          }}
-                          title="Удалить раздел"
-                        >
-                          🗑️
-                        </button>
+                        {sub.canEdit && (
+                          <button
+                            className="subsection-edit-button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditSubsection(currentSection, sub);
+                            }}
+                            title="Редактировать раздел"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                        {sub.canDelete && (
+                          <button
+                            className="subsection-delete-button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteSubsection(currentSection, sub);
+                            }}
+                            title="Удалить раздел"
+                          >
+                            🗑️
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1805,6 +1715,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                     className="add-document-button"
                     onClick={() => openAddDocumentModal(currentSection, currentSubsection)}
                     title="Добавить документ"
+                    disabled={isLoading}
                   >
                     ➕ Добавить документ
                   </button>
@@ -1845,6 +1756,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                       <button 
                         className="add-first-document-button"
                         onClick={() => openAddDocumentModal(currentSection, currentSubsection)}
+                        disabled={isLoading}
                       >
                         ➕ Добавить первый документ
                       </button>
@@ -1868,37 +1780,41 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                   <span>Автор: {selectedItem.author}</span>
                   <span>Дата: {selectedItem.date}</span>
                   {selectedItem.fileName && (
-                    <span>Файл: {selectedItem.fileName} ({formatFileSize(selectedItem.fileSize || 0)})</span>
+                    <span>Файл: {selectedItem.fileName} ({configFormatFileSize(selectedItem.fileSize || 0)})</span>
                   )}
                 </div>
                 
-                {/* Кнопки редактирования/удаления в модалке документа - с проверкой прав */}
-                {canEdit(selectedItem.userId) && (
+                {/* Кнопки редактирования/удаления в модалке документа - используем canEdit/canDelete с сервера */}
+                {(selectedItem.canEdit || selectedItem.canDelete) && (
                   <div className="item-view-actions">
-                    <button
-                      className="item-view-edit-button"
-                      onClick={() => {
-                        if (currentSection) {
-                          handleEditDocument(currentSection, selectedItem);
-                        }
-                      }}
-                      title="Редактировать документ"
-                    >
-                      <span>✏️</span>
-                      <span>Редактировать</span>
-                    </button>
-                    <button
-                      className="item-view-delete-button"
-                      onClick={() => {
-                        if (currentSection) {
-                          handleDeleteDocument(currentSection, selectedItem);
-                        }
-                      }}
-                      title="Удалить документ"
-                    >
-                      <span>🗑️</span>
-                      <span>Удалить</span>
-                    </button>
+                    {selectedItem.canEdit && (
+                      <button
+                        className="item-view-edit-button"
+                        onClick={() => {
+                          if (currentSection) {
+                            handleEditDocument(currentSection, selectedItem);
+                          }
+                        }}
+                        title="Редактировать документ"
+                      >
+                        <span>✏️</span>
+                        <span>Редактировать</span>
+                      </button>
+                    )}
+                    {selectedItem.canDelete && (
+                      <button
+                        className="item-view-delete-button"
+                        onClick={() => {
+                          if (currentSection) {
+                            handleDeleteDocument(currentSection, selectedItem);
+                          }
+                        }}
+                        title="Удалить документ"
+                      >
+                        <span>🗑️</span>
+                        <span>Удалить</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1975,7 +1891,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                   <button 
                     className={`like-button ${likedItems.has(selectedItem.id) ? 'liked' : ''}`}
                     onClick={() => handleLike(selectedItem)}
-                    disabled={!isAuthenticated}
+                    disabled={!isAuthenticated || isLoading}
                   >
                     <span className="like-icon">❤️</span>
                     <span className="like-count">{selectedItem.likes}</span>

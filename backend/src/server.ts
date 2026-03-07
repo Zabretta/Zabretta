@@ -6,7 +6,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import http from 'http';
 import { connectDB } from './config/database';
-import { setupSocket, getOnlineCount } from './socket'; // ✅ Правильный именованный импорт
+import { setupSocket, getOnlineCount } from './socket';
 import adminRoutes from './routes/admin';
 import authRoutes from './routes/auth';
 import ratingRoutes from './routes/rating';
@@ -17,6 +17,7 @@ import adminNotificationRoutes from './routes/admin/notifications';
 import settingsRoutes from './routes/settings';
 import rulesRoutes from './routes/rules';
 import marketRoutes from './routes/market';
+import libraryRoutes from './routes/library'; // 👈 ТОЛЬКО ЭТА СТРОКА ДОБАВЛЕНА
 
 dotenv.config();
 
@@ -25,7 +26,7 @@ const PORT = process.env.PORT || 3001;
 
 const server = http.createServer(app);
 
-// ✅ Инициализируем Socket.IO и получаем io instance
+// Инициализируем Socket.IO и получаем io instance
 const io = setupSocket(server);
 
 // Настройка middleware
@@ -53,7 +54,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ✅ Эндпоинт для получения количества онлайн пользователей
+// Эндпоинт для получения количества онлайн пользователей
 app.get('/api/online', (req, res) => {
   try {
     res.json({ 
@@ -81,6 +82,7 @@ app.use('/api/admin/notifications', adminNotificationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/rules', rulesRoutes);
 app.use('/api/market', marketRoutes);
+app.use('/api/library', libraryRoutes); // 👈 ТОЛЬКО ЭТА СТРОКА ДОБАВЛЕНА
 
 // Обработка 404
 app.use('*', (req, res) => {
@@ -119,8 +121,6 @@ server.listen(PORT, () => {
   console.log('📁 База данных:', process.env.DATABASE_URL?.split('@')[1] || 'не настроена');
   console.log('🌍 Окружение:', process.env.NODE_ENV || 'development');
   console.log('📦 Лимит загрузки: 10MB');
-  
-  // ✅ Получаем количество онлайн пользователей при запуске
   console.log('👥 Онлайн пользователей:', getOnlineCount());
 });
 

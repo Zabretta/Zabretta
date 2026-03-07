@@ -52,9 +52,57 @@ export const authenticate = async (
       role: user.role
     };
     
+    console.log('✅ Authenticate - пользователь авторизован:', req.user.id, req.user.role);
+    
     next();
   } catch (error) {
+    console.error('❌ Ошибка аутентификации:', error);
     res.status(401).json(createErrorResponse('Неверный токен'));
+  }
+};
+
+// ✅ Middleware для опциональной авторизации (не блокирует, если нет токена)
+export const optionalAuth = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      // Нет токена - просто пропускаем
+      return next();
+    }
+    
+    const decoded = jwt.verify(token, JWT_CONFIG.secret) as { userId: string };
+    
+    const user = await prisma.users.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        login: true,
+        email: true,
+        role: true,
+        isActive: true
+      }
+    });
+    
+    if (user && user.isActive) {
+      req.user = {
+        id: user.id,
+        login: user.login,
+        email: user.email,
+        role: user.role
+      };
+      console.log('✅ optionalAuth - пользователь авторизован:', req.user.id, req.user.role);
+    }
+    
+    next();
+  } catch (error) {
+    // Ошибка токена - просто пропускаем (пользователь будет неавторизован)
+    console.log('⚠️ optionalAuth - ошибка токена, продолжаем без авторизации');
+    next();
   }
 };
 
@@ -79,7 +127,7 @@ export const requireAdmin = (
   next();
 };
 
-// ✅ Middleware для проверки прав модератора (если понадобится)
+// ✅ Middleware для проверки прав модератора
 export const requireModerator = (
   req: AuthRequest,
   res: Response,
@@ -128,6 +176,7 @@ export const requireOwner = (getResourceUserId: (req: AuthRequest) => Promise<st
 
       next();
     } catch (error) {
+      console.error('❌ Ошибка при проверке прав владельца:', error);
       res.status(500).json(createErrorResponse('Ошибка при проверке прав'));
     }
   };

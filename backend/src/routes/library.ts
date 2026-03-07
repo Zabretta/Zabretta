@@ -1,74 +1,75 @@
 // backend/src/routes/library.ts
 import express from 'express';
 import { LibraryController } from '../controllers/libraryController';
-import { authenticate } from '../middleware/auth';
+import { authenticate, optionalAuth } from '../middleware/auth';
 
 const router = express.Router();
 
-// ===== ПУБЛИЧНЫЕ МАРШРУТЫ (не требуют авторизации) =====
+// ===== ПУБЛИЧНЫЕ МАРШРУТЫ С ОПЦИОНАЛЬНОЙ АВТОРИЗАЦИЕЙ =====
+// Все GET-запросы могут получать пользователя, если есть токен
 
 /**
  * @route   GET /api/library/sections
  * @desc    Получить все разделы библиотеки (стеллажи)
- * @access  Public
+ * @access  Public (с опциональной авторизацией)
  */
-router.get('/sections', LibraryController.getAllSections);
+router.get('/sections', optionalAuth, LibraryController.getAllSections);
 
 /**
  * @route   GET /api/library/sections/:sectionId
  * @desc    Получить раздел по ID
- * @access  Public
+ * @access  Public (с опциональной авторизацией)
  */
-router.get('/sections/:sectionId', LibraryController.getSectionById);
+router.get('/sections/:sectionId', optionalAuth, LibraryController.getSectionById);
 
 /**
  * @route   GET /api/library/sections/:sectionId/subsections
  * @desc    Получить подразделы раздела
- * @access  Public
+ * @access  Public (с опциональной авторизацией)
  */
-router.get('/sections/:sectionId/subsections', LibraryController.getSubsections);
+router.get('/sections/:sectionId/subsections', optionalAuth, LibraryController.getSubsections);
 
 /**
  * @route   GET /api/library/subsections/:subsectionId
  * @desc    Получить подраздел по ID
- * @access  Public
+ * @access  Public (с опциональной авторизацией)
  */
-router.get('/subsections/:subsectionId', LibraryController.getSubsectionById);
+router.get('/subsections/:subsectionId', optionalAuth, LibraryController.getSubsectionById);
 
 /**
  * @route   GET /api/library/subsections/:subsectionId/items
  * @desc    Получить документы подраздела (с пагинацией)
- * @access  Public
+ * @access  Public (с опциональной авторизацией)
  */
-router.get('/subsections/:subsectionId/items', LibraryController.getItems);
+router.get('/subsections/:subsectionId/items', optionalAuth, LibraryController.getItems);
 
 /**
  * @route   GET /api/library/items/:itemId
  * @desc    Получить документ по ID
- * @access  Public
+ * @access  Public (с опциональной авторизацией)
  */
-router.get('/items/:itemId', LibraryController.getItemById);
+router.get('/items/:itemId', optionalAuth, LibraryController.getItemById);
 
 /**
  * @route   GET /api/library/stats
  * @desc    Получить статистику библиотеки
- * @access  Public
+ * @access  Public (с опциональной авторизацией)
  */
-router.get('/stats', LibraryController.getStats);
+router.get('/stats', optionalAuth, LibraryController.getStats);
 
 /**
  * @route   GET /api/library/search
  * @desc    Поиск по библиотеке
- * @access  Public
+ * @access  Public (с опциональной авторизацией)
  */
-router.get('/search', LibraryController.search);
+router.get('/search', optionalAuth, LibraryController.search);
 
 /**
  * @route   POST /api/library/items/:itemId/views
  * @desc    Увеличить счетчик просмотров документа
- * @access  Public
+ * @access  Public (с опциональной авторизацией)
  */
-router.post('/items/:itemId/views', LibraryController.incrementViews);
+router.post('/items/:itemId/views', optionalAuth, LibraryController.incrementViews);
 
 // ===== ЗАЩИЩЕННЫЕ МАРШРУТЫ (требуют авторизации) =====
 router.use(authenticate);

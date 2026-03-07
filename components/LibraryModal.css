@@ -1325,7 +1325,7 @@
   position: relative;
   width: 500px;
   max-width: 90vw;
-  max-height: 90vh;
+  max-height: 85vh; /* Уменьшено с 90vh до 85vh для лучшего отображения */
   background: linear-gradient(135deg, #2c1e0e, #3d2e1b);
   border: 4px solid #8B4513;
   border-radius: 20px;
@@ -1335,6 +1335,122 @@
   overflow: hidden;
   animation: scaleIn 0.3s ease-out;
   pointer-events: auto;
+}
+
+/* Контейнер с прокруткой для содержимого модальных окон */
+.add-subsection-modal-content > *:not(.add-subsection-close-button):not(.add-subsection-title):not(.add-subsection-subtitle):not(.add-subsection-buttons),
+.add-document-modal-content > *:not(.add-document-close-button):not(.add-document-title):not(.add-document-subtitle):not(.add-document-buttons),
+.edit-subsection-modal-content > *:not(.edit-subsection-close-button):not(.edit-subsection-title):not(.edit-subsection-subtitle):not(.edit-subsection-buttons),
+.delete-subsection-modal-content > *:not(.delete-subsection-close-button):not(.delete-subsection-title):not(.delete-subsection-info):not(.delete-subsection-warning):not(.delete-subsection-buttons),
+.edit-document-modal-content > *:not(.edit-document-close-button):not(.edit-document-title):not(.edit-document-subtitle):not(.edit-document-buttons),
+.delete-document-modal-content > *:not(.delete-document-close-button):not(.delete-document-title):not(.delete-document-info):not(.delete-document-warning):not(.delete-document-buttons) {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 30px;
+  scrollbar-width: thin;
+  scrollbar-color: #8B4513 #5D4037;
+}
+
+/* Стили для скроллбара внутри модальных окон */
+.add-subsection-modal-content > *::-webkit-scrollbar,
+.add-document-modal-content > *::-webkit-scrollbar,
+.edit-subsection-modal-content > *::-webkit-scrollbar,
+.delete-subsection-modal-content > *::-webkit-scrollbar,
+.edit-document-modal-content > *::-webkit-scrollbar,
+.delete-document-modal-content > *::-webkit-scrollbar {
+  width: 10px;
+  background: #5D4037;
+}
+
+.add-subsection-modal-content > *::-webkit-scrollbar-track,
+.add-document-modal-content > *::-webkit-scrollbar-track,
+.edit-subsection-modal-content > *::-webkit-scrollbar-track,
+.delete-subsection-modal-content > *::-webkit-scrollbar-track,
+.edit-document-modal-content > *::-webkit-scrollbar-track,
+.delete-document-modal-content > *::-webkit-scrollbar-track {
+  background: #5D4037;
+  border-radius: 5px;
+  border: 1px solid #3d2e1b;
+}
+
+.add-subsection-modal-content > *::-webkit-scrollbar-thumb,
+.add-document-modal-content > *::-webkit-scrollbar-thumb,
+.edit-subsection-modal-content > *::-webkit-scrollbar-thumb,
+.delete-subsection-modal-content > *::-webkit-scrollbar-thumb,
+.edit-document-modal-content > *::-webkit-scrollbar-thumb,
+.delete-document-modal-content > *::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  border-radius: 5px;
+  border: 1px solid #A0522D;
+}
+
+.add-subsection-modal-content > *::-webkit-scrollbar-thumb:hover,
+.add-document-modal-content > *::-webkit-scrollbar-thumb:hover,
+.edit-subsection-modal-content > *::-webkit-scrollbar-thumb:hover,
+.delete-subsection-modal-content > *::-webkit-scrollbar-thumb:hover,
+.edit-document-modal-content > *::-webkit-scrollbar-thumb:hover,
+.delete-document-modal-content > *::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #D2691E, #FF8C00);
+}
+
+/* Специально для модалки добавления документа - делаем контент прокручиваемым */
+.add-document-modal-content {
+  max-height: 85vh;
+  overflow: hidden;
+}
+
+.add-document-modal-content form {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.add-document-modal-content .add-document-form-group {
+  padding: 0 30px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+/* Область с формами, которая должна прокручиваться */
+.add-document-modal-content .scrollable-content {
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: #8B4513 #5D4037;
+  margin: 0;
+  padding: 0;
+}
+
+/* Стили для скроллбара прокручиваемого контента */
+.add-document-modal-content .scrollable-content::-webkit-scrollbar {
+  width: 10px;
+  background: #5D4037;
+}
+
+.add-document-modal-content .scrollable-content::-webkit-scrollbar-track {
+  background: #5D4037;
+  border-radius: 5px;
+  border: 1px solid #3d2e1b;
+}
+
+.add-document-modal-content .scrollable-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  border-radius: 5px;
+  border: 1px solid #A0522D;
+}
+
+.add-document-modal-content .scrollable-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #D2691E, #FF8C00);
+}
+
+/* Кнопки действий всегда внизу */
+.add-document-modal-content .add-document-buttons {
+  flex-shrink: 0;
+  padding: 20px 30px;
+  background: linear-gradient(to right, #5D4037, #4E342E);
+  border-top: 3px solid #8B4513;
+  margin-top: 0;
 }
 
 /* Кнопки закрытия модальных окон */
@@ -1454,6 +1570,91 @@
   resize: vertical;
   font-family: inherit;
 }
+
+/* ========== СТИЛИ ДЛЯ СЕЛЕКТОРА ТИПА ДОКУМЕНТА ========== */
+
+.document-type-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0 20px;
+  padding: 5px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 1px solid #8B4513;
+}
+
+.type-button {
+  flex: 1 1 auto;
+  min-width: 80px;
+  padding: 12px 15px;
+  background: linear-gradient(135deg, #5D4037, #4E342E);
+  border: 2px solid #8B4513;
+  border-radius: 8px;
+  color: #F5DEB3;
+  font-size: 0.95em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.type-button:hover:not(.active) {
+  background: linear-gradient(135deg, #8B4513, #A0522D);
+  border-color: #D2691E;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.type-button.active {
+  background: linear-gradient(135deg, #2E8B57, #228B22);
+  border-color: #FFD700;
+  color: white;
+  box-shadow: 0 0 15px rgba(46, 139, 87, 0.5);
+  transform: scale(1.02);
+}
+
+.type-button.active:hover {
+  background: linear-gradient(135deg, #3CB371, #2E8B57);
+  border-color: #FFD700;
+}
+
+/* Иконки в кнопках типов */
+.type-button .type-icon {
+  font-size: 1.2em;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+  .document-type-selector {
+    gap: 8px;
+  }
+  
+  .type-button {
+    min-width: 60px;
+    padding: 10px 12px;
+    font-size: 0.85em;
+  }
+}
+
+@media (max-width: 480px) {
+  .document-type-selector {
+    gap: 5px;
+  }
+  
+  .type-button {
+    min-width: 50px;
+    padding: 8px 10px;
+    font-size: 0.8em;
+  }
+}
+
+/* ========== КОНЕЦ СТИЛЕЙ ДЛЯ СЕЛЕКТОРА ТИПА ДОКУМЕНТА ========== */
 
 /* Область загрузки файлов */
 .add-document-file-area,
@@ -1611,6 +1812,7 @@
   padding: 20px 30px;
   background: linear-gradient(to right, #5D4037, #4E342E);
   border-top: 3px solid #8B4513;
+  flex-shrink: 0;
 }
 
 .add-subsection-cancel,
@@ -1914,6 +2116,17 @@
     width: 100%;
     margin-bottom: 5px;
   }
+
+  /* Селектор типа на мобильных */
+  .document-type-selector {
+    gap: 8px;
+  }
+  
+  .type-button {
+    min-width: 60px;
+    padding: 10px 12px;
+    font-size: 0.85em;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1983,5 +2196,16 @@
   .add-document-file-area p,
   .edit-document-file-area p {
     font-size: 0.9em;
+  }
+
+  /* Селектор типа на маленьких экранах */
+  .document-type-selector {
+    gap: 5px;
+  }
+  
+  .type-button {
+    min-width: 50px;
+    padding: 8px 10px;
+    font-size: 0.8em;
   }
 }

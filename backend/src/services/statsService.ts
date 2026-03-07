@@ -5,7 +5,10 @@ import { getOnlineCount } from '../socket';
 export class StatsService {
 
   /**
-   * Получение общей статистики системы для админ-панели.
+   * Получение общей статистики системы для админ-панели и главной страницы.
+   * В поле content.adviceGiven суммируются:
+   * - Документы из библиотеки (libraryPosts)
+   * - (в будущем) Ответы в разделе "Помощь"
    */
   static async getSystemStats() {
     // Используем UTC для всех операций с датами
@@ -47,7 +50,8 @@ export class StatsService {
       prisma.content.count({ where: { type: 'PROJECT' } }),
       prisma.content.count({ where: { type: 'MARKET' } }),
       prisma.content.count({ where: { type: 'HELP' } }),
-      prisma.content.count({ where: { type: 'LIBRARY' } }),
+      // 👇 ТОЛЬКО АКТИВНЫЕ ДОКУМЕНТЫ БИБЛИОТЕКИ
+      prisma.libraryItem.count({ where: { isDeleted: false } }),
       prisma.users.count({ where: { createdAt: { gte: today } } }),
       prisma.content.count({ where: { createdAt: { gte: today } } })
     ]);
@@ -55,6 +59,7 @@ export class StatsService {
     console.log(`   Всего пользователей: ${totalUsers}`);
     console.log(`   Активных пользователей: ${activeUsers}`);
     console.log(`   Онлайн пользователей (WebSocket): ${onlineUsers}`);
+    console.log(`   Документов в библиотеке: ${totalLibraryPosts}`);
 
     const topRatedUsers = await prisma.users.findMany({
       take: 5,
@@ -97,6 +102,10 @@ export class StatsService {
       }
     });
 
+    // 👇 ВЫЧИСЛЯЕМ "ЦЕННЫЕ СОВЕТЫ" ДЛЯ ГЛАВНОЙ СТРАНИЦЫ
+    // ПОКА ТОЛЬКО ДОКУМЕНТЫ БИБЛИОТЕКИ
+    const adviceGiven = totalLibraryPosts;
+
     const result = {
       users: {
         total: totalUsers,
@@ -112,7 +121,9 @@ export class StatsService {
         helpRequests: totalHelpRequests,
         libraryPosts: totalLibraryPosts,
         totalComments: totalComments._sum.comments || 0,
-        totalLikes: totalLikes._sum.likes || 0
+        totalLikes: totalLikes._sum.likes || 0,
+        // 👇 НОВОЕ ПОЛЕ ДЛЯ ГЛАВНОЙ СТРАНИЦЫ
+        adviceGiven: adviceGiven
       },
       topUsers: {
         byRating: topRatedUsers.map((user) => ({

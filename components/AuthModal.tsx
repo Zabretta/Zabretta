@@ -20,13 +20,11 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  // Защита от повторной отправки формы
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Защита от повторной отправки
     if (isSubmitting) {
       console.log('[AUTH] Форма уже отправляется, пропускаем...');
       return;
@@ -38,17 +36,14 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
     try {
       if (mode === 'register') {
-        // Валидация паролей
         if (formData.password !== formData.passwordConfirm) {
           throw new Error('Пароли не совпадают');
         }
 
-        // Проверка согласия с правилами
         if (!formData.agreement) {
           throw new Error('Необходимо принять правила сайта');
         }
 
-        // Регистрация через бэкенд
         const success = await register({
           login: formData.login,
           email: formData.email,
@@ -59,22 +54,23 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
         if (success) {
           setMessage({ text: 'Регистрация прошла успешно!', type: 'success' });
           
+          // ✅ ИСПРАВЛЕНО: УБРАН window.location.reload()
           setTimeout(() => {
             onClose();
-            window.location.reload();
+            // Не перезагружаем страницу!
           }, 1500);
         }
 
       } else if (mode === 'login') {
-        // Вход через бэкенд
         const success = await login(formData.login, formData.password);
 
         if (success) {
           setMessage({ text: 'Вход выполнен успешно!', type: 'success' });
           
+          // ✅ ИСПРАВЛЕНО: УБРАН window.location.reload()
           setTimeout(() => {
             onClose();
-            window.location.reload();
+            // Не перезагружаем страницу!
           }, 1000);
         }
       }
@@ -85,7 +81,6 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
       });
     } finally {
       setIsLoading(false);
-      // Сбрасываем флаг отправки с задержкой
       setTimeout(() => setIsSubmitting(false), 1000);
     }
   };
@@ -108,8 +103,6 @@ export default function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClos
     setMessage(null);
     
     try {
-      // TODO: Добавить метод forgotPassword в authAPI
-      // Пока показываем заглушку
       setMessage({ 
         text: 'Функция восстановления пароля будет доступна позже', 
         type: 'error' 

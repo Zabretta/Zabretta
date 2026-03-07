@@ -24,6 +24,7 @@ interface AuthContextType {
   user: ExtendedUser | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isModerator: boolean; // 👈 ДОБАВЛЕНО
   isLoading: boolean;
   login: (login: string, password: string) => Promise<boolean>;
   register: (data: RegisterData) => Promise<boolean>;
@@ -50,19 +51,35 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
 
-  // 👇 Инициализация WebSocket при авторизации
+  // 👇 Инициализация WebSocket при авторизации (ИСПРАВЛЕНО)
   useEffect(() => {
     if (user && !socket) {
-      // Подключаемся к WebSocket
+      const token = localStorage.getItem('samodelkin_auth_token');
+      
+      if (!token) {
+        console.log('⚠️ Нет токена для WebSocket подключения');
+        return;
+      }
+      
+      console.log('🔌 Подключение к WebSocket с токеном');
+      
+      // Подключаемся к WebSocket с токеном в auth
       const newSocket = io(SOCKET_URL, {
+        auth: {
+          token: token // ✅ Передаем токен при подключении!
+        },
         withCredentials: true,
-        transports: ['websocket', 'polling']
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
       });
 
       newSocket.on('connect', () => {
         console.log('🔌 WebSocket подключен, socket id:', newSocket.id);
         
-        // Отправляем информацию о пользователе на сервер
+        // Отправляем информацию о пользователе (для получения login)
+        // Сервер уже знает userId из токена, но не знает login
         newSocket.emit('user-online', {
           userId: user.id,
           login: user.login
@@ -80,8 +97,18 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         logout();
       });
 
-      newSocket.on('disconnect', () => {
-        console.log('🔌 WebSocket отключен');
+      newSocket.on('disconnect', (reason) => {
+        console.log('🔌 WebSocket отключен, причина:', reason);
+      });
+
+      newSocket.on('connect_error', (error) => {
+        console.error('❌ Ошибка подключения WebSocket:', error.message);
+        
+        // Если ошибка аутентификации - пробуем обновить токен
+        if (error.message.includes('Authentication error')) {
+          console.log('⚠️ Ошибка аутентификации WebSocket, пробуем обновить токен');
+          refreshUser(); // Обновляем данные пользователя и токен
+        }
       });
 
       newSocket.on('error', (error: Error) => {
@@ -94,6 +121,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     // Очистка при размонтировании
     return () => {
       if (socket) {
+        console.log('🧹 Отключаем WebSocket при размонтировании');
         socket.disconnect();
         setSocket(null);
       }
@@ -243,15 +271,17 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   };
 
   const isAuthenticated = !!user;
-  const isAdmin = user?.role?.toLowerCase() === 'admin';
+  const isAdmin = user?.role?.toUpperCase() === 'ADMIN';
+  const isModerator = user?.role?.toUpperCase() === 'MODERATOR'; // 👈 ДОБАВЛЕНО
 
-  console.log('🔄 useAuth: рендер, isAuthenticated:', isAuthenticated, 'isAdmin:', isAdmin, 'роль:', user?.role);
+  console.log('🔄 useAuth: рендер, isAuthenticated:', isAuthenticated, 'isAdmin:', isAdmin, 'isModerator:', isModerator, 'роль:', user?.role);
 
   return (
     <AuthContext.Provider value={{
       user,
       isAuthenticated,
       isAdmin,
+      isModerator, // 👈 ДОБАВЛЕНО В VALUE
       isLoading,
       login,
       register,

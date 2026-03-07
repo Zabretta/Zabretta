@@ -1291,6 +1291,453 @@
   box-shadow: 0 4px 10px rgba(220, 20, 60, 0.4);
 }
 
+/* ========== НОВЫЕ СТИЛИ ДЛЯ МОДАЛЬНЫХ ОКОН ДОБАВЛЕНИЯ ========== */
+
+/* Затемнение фона для модалок - полупрозрачное и кликабельное */
+.add-subsection-modal-overlay,
+.add-document-modal-overlay,
+.edit-subsection-modal-overlay,
+.delete-subsection-modal-overlay,
+.edit-document-modal-overlay,
+.delete-document-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 12000;
+  animation: fadeIn 0.2s ease-out;
+  pointer-events: auto;
+}
+
+/* Контент модальных окон */
+.add-subsection-modal-content,
+.add-document-modal-content,
+.edit-subsection-modal-content,
+.delete-subsection-modal-content,
+.edit-document-modal-content,
+.delete-document-modal-content {
+  position: relative;
+  width: 500px;
+  max-width: 90vw;
+  max-height: 90vh;
+  background: linear-gradient(135deg, #2c1e0e, #3d2e1b);
+  border: 4px solid #8B4513;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(139, 69, 19, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: scaleIn 0.3s ease-out;
+  pointer-events: auto;
+}
+
+/* Кнопки закрытия модальных окон */
+.add-subsection-close-button,
+.add-document-close-button,
+.edit-subsection-close-button,
+.delete-subsection-close-button,
+.edit-document-close-button,
+.delete-document-close-button {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(139, 69, 19, 0.8);
+  border: 2px solid #D2691E;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.add-subsection-close-button:hover,
+.add-document-close-button:hover,
+.edit-subsection-close-button:hover,
+.delete-subsection-close-button:hover,
+.edit-document-close-button:hover,
+.delete-document-close-button:hover {
+  background: #D2691E;
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 0 20px #D2691E;
+}
+
+/* Заголовки модальных окон */
+.add-subsection-title,
+.add-document-title,
+.edit-subsection-title,
+.delete-subsection-title,
+.edit-document-title,
+.delete-document-title {
+  font-size: 1.8em;
+  color: #FFF8DC;
+  text-shadow: 2px 2px 0 #5D4037;
+  margin: 0 0 5px 0;
+  padding: 20px 30px 0;
+  letter-spacing: 1px;
+}
+
+.add-subsection-subtitle,
+.add-document-subtitle,
+.edit-subsection-subtitle {
+  font-size: 1.1em;
+  color: #F5DEB3;
+  margin: 0 0 20px 0;
+  padding: 0 30px;
+  font-style: italic;
+  border-bottom: 2px solid #D2691E;
+  padding-bottom: 15px;
+}
+
+/* Формы */
+.add-subscription-form-group,
+.add-document-form-group,
+.edit-subsection-form-group {
+  padding: 0 30px;
+  margin-bottom: 20px;
+}
+
+.add-subscription-form-group label,
+.add-document-form-group label,
+.edit-subsection-form-group label {
+  display: block;
+  color: #F5DEB3;
+  font-size: 1em;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.add-subsection-input,
+.add-document-input,
+.add-document-textarea,
+.edit-subsection-input,
+.edit-document-input,
+.edit-document-textarea {
+  width: 100%;
+  padding: 12px 15px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 3px solid #8B4513;
+  border-radius: 8px;
+  color: #FFF8DC;
+  font-size: 1em;
+  transition: all 0.3s ease;
+}
+
+.add-subsection-input:focus,
+.add-document-input:focus,
+.add-document-textarea:focus,
+.edit-subsection-input:focus,
+.edit-document-input:focus,
+.edit-document-textarea:focus {
+  outline: none;
+  border-color: #D2691E;
+  box-shadow: 0 0 15px #D2691E;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.add-document-textarea,
+.edit-document-textarea {
+  min-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+/* Область загрузки файлов */
+.add-document-file-area,
+.edit-document-file-area {
+  border: 3px dashed #8B4513;
+  border-radius: 8px;
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.add-document-file-area:hover,
+.edit-document-file-area:hover {
+  border-color: #D2691E;
+  background: rgba(210, 105, 30, 0.1);
+}
+
+.add-document-file-area.dragging,
+.edit-document-file-area.dragging {
+  border-color: #FFD700;
+  background: rgba(255, 215, 0, 0.1);
+  transform: scale(1.02);
+}
+
+.file-upload-icon {
+  font-size: 3em;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+}
+
+.add-document-file-area p,
+.edit-document-file-area p {
+  color: #F5DEB3;
+  margin: 5px 0;
+  font-size: 1em;
+}
+
+.file-upload-hint {
+  color: #8B7355 !important;
+  font-size: 0.9em !important;
+  font-style: italic;
+}
+
+.file-upload-extensions,
+.file-upload-size {
+  color: #D2691E !important;
+  font-size: 0.85em !important;
+  margin-top: 5px !important;
+}
+
+/* Информация о загруженном файле */
+.add-document-file-info,
+.edit-document-file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px;
+  background: rgba(139, 69, 19, 0.3);
+  border-radius: 8px;
+  border: 2px solid #D2691E;
+}
+
+.file-icon {
+  font-size: 1.5em;
+}
+
+.file-name {
+  flex: 1;
+  color: #FFF8DC;
+  font-weight: bold;
+  word-break: break-word;
+  text-align: left;
+}
+
+.file-size {
+  color: #F5DEB3;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.file-remove {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(220, 20, 60, 0.8);
+  border: 2px solid #8B4513;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.file-remove:hover {
+  background: #DC143C;
+  transform: scale(1.1);
+}
+
+/* Превью изображения */
+.add-document-preview,
+.edit-document-preview {
+  padding: 0 30px 20px;
+  text-align: center;
+}
+
+.add-document-preview img,
+.edit-document-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 3px solid #D2691E;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* Предупреждения */
+.add-subsection-warning,
+.edit-subsection-warning,
+.add-document-warning,
+.edit-document-warning {
+  margin: 20px 30px;
+  padding: 12px 15px;
+  background: rgba(255, 215, 0, 0.1);
+  border: 2px solid #FFD700;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.warning-icon {
+  font-size: 1.2em;
+}
+
+.warning-text {
+  color: #FFD700;
+  font-size: 0.95em;
+  line-height: 1.4;
+}
+
+/* Кнопки действий */
+.add-subsection-buttons,
+.add-document-buttons,
+.edit-subsection-buttons,
+.delete-subsection-buttons,
+.edit-document-buttons,
+.delete-document-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding: 20px 30px;
+  background: linear-gradient(to right, #5D4037, #4E342E);
+  border-top: 3px solid #8B4513;
+}
+
+.add-subsection-cancel,
+.add-document-cancel,
+.edit-subsection-cancel,
+.delete-subsection-cancel,
+.edit-document-cancel,
+.delete-document-cancel {
+  padding: 10px 20px;
+  background: rgba(139, 69, 19, 0.3);
+  border: 2px solid #8B4513;
+  border-radius: 6px;
+  color: #F5DEB3;
+  font-size: 1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-subsection-cancel:hover,
+.add-document-cancel:hover,
+.edit-subsection-cancel:hover,
+.delete-subsection-cancel:hover,
+.edit-document-cancel:hover,
+.delete-document-cancel:hover {
+  background: #8B4513;
+  border-color: #D2691E;
+  transform: translateY(-2px);
+}
+
+.add-subsection-submit,
+.add-document-submit,
+.edit-subsection-submit,
+.delete-subsection-confirm,
+.edit-document-submit,
+.delete-document-confirm {
+  padding: 10px 25px;
+  background: linear-gradient(135deg, #2E8B57, #228B22);
+  border: 2px solid #D2691E;
+  border-radius: 6px;
+  color: white;
+  font-size: 1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-subsection-submit:hover,
+.add-document-submit:hover,
+.edit-subsection-submit:hover,
+.edit-document-submit:hover {
+  background: linear-gradient(135deg, #3CB371, #2E8B57);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(46, 139, 87, 0.4);
+  border-color: #FFD700;
+}
+
+/* Специальные стили для модалок удаления */
+.delete-subsection-title,
+.delete-document-title {
+  color: #DC143C;
+  text-shadow: 2px 2px 0 #5D4037;
+}
+
+.delete-subsection-info,
+.delete-document-info {
+  padding: 20px 30px;
+  background: rgba(0, 0, 0, 0.3);
+  border-top: 2px solid #8B4513;
+  border-bottom: 2px solid #8B4513;
+}
+
+.info-item {
+  display: flex;
+  margin-bottom: 10px;
+  color: #F5DEB3;
+}
+
+.info-label {
+  width: 120px;
+  font-weight: bold;
+  color: #D2691E;
+}
+
+.info-value {
+  flex: 1;
+  color: #FFF8DC;
+  font-weight: 500;
+}
+
+.delete-subsection-warning,
+.delete-document-warning {
+  padding: 20px 30px;
+  color: #FFD700;
+  font-size: 1.1em;
+  line-height: 1.6;
+  background: rgba(220, 20, 60, 0.1);
+  margin: 0;
+  border-bottom: 2px solid #DC143C;
+}
+
+.delete-subsection-warning strong,
+.delete-document-warning strong {
+  color: #DC143C;
+}
+
+.delete-subsection-confirm,
+.delete-document-confirm {
+  background: linear-gradient(135deg, #DC143C, #8B0000);
+}
+
+.delete-subsection-confirm:hover,
+.delete-document-confirm:hover {
+  background: linear-gradient(135deg, #FF4500, #DC143C);
+  box-shadow: 0 5px 15px rgba(220, 20, 60, 0.4);
+}
+
+.add-subsection-submit:disabled,
+.add-document-submit:disabled,
+.edit-subsection-submit:disabled,
+.edit-document-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 /* Анимации */
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -1385,6 +1832,88 @@
   .item-view-footer { flex-direction: column; align-items: stretch; gap: 15px; }
   .footer-center { order: -1; margin-bottom: 5px; min-width: 130px; }
   .footer-left, .footer-right { justify-content: center; }
+  
+  /* Модальные окна на мобильных */
+  .add-subsection-modal-content,
+  .add-document-modal-content,
+  .edit-subsection-modal-content,
+  .delete-subsection-modal-content,
+  .edit-document-modal-content,
+  .delete-document-modal-content {
+    width: 95vw;
+    max-height: 80vh;
+  }
+  
+  .add-subsection-title,
+  .add-document-title,
+  .edit-subsection-title,
+  .delete-subsection-title,
+  .edit-document-title,
+  .delete-document-title {
+    font-size: 1.5em;
+    padding: 15px 20px 0;
+  }
+  
+  .add-subsection-subtitle,
+  .add-document-subtitle,
+  .edit-subsection-subtitle {
+    padding: 0 20px 10px;
+    margin-bottom: 15px;
+  }
+  
+  .add-subscription-form-group,
+  .add-document-form-group,
+  .edit-subsection-form-group {
+    padding: 0 20px;
+  }
+  
+  .add-subsection-buttons,
+  .add-document-buttons,
+  .edit-subsection-buttons,
+  .delete-subsection-buttons,
+  .edit-document-buttons,
+  .delete-document-buttons {
+    padding: 15px 20px;
+    flex-direction: column;
+  }
+  
+  .add-subsection-cancel,
+  .add-document-cancel,
+  .edit-subsection-cancel,
+  .delete-subsection-cancel,
+  .edit-document-cancel,
+  .delete-document-cancel,
+  .add-subsection-submit,
+  .add-document-submit,
+  .edit-subsection-submit,
+  .delete-subsection-confirm,
+  .edit-document-submit,
+  .delete-document-confirm {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .add-subsection-warning,
+  .edit-subsection-warning,
+  .add-document-warning,
+  .edit-document-warning {
+    margin: 15px 20px;
+    padding: 10px;
+  }
+  
+  .delete-subsection-info,
+  .delete-document-info {
+    padding: 15px 20px;
+  }
+  
+  .info-item {
+    flex-direction: column;
+  }
+  
+  .info-label {
+    width: 100%;
+    margin-bottom: 5px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1420,5 +1949,39 @@
   .item-view-delete-button {
     width: 100%;
     justify-content: center;
+  }
+  
+  /* Модальные окна на маленьких экранах */
+  .add-subsection-modal-content,
+  .add-document-modal-content,
+  .edit-subsection-modal-content,
+  .delete-subsection-modal-content,
+  .edit-document-modal-content,
+  .delete-document-modal-content {
+    max-height: 85vh;
+  }
+  
+  .add-subsection-title,
+  .add-document-title,
+  .edit-subsection-title,
+  .delete-subsection-title,
+  .edit-document-title,
+  .delete-document-title {
+    font-size: 1.3em;
+    padding: 12px 15px 0;
+  }
+  
+  .add-document-file-area,
+  .edit-document-file-area {
+    padding: 20px 15px;
+  }
+  
+  .file-upload-icon {
+    font-size: 2.5em;
+  }
+  
+  .add-document-file-area p,
+  .edit-document-file-area p {
+    font-size: 0.9em;
   }
 }

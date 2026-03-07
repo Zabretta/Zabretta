@@ -39,7 +39,7 @@ model content {
   
   likeRecords   Like[]
   commentRecords Comment[]
-  praises       Praise[]      // 👈 Добавлена связь с похвалами
+  praises       Praise[]      // Связь с похвалами
 
   @@map("content")
 }
@@ -76,27 +76,37 @@ model Comment {
   @@map("comments")
 }
 
-// 👇 НОВАЯ МОДЕЛЬ ПОХВАЛ
+// 👇 МОДЕЛЬ ПОХВАЛ (ИСПРАВЛЕННАЯ)
 model Praise {
   id          String        @id @default(cuid())
   fromUserId  String        @map("from_user_id")
   toUserId    String        @map("to_user_id")
-  contentId   String?       @map("content_id")     // За какой контент (проект, пост и т.д.)
-  praiseType  PraiseType    @map("praise_type")    // Тип похвалы (great, excellent, master...)
-  message     String?                              // Дополнительный текст
+  
+  // 👇 РАЗНЫЕ ПОЛЯ ДЛЯ РАЗНЫХ ТИПОВ КОНТЕНТА
+  contentId      String?    @map("content_id")        // для content (проекты, маркет и т.д.)
+  libraryItemId  String?    @map("library_item_id")   // для libraryItem (библиотека)
+  
+  praiseType  PraiseType    @map("praise_type")
+  message     String?
   createdAt   DateTime      @default(now())        @map("created_at")
 
-  // Связи
+  // Связи с пользователями
   fromUser    users         @relation("PraiseFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
   toUser      users         @relation("PraiseToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+  
+  // 👇 СВЯЗИ С РАЗНЫМИ ТИПАМИ КОНТЕНТА
   content     content?      @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  libraryItem libraryItem?  @relation(fields: [libraryItemId], references: [id])
 
-  // Уникальность: один пользователь может похвалить конкретный контент только один раз
+  // Уникальность для разных типов контента
   @@unique([fromUserId, contentId])
-  // Индексы для быстрого поиска
+  @@unique([fromUserId, libraryItemId])
+  
+  // Индексы
   @@index([fromUserId])
   @@index([toUserId])
   @@index([contentId])
+  @@index([libraryItemId])
   @@index([createdAt])
   
   @@map("praises")
@@ -112,6 +122,121 @@ enum PraiseType {
   DETAILED      // 🔍 Детально проработано
   HELPFUL       // 🤝 Полезный совет
   THANKS        // 🙏 Спасибо!
+}
+
+// 👇 МОДЕЛЬ ДЛЯ БИБЛИОТЕКИ (СТЕЛЛАЖИ)
+model librarySection {
+  id          String               @id @default(cuid())
+  title       String
+  icon        String
+  words       String[]             // Для разделения на два слова на стеллаже
+  order       Int                  @default(0)
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  // Настройки для стеллажа
+  allowedTypes String[]            // ["text", "photo", "drawing", "video", "other"]
+  fileExtensions String[]           // [".txt", ".md", ".jpg", ...]
+  maxFileSize  Int?                 // в байтах
+
+  // Поля для редактирования и удаления
+  createdBy    String               // ID создателя
+  updatedBy    String?              // Кто последний редактировал
+  editCount    Int                  @default(0)  // Счетчик редактирований
+  isDeleted    Boolean              @default(false) // Мягкое удаление
+  deletedAt    DateTime?             // Дата удаления
+  deletedBy    String?               // Кто удалил
+
+  // Связи
+  subsections  librarySubsection[]
+  items        libraryItem[]
+  creator      users                @relation("section_creator", fields: [createdBy], references: [id])
+  lastEditor   users?               @relation("section_last_editor", fields: [updatedBy], references: [id])
+  deleter      users?               @relation("section_deleter", fields: [deletedBy], references: [id])
+
+  @@index([createdBy])
+  @@index([isDeleted])
+  @@map("library_sections")
+}
+
+// 👇 МОДЕЛЬ ДЛЯ ПОДРАЗДЕЛОВ
+model librarySubsection {
+  id          String         @id @default(cuid())
+  title       String
+  sectionId   String
+  order       Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Поля для редактирования и удаления
+  createdBy   String          // ID создателя
+  updatedBy   String?         // Кто последний редактировал
+  editCount   Int             @default(0)  // Счетчик редактирований
+  isDeleted   Boolean         @default(false) // Мягкое удаление
+  deletedAt   DateTime?        // Дата удаления
+  deletedBy   String?          // Кто удалил
+
+  // Связи
+  section     librarySection   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  items       libraryItem[]
+  creator     users            @relation("subsection_creator", fields: [createdBy], references: [id])
+  lastEditor  users?           @relation("subsection_last_editor", fields: [updatedBy], references: [id])
+  deleter     users?           @relation("subsection_deleter", fields: [deletedBy], references: [id])
+
+  @@index([sectionId])
+  @@index([createdBy])
+  @@index([isDeleted])
+  @@map("library_subsections")
+}
+
+// 👇 МОДЕЛЬ ДЛЯ ДОКУМЕНТОВ
+model libraryItem {
+  id             String           @id @default(cuid())
+  title          String
+  content        String           @db.Text
+  type           String           // "text" | "photo" | "drawing" | "video" | "other"
+  date           DateTime         @default(now())
+  likes          Int              @default(0)      // Обычные лайки ❤️
+  
+  // Файловые поля
+  fileName       String?
+  fileSize       Int?             // в байтах
+  fileType       String?
+  fileUrl        String?          // URL для доступа к файлу
+  thumbnail      String?          // URL превью
+  url            String?          // Внешняя ссылка
+
+  // Статистика
+  views          Int              @default(0)
+
+  // Поля для редактирования и удаления
+  createdBy      String           // ID создателя (authorId)
+  updatedBy      String?          // Кто последний редактировал
+  editCount      Int              @default(0)  // Счетчик редактирований
+  isDeleted      Boolean          @default(false) // Мягкое удаление
+  deletedAt      DateTime?         // Дата удаления
+  deletedBy      String?           // Кто удалил
+
+  // Связи
+  sectionId      String
+  subsectionId   String
+  section        librarySection     @relation(fields: [sectionId], references: [id])
+  subsection     librarySubsection  @relation(fields: [subsectionId], references: [id])
+  creator        users              @relation("item_creator", fields: [createdBy], references: [id])
+  lastEditor     users?             @relation("item_last_editor", fields: [updatedBy], references: [id])
+  deleter        users?             @relation("item_deleter", fields: [deletedBy], references: [id])
+  praises        Praise[]           // Связь с похвалами (8 эмоций)
+
+  // Индексы для быстрого поиска
+  @@index([sectionId])
+  @@index([subsectionId])
+  @@index([createdBy])
+  @@index([type])
+  @@index([date])
+  @@index([isDeleted])
+
+  @@map("library_items")
 }
 
 model UserNotification {
@@ -231,14 +356,14 @@ model marketItem {
   category       ItemCategory?
   categoryId     String?
   
-  // ПОЛЯ ДЛЯ МОДЕРАЦИИ
+  // Поля для модерации
   moderationStatus ModerationStatus @default(PENDING)
   moderationFlags  ModerationFlag[] @default([])
   moderatedAt      DateTime?
   moderatedBy      String?
   moderatorNote    String?
 
-  // 👇 НОВЫЕ ПОЛЯ ДЛЯ РЕДАКТИРОВАНИЯ И УДАЛЕНИЯ
+  // Поля для редактирования и удаления
   editCount        Int              @default(0)      // Счетчик редактирований
   lastEditedAt     DateTime?                          // Дата последнего редактирования
   isDeleted        Boolean          @default(false)   // Мягкое удаление
@@ -322,10 +447,23 @@ model users {
   showEmail          Boolean              @default(false)
   showCity           Boolean              @default(false)
   
-  // 👇 ДОБАВЛЕНЫ ПОЛЯ ДЛЯ ПОХВАЛ
+  // Поля для похвал
   praisesGiven      Praise[]      @relation("PraiseFromUser")  // Похвалы, которые дал пользователь
   praisesReceived   Praise[]      @relation("PraiseToUser")    // Похвалы, которые получил пользователь
   praisesCount      Int           @default(0)                  // Счетчик полученных похвал для быстрого доступа
+  
+  // Поля для библиотеки
+  createdSections   librarySection[]     @relation("section_creator")      // Созданные стеллажи
+  editedSections    librarySection[]     @relation("section_last_editor")  // Отредактированные стеллажи
+  deletedSections   librarySection[]     @relation("section_deleter")      // Удаленные стеллажи
+  
+  createdSubsections librarySubsection[] @relation("subsection_creator")   // Созданные подразделы
+  editedSubsections  librarySubsection[] @relation("subsection_last_editor") // Отредактированные подразделы
+  deletedSubsections librarySubsection[] @relation("subsection_deleter")   // Удаленные подразделы
+  
+  createdItems       libraryItem[]       @relation("item_creator")         // Созданные документы
+  editedItems        libraryItem[]       @relation("item_last_editor")     // Отредактированные документы
+  deletedItems       libraryItem[]       @relation("item_deleter")         // Удаленные документы
   
   // Связи
   admin_logs         admin_logs[]
@@ -372,6 +510,9 @@ enum TargetType {
   RATING
   SYSTEM
   CONTENT
+  LIBRARY_SECTION
+  LIBRARY_SUBSECTION
+  LIBRARY_ITEM
 }
 
 enum UserRole {

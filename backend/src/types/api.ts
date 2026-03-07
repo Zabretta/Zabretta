@@ -53,7 +53,7 @@ export interface AdminStats {
     projects: number;
     marketItems: number;
     helpRequests: number;
-    libraryPosts: number;
+    libraryPosts: number;      // 👈 УЖЕ ЕСТЬ
   };
   ratings: {
     totalGiven: number;
@@ -66,7 +66,6 @@ export interface AdminStats {
       activity: number;
     }>;
   };
-  // 🔥 НОВОЕ: Статистика модерации (опционально)
   moderation?: {
     market: {
       total: number;
@@ -143,7 +142,7 @@ export interface AdminSystemSettings {
   };
 }
 
-// ===== 🔥 НОВЫЕ ТИПЫ ДЛЯ МОДЕРАЦИИ ОБЪЯВЛЕНИЙ =====
+// ===== ТИПЫ ДЛЯ МОДЕРАЦИИ ОБЪЯВЛЕНИЙ =====
 
 export interface GetMarketModerationParams {
   status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'FLAGGED';
@@ -192,14 +191,14 @@ export interface MarketModerationStats {
   rejected: number;
 }
 
-// ===== ОБНОВЛЕННЫЕ ТИПЫ РЕЙТИНГА С ПОХВАЛОЙ =====
+// ===== ТИПЫ РЕЙТИНГА С ПОХВАЛОЙ =====
 
 export interface RatingRecord {
   id: string;
   userId: string;
-  type: 'PROJECT' | 'MASTER' | 'HELP' | 'LIBRARY' | 'DAILY' | 'REGISTRATION' | 'PRAISE';  // 👈 ДОБАВЛЕНО 'PRAISE'
-  section: 'PROJECTS' | 'MASTERS' | 'HELP' | 'LIBRARY' | 'GENERAL' | 'PRAISE';  // 👈 ДОБАВЛЕНО 'PRAISE'
-  action: 'CREATE' | 'LIKE_GIVEN' | 'LIKE_RECEIVED' | 'COMMENT' | 'DAILY_LOGIN' | 'PRAISE_RECEIVED';  // 👈 ДОБАВЛЕНО 'PRAISE_RECEIVED'
+  type: 'PROJECT' | 'MASTER' | 'HELP' | 'LIBRARY' | 'DAILY' | 'REGISTRATION' | 'PRAISE';
+  section: 'PROJECTS' | 'MASTERS' | 'HELP' | 'LIBRARY' | 'GENERAL' | 'PRAISE';
+  action: 'CREATE' | 'LIKE_GIVEN' | 'LIKE_RECEIVED' | 'COMMENT' | 'DAILY_LOGIN' | 'PRAISE_RECEIVED';
   points: number;
   ratingPoints: number;
   activityPoints: number;
@@ -224,19 +223,20 @@ export interface UserRating {
     likesReceived: number;
     commentsMade: number;
   };
-  // 👇 ДОБАВЛЕНЫ ПОЛЯ ДЛЯ СТАТИСТИКИ ПОХВАЛ (ОПЦИОНАЛЬНО)
   praisesStats?: {
-    given: number;      // сколько похвал отправил пользователь
-    received: number;   // сколько похвал получил пользователь
+    given: number;
+    received: number;
   };
 }
 
-// 👇 НОВЫЙ ИНТЕРФЕЙС ДЛЯ ДАННЫХ ПОХВАЛЫ
+// ===== ТИПЫ ДЛЯ ПОХВАЛ =====
+
 export interface PraiseData {
   id: string;
   fromUserId: string;
   toUserId: string;
   contentId?: string | null;
+  libraryItemId?: string | null;  // 👈 ДОБАВЛЕНО
   praiseType: 'GREAT' | 'EXCELLENT' | 'MASTER' | 'INSPIRING' | 'CREATIVE' | 'DETAILED' | 'HELPFUL' | 'THANKS';
   message?: string | null;
   createdAt: string;
@@ -257,31 +257,144 @@ export interface PraiseData {
     title: string;
     type: ContentType;
   } | null;
+  libraryItem?: {  // 👈 ДОБАВЛЕНО
+    id: string;
+    title: string;
+    type: string;
+  } | null;
 }
 
-// 👇 НОВЫЙ ИНТЕРФЕЙС ДЛЯ ЗАПРОСА НА СОЗДАНИЕ ПОХВАЛЫ
 export interface CreatePraiseRequest {
   toUserId: string;
   contentId?: string;
+  libraryItemId?: string;  // 👈 ДОБАВЛЕНО
   praiseType: 'GREAT' | 'EXCELLENT' | 'MASTER' | 'INSPIRING' | 'CREATIVE' | 'DETAILED' | 'HELPFUL' | 'THANKS';
   message?: string;
 }
 
-// 👇 НОВЫЙ ИНТЕРФЕЙС ДЛЯ ПАРАМЕТРОВ ПОЛУЧЕНИЯ ПОХВАЛ
 export interface GetPraisesParams {
   userId?: string;
   contentId?: string;
+  libraryItemId?: string;  // 👈 ДОБАВЛЕНО
   page?: number;
   limit?: number;
 }
 
-// 👇 НОВЫЙ ИНТЕРФЕЙС ДЛЯ ОТВЕТА СО СПИСКОМ ПОХВАЛ
 export interface PraisesResponse {
   praises: PraiseData[];
   total: number;
   page: number;
   limit: number;
 }
+
+// ===== 👇 НОВЫЕ ТИПЫ ДЛЯ БИБЛИОТЕКИ =====
+
+export interface LibraryItem {
+  id: string;
+  title: string;
+  content: string;
+  type: "text" | "photo" | "drawing" | "video" | "other";
+  author: string;
+  authorLogin: string;
+  userId: string;
+  contentId: string;
+  date: string;
+  likes: number;
+  userLiked?: boolean;
+  thumbnail?: string;
+  url?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  
+  // Статистика похвал
+  praises?: {
+    total: number;
+    distribution: Record<string, number>;
+    topEmoji: string;
+    topCount: number;
+  };
+  
+  // Права доступа
+  canEdit?: boolean;
+  canDelete?: boolean;
+}
+
+export interface LibrarySubsection {
+  id: string;
+  title: string;
+  items: LibraryItem[];
+  createdBy?: string;
+  createdAt?: string;
+  itemCount?: number;
+  canEdit?: boolean;
+  canDelete?: boolean;
+}
+
+export interface LibrarySection {
+  id: string;
+  title: string;
+  icon: string;
+  words?: string[];
+  subsections: LibrarySubsection[];
+  allowedTypes: ("text" | "photo" | "drawing" | "video" | "other")[];
+  fileExtensions?: string[];
+  maxFileSize?: number;
+  itemCount?: number;
+  subsectionCount?: number;
+  canEdit?: boolean;
+  canDelete?: boolean;
+}
+
+export interface LibraryStats {
+  totalItems: number;
+  totalSections: number;
+  totalSubsections: number;
+  byType: Record<string, number>;
+  recentItems: LibraryItem[];
+}
+
+export interface CreateSubsectionData {
+  title: string;
+  sectionId: string;
+}
+
+export interface CreateItemData {
+  title: string;
+  content: string;
+  type: "text" | "photo" | "drawing" | "video" | "other";
+  sectionId: string;
+  subsectionId: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  fileUrl?: string;
+  thumbnail?: string;
+}
+
+export interface UpdateSubsectionData {
+  title?: string;
+}
+
+export interface UpdateItemData {
+  title?: string;
+  content?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  fileUrl?: string;
+  thumbnail?: string;
+}
+
+export interface LibraryResponse<T> {
+  data: T;
+  total?: number;
+  page?: number;
+  limit?: number;
+}
+
+// ===== КОНСТАНТЫ =====
 
 export const USER_LEVELS = [
   { min: 0, max: 200, name: "Студент", icon: "★" },

@@ -706,10 +706,10 @@ const AddDocumentModal: React.FC<{
       fileType: selectedFile?.type,
       fileUrl: selectedFile ? URL.createObjectURL(selectedFile) : undefined,
       praises: {
-        total: 39,
-        distribution: { "👍": 15, "👏": 9, "🔨": 8, "💫": 7 },
-        topEmoji: "👍",
-        topCount: 15
+        total: 0,
+        distribution: {},
+        topEmoji: "",
+        topCount: 0
       }
     };
 
@@ -866,18 +866,46 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   const ratingContext = useRating();
   const praiseContext = usePraise();
 
+  // Отладка - логируем пользователя при монтировании и изменении
+  useEffect(() => {
+    console.log('👤 LibraryModal - Текущий пользователь:', user);
+    console.log('👤 LibraryModal - Роль пользователя:', user?.role);
+    console.log('👤 LibraryModal - isAuthenticated:', isAuthenticated);
+    console.log('👤 LibraryModal - user.role (original):', user?.role);
+    console.log('👤 LibraryModal - user.role (uppercase):', user?.role?.toUpperCase());
+  }, [user, isAuthenticated]);
+
   // ========== RBAC: ПРОВЕРКА ПРАВ ДОСТУПА ==========
   const canEdit = (itemUserId?: string): boolean => {
-    if (!isAuthenticated || !user) return false;
+    if (!isAuthenticated || !user) {
+      console.log('🔒 canEdit: пользователь не авторизован');
+      return false;
+    }
+    
+    const userRole = user.role?.toUpperCase(); // Приводим к верхнему регистру как в БД
+    console.log('🔒 canEdit: userRole =', userRole);
     
     // Админ имеет полный доступ ко всему
-    if (user.role === 'admin') return true;
+    if (userRole === 'ADMIN') {
+      console.log('✅ canEdit: Админ - полный доступ');
+      return true;
+    }
     
     // Модератор имеет полный доступ ко всему
-    if (user.role === 'moderator') return true;
+    if (userRole === 'MODERATOR') {
+      console.log('✅ canEdit: Модератор - полный доступ');
+      return true;
+    }
     
     // Обычный пользователь может редактировать только свои материалы
-    return itemUserId === user.id;
+    const hasAccess = itemUserId === user.id;
+    console.log('👤 canEdit: Обычный пользователь -', hasAccess ? 'доступ есть' : 'доступа нет');
+    return hasAccess;
+  };
+
+  // Проверка на возможность добавления (только авторизация)
+  const canAdd = (): boolean => {
+    return isAuthenticated;
   };
 
   // Загрузка демо-данных
@@ -1712,7 +1740,9 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
               <h3 className="subsections-title">
                 {currentSection.icon} {currentSection.title}
               </h3>
-              {isAuthenticated && (
+              
+              {/* Кнопка добавления раздела - только для авторизованных */}
+              {canAdd() && (
                 <button 
                   className="add-subsection-button"
                   onClick={() => openAddSubsectionModal(currentSection)}
@@ -1720,6 +1750,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                   ➕ Добавить раздел
                 </button>
               )}
+              
               <div className="subsections-list">
                 {currentSection.subsections.map(sub => (
                   <div key={sub.id} className="subsection-item">
@@ -1732,7 +1763,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                       <span className="subsection-count">{sub.items.length}</span>
                     </button>
                     
-                    {/* Кнопки редактирования/удаления для подраздела */}
+                    {/* Кнопки редактирования/удаления для подраздела - с проверкой прав */}
                     {canEdit(sub.createdBy) && (
                       <div className="subsection-actions">
                         <button
@@ -1767,7 +1798,9 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
             <div className="library-items-panel">
               <div className="items-header">
                 <h3 className="items-title">Документы</h3>
-                {isAuthenticated && currentSection && currentSubsection && (
+                
+                {/* Кнопка добавления документа - только для авторизованных */}
+                {canAdd() && currentSection && currentSubsection && (
                   <button 
                     className="add-document-button"
                     onClick={() => openAddDocumentModal(currentSection, currentSubsection)}
@@ -1806,7 +1839,9 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 ) : (
                   <div className="empty-items">
                     <p>В этом разделе пока нет документов</p>
-                    {isAuthenticated && currentSection && currentSubsection && (
+                    
+                    {/* Кнопка добавления первого документа - только для авторизованных */}
+                    {canAdd() && currentSection && currentSubsection && (
                       <button 
                         className="add-first-document-button"
                         onClick={() => openAddDocumentModal(currentSection, currentSubsection)}
@@ -1837,7 +1872,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                   )}
                 </div>
                 
-                {/* Кнопки редактирования/удаления в модалке документа - всегда под заголовком */}
+                {/* Кнопки редактирования/удаления в модалке документа - с проверкой прав */}
                 {canEdit(selectedItem.userId) && (
                   <div className="item-view-actions">
                     <button

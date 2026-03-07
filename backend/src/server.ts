@@ -6,9 +6,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import http from 'http';
 import { connectDB } from './config/database';
-// 👇 ИСПРАВЛЕНО: добавляем // @ts-ignore для временного игнорирования
-// @ts-ignore
-import { setupSocket } from './socket';
+import { setupSocket, getOnlineCount } from './socket'; // ✅ Правильный именованный импорт
 import adminRoutes from './routes/admin';
 import authRoutes from './routes/auth';
 import ratingRoutes from './routes/rating';
@@ -27,9 +25,10 @@ const PORT = process.env.PORT || 3001;
 
 const server = http.createServer(app);
 
-// @ts-ignore
+// ✅ Инициализируем Socket.IO и получаем io instance
 const io = setupSocket(server);
 
+// Настройка middleware
 app.use(helmet());
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -37,11 +36,14 @@ app.use(cors({
 }));
 app.use(morgan('dev'));
 
+// Парсинг JSON и URL-encoded данных
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Подключение к базе данных
 connectDB().catch(console.error);
 
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -51,11 +53,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// 👇 ИСПРАВЛЕНО: динамический импорт для избежания ошибки типов
+// ✅ Эндпоинт для получения количества онлайн пользователей
 app.get('/api/online', (req, res) => {
   try {
-    // @ts-ignore
-    const { getOnlineCount } = require('./socket');
     res.json({ 
       success: true, 
       online: getOnlineCount() 
@@ -69,6 +69,7 @@ app.get('/api/online', (req, res) => {
   }
 });
 
+// Подключение маршрутов
 app.use('/admin', adminRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/auth', authRoutes);
@@ -81,6 +82,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/rules', rulesRoutes);
 app.use('/api/market', marketRoutes);
 
+// Обработка 404
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
@@ -89,6 +91,7 @@ app.use('*', (req, res) => {
   });
 });
 
+// Глобальный обработчик ошибок
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('❌ Ошибка сервера:', err);
   
@@ -109,6 +112,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+// Запуск сервера
 server.listen(PORT, () => {
   console.log('🚀 Сервер запущен на порту', PORT);
   console.log('🔌 WebSocket подключен и готов к работе');
@@ -116,15 +120,11 @@ server.listen(PORT, () => {
   console.log('🌍 Окружение:', process.env.NODE_ENV || 'development');
   console.log('📦 Лимит загрузки: 10MB');
   
-  try {
-    // @ts-ignore
-    const { getOnlineCount } = require('./socket');
-    console.log('👥 Онлайн пользователей:', getOnlineCount());
-  } catch (error) {
-    console.log('👥 WebSocket еще не инициализирован');
-  }
+  // ✅ Получаем количество онлайн пользователей при запуске
+  console.log('👥 Онлайн пользователей:', getOnlineCount());
 });
 
+// Обработка сигналов завершения
 process.on('SIGTERM', () => {
   console.log('🔄 Получен SIGTERM, завершение работы...');
   process.exit(0);

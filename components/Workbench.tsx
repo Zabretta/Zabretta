@@ -13,10 +13,23 @@ import PraiseModal from "./PraiseModal";
 import { useAuth } from "./useAuth";
 import { useSettings } from "./SettingsContext";
 import { useRating, RatingProvider } from "./RatingContext";
-import { usePraise } from "./PraiseContext";
+import { usePraise, PraiseProvider } from "./PraiseContext";
 import { praiseApi } from "@/lib/api/praise";
 import { adminSimulationService } from "@/services/adminSimulationService";
 import AdminIcon from "./AdminIcon";
+
+// Типы для ответа от API похвал
+interface PraiseResponse {
+  success?: boolean;
+  data?: {
+    praise?: any;
+    id?: string;
+  };
+  praise?: any;
+  error?: string;
+  message?: string;
+  id?: string;
+}
 
 function WorkbenchContent() {
   const [activeDrawer, setActiveDrawer] = useState<string | null>(null);
@@ -34,7 +47,7 @@ function WorkbenchContent() {
   const [isClient, setIsClient] = useState(false);
   
   const { user, isAuthenticated, logout, authModalOpen, setAuthModalOpen, isAdmin, onlineCount } = useAuth();
-  const { currentContent, clearCurrentContent } = usePraise();
+  const { currentContent, clearCurrentContent, refreshContent } = usePraise();
   
   const [realStats, setRealStats] = useState({
     online: 0,
@@ -67,6 +80,13 @@ function WorkbenchContent() {
   const updateDisplayStats = useCallback((real: typeof realStats, currentOnline: number) => {
     const simState = adminSimulationService.getState();
     
+    console.log('🔄 updateDisplayStats called with:', { 
+      realAdviceGiven: real.adviceGiven,
+      currentOnline,
+      onlineFake: simState.onlineFake,
+      totalFake: simState.totalFake
+    });
+    
     const newOnline = simState.isOnlineSimulationActive 
       ? currentOnline + simState.onlineFake 
       : currentOnline;
@@ -82,12 +102,21 @@ function WorkbenchContent() {
       adviceGiven: real.adviceGiven
     });
     
+    console.log('✅ setDisplayStats with adviceGiven:', real.adviceGiven);
+    console.log('📊 Новые displayStats:', {
+      online: newOnline,
+      total: newTotal,
+      projectsCreated: real.projectsCreated,
+      adviceGiven: real.adviceGiven
+    });
+    
     console.log(`[Workbench] Обновлен онлайн: ${currentOnline} реальных + ${simState.onlineFake} фиктивных = ${newOnline}`);
   }, []);
 
   // Эффект для обновления при изменении данных
   useEffect(() => {
     if (realStats && isClient) {
+      console.log('📊 realStats изменились:', realStats);
       updateDisplayStats(realStats, onlineCount);
     }
   }, [onlineCount, realStats, isClient, updateDisplayStats]);
@@ -130,14 +159,20 @@ function WorkbenchContent() {
       const result = await response.json();
       const data = result.data;
       
-      console.log('[Workbench] Данные с бэкенда:', data);
+      console.log('📦 RAW DATA с бэкенда:', data);
+      console.log('📦 adviceGiven из бэкенда:', data.content?.adviceGiven);
+      console.log('📦 libraryPosts из бэкенда:', data.content?.libraryPosts);
+      console.log('📦 projects из бэкенда:', data.content?.projects);
+      console.log('📦 totalComments из бэкенда:', data.content?.totalComments);
       
       const newRealStats = {
         online: data.users?.online || 0,
         total: data.users?.total || 0,
         projectsCreated: data.content?.projects || data.content?.totalPosts || 0,
-        adviceGiven: data.content?.totalComments || 0
+        adviceGiven: data.content?.adviceGiven || 0
       };
+      
+      console.log('🔄 newRealStats после обработки:', newRealStats);
       
       setRealStats(newRealStats);
       updateDisplayStats(newRealStats, onlineCount);
@@ -157,6 +192,7 @@ function WorkbenchContent() {
     const unsubscribe = adminSimulationService.subscribe(() => {
       console.log('[Workbench] Получено обновление симуляции');
       if (realStats) {
+        console.log('📊 Обновление симуляции, текущие realStats:', realStats);
         updateDisplayStats(realStats, onlineCount);
       }
     });
@@ -186,12 +222,20 @@ function WorkbenchContent() {
         const result = await response.json();
         const data = result.data;
         
+        console.log('📦 Фоновые данные с бэкенда:', {
+          adviceGiven: data.content?.adviceGiven,
+          libraryPosts: data.content?.libraryPosts,
+          projects: data.content?.projects
+        });
+        
         const newRealStats = {
           online: data.users?.online || 0,
           total: data.users?.total || 0,
           projectsCreated: data.content?.projects || data.content?.totalPosts || 0,
-          adviceGiven: data.content?.totalComments || 0
+          adviceGiven: data.content?.adviceGiven || 0
         };
+        
+        console.log('🔄 Фоновые newRealStats:', newRealStats);
         
         setRealStats(newRealStats);
         updateDisplayStats(newRealStats, onlineCount);
@@ -259,7 +303,37 @@ function WorkbenchContent() {
     console.log('Открытие библиотеки');
   };
 
-  // 👇 ИСПРАВЛЕНО: обработчик похвалы
+  // Функция для открытия модалки похвалы с проверкой
+  const handleOpenPraise = () => {
+    console.log('🔍 handleOpenPraise called');
+    console.log('📦 currentContent:', currentContent);
+    console.log('👤 isAuthenticated:', isAuthenticated);
+    
+    if (!isAuthenticated) {
+      alert('Необходимо авторизоваться');
+      return;
+    }
+
+    if (!currentContent) {
+      alert('Сначала откройте проект, мастерскую или материал для похвалы');
+      console.log('❌ currentContent is null');
+      return;
+    }
+
+    console.log('✅ currentContent type:', currentContent.type);
+    
+    if (currentContent.type !== 'PROJECT' && 
+        currentContent.type !== 'MASTER' && 
+        currentContent.type !== 'HELP' && 
+        currentContent.type !== 'LIBRARY') {
+      alert('Этот тип контента нельзя похвалить');
+      return;
+    }
+
+    setIsPraiseModalOpen(true);
+  };
+
+  // 👇 ИСПРАВЛЕНО: обработчик похвалы с правильной обработкой ошибок
   const handlePraise = async (praiseId: string) => {
     if (!isAuthenticated) {
       alert('Необходимо авторизоваться');
@@ -273,8 +347,18 @@ function WorkbenchContent() {
       return;
     }
 
+    // Проверка типа контента
+    if (currentContent.type !== 'PROJECT' && 
+        currentContent.type !== 'MASTER' && 
+        currentContent.type !== 'HELP' && 
+        currentContent.type !== 'LIBRARY') {
+      alert('Этот тип контента нельзя похвалить');
+      setIsPraiseModalOpen(false);
+      return;
+    }
+
     // Нельзя похвалить самого себя
-    if (currentContent.authorId === user?.id || currentContent.authorId === user?.login) {
+    if (currentContent.authorId === user?.id) {
       alert('Нельзя похвалить самого себя');
       setIsPraiseModalOpen(false);
       return;
@@ -288,26 +372,66 @@ function WorkbenchContent() {
         type: currentContent.type
       });
 
-      const result = await praiseApi.createPraise({
+      // Формируем данные в зависимости от типа контента
+      const praiseData: any = {
         toUserId: currentContent.authorId,
-        contentId: currentContent.id,
-        praiseType: praiseId as any
-      });
+        praiseType: praiseId
+      };
 
-      if (result && result.praise) {
+      // Для библиотеки используем libraryItemId, для остальных - contentId
+      if (currentContent.type === 'LIBRARY') {
+        praiseData.libraryItemId = currentContent.id;
+      } else {
+        praiseData.contentId = currentContent.id;
+      }
+
+      const result = await praiseApi.createPraise(praiseData) as PraiseResponse;
+      
+      console.log('📦 Полный ответ от сервера:', JSON.stringify(result, null, 2));
+
+      // 👇 УНИВЕРСАЛЬНАЯ ПРОВЕРКА УСПЕХА
+      const isSuccess = 
+        result?.success === true ||           // { success: true, data: ... }
+        result?.data !== undefined ||         // { data: ... }
+        result?.praise !== undefined ||       // { praise: ... }
+        (result as any)?.id !== undefined;    // просто объект похвалы
+
+      if (isSuccess) {
+        console.log('✅ Похвала успешно отправлена');
         alert(`✅ Вы похвалили "${currentContent.title}"! Автор получит +2 рейтинга и +3 активности`);
         
-        // 👇 ИЗМЕНЕНО: НЕ ОЧИЩАЕМ КОНТЕКСТ, ЧТОБЫ МОЖНО БЫЛО ПОХВАЛИТЬ СНОВА
-        // Просто закрываем модалку похвалы
+        // Обновляем контент, чтобы показать актуальную статистику похвал
+        if (refreshContent) {
+          console.log('🔄 Обновление контента после похвалы');
+          await refreshContent(currentContent.id, currentContent.type);
+        }
+        
+        // Закрываем модалку похвалы
         setIsPraiseModalOpen(false);
       } else {
-        const errorMsg = (result as any)?.error || 'Не удалось отправить похвалу';
-        alert(`Ошибка: ${errorMsg}`);
+        // 👇 ОПРЕДЕЛЯЕМ ТИП ОШИБКИ
+        let errorMsg = 'Не удалось отправить похвалу';
+        const serverError = (result as any)?.error || (result as any)?.message;
+        
+        if (serverError) {
+          if (serverError.includes('уже похвалили')) {
+            errorMsg = serverError; // "Вы уже похвалили этот контент" или "Вы уже похвалили этот документ"
+          } else if (serverError.includes('самого себя')) {
+            errorMsg = serverError; // "Нельзя похвалить самого себя"
+          } else if (serverError.includes('не найден')) {
+            errorMsg = serverError; // "Пользователь не найден", "Контент не найден" и т.д.
+          } else {
+            errorMsg = serverError;
+          }
+        }
+        
+        console.error('❌ Ошибка ответа:', result);
+        alert(`⛔ ${errorMsg}`);
         setIsPraiseModalOpen(false);
       }
     } catch (error) {
       console.error('[Workbench] Ошибка при отправке похвалы:', error);
-      alert('Произошла ошибка при отправке похвалы');
+      alert('⛔ Произошла ошибка при отправке похвалы');
       setIsPraiseModalOpen(false);
     }
   };
@@ -371,7 +495,7 @@ function WorkbenchContent() {
   ];
 
   const tools = [
-    { id: "hammer", label: "Похвалить", icon: "🔨", action: () => setIsPraiseModalOpen(true) },
+    { id: "hammer", label: "Похвалить", icon: "🔨", action: handleOpenPraise },
     { id: "share", label: "Поделиться", icon: "📤" },
     { id: "heart", label: "Избранное", icon: "❤️" },
     { id: "pencil", label: "Комментировать", icon: "✏️" },
@@ -666,7 +790,9 @@ function WorkbenchContent() {
 export default function Workbench() {
   return (
     <RatingProvider>
-      <WorkbenchContent />
+      <PraiseProvider>
+        <WorkbenchContent />
+      </PraiseProvider>
     </RatingProvider>
   );
 }

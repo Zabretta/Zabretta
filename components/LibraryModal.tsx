@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./LibraryModal.css";
 import { useAuth } from "./useAuth";
-import { useRating } from "./RatingContext";
 import { usePraise } from "./PraiseContext";
-import { praiseApi } from "@/lib/api/praise";
 import { libraryApi, LibrarySection as ApiLibrarySection, LibrarySubsection as ApiLibrarySubsection, LibraryItem as ApiLibraryItem } from "@/lib/api/library";
 import { SECTION_UPLOAD_CONFIG, UPLOAD_LIMITS, formatFileSize as configFormatFileSize, validateFile } from "@/lib/config/uploads";
 
@@ -37,7 +35,6 @@ interface ExtendedApiLibrarySubsection extends ApiLibrarySubsection {
 // Типы данных (используем расширенные типы)
 interface LibraryItem extends ExtendedApiLibraryItem {
   contentId: string;
-  userLiked?: boolean;
 }
 
 interface Subsection extends Omit<ExtendedApiLibrarySubsection, 'items'> {
@@ -93,11 +90,10 @@ const RATING_POINTS = {
   ADD_PHOTO: 15,
   ADD_VIDEO: 20,
   ADD_DRAWING: 15,
-  RECEIVE_LIKE: 2,
   RECEIVE_PRAISE: 5
 };
 
-// Массив похвал
+// Массив похвал с маппингом типов на эмодзи
 const PRAISE_EMOJIS: Record<string, string> = {
   "👍": "Молодец!",
   "👏": "Отличная работа!",
@@ -109,6 +105,18 @@ const PRAISE_EMOJIS: Record<string, string> = {
   "🙏": "Спасибо!"
 };
 
+// Маппинг типов похвал из БД в эмодзи
+const PRAISE_TYPE_TO_EMOJI: Record<string, string> = {
+  'GREAT': '👍',
+  'EXCELLENT': '👏',
+  'MASTER': '🔨',
+  'INSPIRING': '💫',
+  'CREATIVE': '🎨',
+  'DETAILED': '🔍',
+  'HELPFUL': '🤝',
+  'THANKS': '🙏'
+};
+
 // Вспомогательная функция для проверки, является ли конфиг файловым
 function isFileConfig(config: ContentTypeConfig): config is FileContentConfig {
   return 'MAX_SIZE' in config;
@@ -118,14 +126,17 @@ function isFileConfig(config: ContentTypeConfig): config is FileContentConfig {
 const PraiseStatsCompact: React.FC<{ item: LibraryItem }> = ({ item }) => {
   if (!item.praises || item.praises.total === 0) return null;
   
+  // Получаем эмодзи для топа
+  const topEmoji = item.praises.topEmoji ? PRAISE_TYPE_TO_EMOJI[item.praises.topEmoji] || '🔨' : '🔨';
+  
   return (
     <div className="praise-stats-compact">
       <span className="total" title="Всего похвал">
         🔨 {item.praises.total}
       </span>
       {item.praises.topEmoji && item.praises.topCount > 0 && (
-        <span className="top-emoji" title={`${PRAISE_EMOJIS[item.praises.topEmoji] || 'Похвала'}`}>
-          {item.praises.topEmoji} {item.praises.topCount}
+        <span className="top-emoji" title={`${PRAISE_EMOJIS[topEmoji] || 'Похвала'}`}>
+          {topEmoji} {item.praises.topCount}
         </span>
       )}
     </div>
@@ -134,7 +145,19 @@ const PraiseStatsCompact: React.FC<{ item: LibraryItem }> = ({ item }) => {
 
 // 👇 КОМПОНЕНТ: детальная статистика похвал для модального окна
 const PraiseStatsDetailed: React.FC<{ item: LibraryItem }> = ({ item }) => {
-  if (!item.praises) {
+  // Маппинг типов похвал на эмодзи
+  const praiseTypeToEmoji: Record<string, string> = {
+    'GREAT': '👍',
+    'EXCELLENT': '👏',
+    'MASTER': '🔨',
+    'INSPIRING': '💫',
+    'CREATIVE': '🎨',
+    'DETAILED': '🔍',
+    'HELPFUL': '🤝',
+    'THANKS': '🙏'
+  };
+
+  if (!item.praises || !item.praises.distribution) {
     return (
       <div className="praise-stats-detailed">
         <div style={{ color: 'white', textAlign: 'center' }}>
@@ -144,11 +167,17 @@ const PraiseStatsDetailed: React.FC<{ item: LibraryItem }> = ({ item }) => {
     );
   }
 
-  const topEmotions = Object.entries(item.praises.distribution)
-    .sort(([, a], [, b]) => (b as number) - (a as number))
+  // Преобразуем ключи в эмодзи для отображения
+  const distributionWithEmojis = Object.entries(item.praises.distribution).map(([key, count]) => {
+    const emoji = praiseTypeToEmoji[key] || '🔨'; // По умолчанию молоток
+    return { emoji, count: count as number, originalKey: key };
+  });
+
+  const topEmotions = distributionWithEmojis
+    .sort((a, b) => b.count - a.count)
     .slice(0, 4);
   
-  const maxCount = (topEmotions[0]?.[1] as number) || 1;
+  const maxCount = topEmotions.length > 0 ? topEmotions[0].count : 1;
 
   return (
     <div className="praise-stats-detailed">
@@ -159,14 +188,14 @@ const PraiseStatsDetailed: React.FC<{ item: LibraryItem }> = ({ item }) => {
       </div>
       
       <div className="praise-distribution">
-        {topEmotions.map(([emoji, count]) => (
-          <div key={emoji} className="praise-stat-item">
+        {topEmotions.map(({ emoji, count, originalKey }) => (
+          <div key={originalKey} className="praise-stat-item">
             <span className="stat-emoji">{emoji}</span>
             <span className="stat-count">{count}</span>
             <div className="stat-bar-container">
               <div 
                 className="stat-bar" 
-                style={{ width: `${((count as number) / maxCount) * 100}%` }}
+                style={{ width: `${(count / maxCount) * 100}%` }}
               />
             </div>
           </div>
@@ -900,7 +929,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   const [selectedSubsection, setSelectedSubsection] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
   const [libraryData, setLibraryData] = useState<Section[]>([]);
-  const [likedItems, setLikedItems] = useState<Set<string>>(new Set());
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -923,7 +951,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   const mainContainerRef = useRef<HTMLDivElement>(null);
   
   const { user, isAuthenticated } = useAuth();
-  const ratingContext = useRating();
   const praiseContext = usePraise();
 
   // Отладка - логируем пользователя при монтировании и изменении
@@ -932,6 +959,76 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     console.log('👤 LibraryModal - Роль пользователя:', user?.role);
     console.log('👤 LibraryModal - isAuthenticated:', isAuthenticated);
   }, [user, isAuthenticated]);
+
+  // 👇 Функция для обновления данных документа
+  const refreshItemData = useCallback(async (itemId: string) => {
+    if (!itemId) return;
+    
+    try {
+      console.log(`🔄 Обновление данных документа ${itemId}`);
+      const response = await libraryApi.getItem(itemId) as unknown as ApiResponse<ApiLibraryItem>;
+      
+      if (response.success && response.data) {
+        const updatedItem = response.data;
+        
+        // Обновляем selectedItem если это текущий документ
+        if (selectedItem && selectedItem.id === itemId) {
+          setSelectedItem(prev => prev ? {
+            ...prev,
+            ...updatedItem,
+            contentId: updatedItem.id,
+            praises: updatedItem.praises
+          } : null);
+        }
+        
+        // Обновляем в списке
+        setLibraryData(prev => prev.map(section => ({
+          ...section,
+          subsections: section.subsections.map(sub => ({
+            ...sub,
+            items: sub.items.map(item => 
+              item.id === itemId 
+                ? { 
+                    ...item, 
+                    ...updatedItem, 
+                    contentId: updatedItem.id, 
+                    praises: updatedItem.praises 
+                  }
+                : item
+            )
+          }))
+        })));
+        
+        console.log('✅ Документ обновлен');
+      }
+    } catch (error) {
+      console.error('❌ Ошибка при обновлении документа:', error);
+    }
+  }, [selectedItem]);
+
+  // 👇 Слушаем событие обновления контента из PraiseContext
+  useEffect(() => {
+    const handleContentUpdated = (event: CustomEvent) => {
+      const { contentId, contentType } = event.detail;
+      console.log(`📢 Получено событие обновления: ${contentType} / ${contentId}`);
+      
+      if (contentType === 'LIBRARY' && contentId) {
+        // Проверяем, относится ли это событие к текущему документу
+        if (selectedItem && selectedItem.id === contentId) {
+          console.log('📢 Обновляем текущий документ');
+          refreshItemData(contentId);
+        } else {
+          console.log('📢 Обновление для другого документа, игнорируем');
+        }
+      }
+    };
+
+    window.addEventListener('content-updated', handleContentUpdated as EventListener);
+    
+    return () => {
+      window.removeEventListener('content-updated', handleContentUpdated as EventListener);
+    };
+  }, [selectedItem, refreshItemData]);
 
   // Загрузка данных с сервера
   useEffect(() => {
@@ -977,7 +1074,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                   items: items.map((item: ApiLibraryItem) => ({
                     ...item,
                     contentId: item.id,
-                    userLiked: false,
                     canEdit: (item as any).canEdit,
                     canDelete: (item as any).canDelete
                   })),
@@ -1008,19 +1104,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     
     fetchLibraryData();
   }, [isOpen]);
-
-  // Сохраняем лайки в localStorage (как временное решение)
-  useEffect(() => {
-    const savedLikes = localStorage.getItem('library_liked_items');
-    if (savedLikes) {
-      try {
-        const parsed = JSON.parse(savedLikes);
-        setLikedItems(new Set(parsed));
-      } catch (e) {
-        console.error('Ошибка загрузки лайков:', e);
-      }
-    }
-  }, []);
 
   useEffect(() => {
     if (selectedSubsection && mainContainerRef.current) {
@@ -1109,15 +1192,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
             }
           : shelf
       ));
-
-      if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
-        (ratingContext as any).addRating({
-          userId: user.id,
-          points: RATING_POINTS.CREATE_SUBSECTION,
-          reason: `created_subsection_${newSubsection.id}`,
-          timestamp: new Date().toISOString()
-        });
-      }
       
     } catch (error) {
       console.error('❌ Ошибка создания подраздела:', error);
@@ -1242,8 +1316,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                       ...sub, 
                       items: [...sub.items, { 
                         ...newItem, 
-                        contentId: newItem.id, 
-                        userLiked: false,
+                        contentId: newItem.id,
                         canEdit: true,
                         canDelete: true
                       }] 
@@ -1253,20 +1326,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
             }
           : shelf
       ));
-
-      if (ratingContext && typeof (ratingContext as any).addRating === 'function') {
-        let points = RATING_POINTS.ADD_DOCUMENT;
-        if (docData.type === 'photo') points = RATING_POINTS.ADD_PHOTO;
-        if (docData.type === 'video') points = RATING_POINTS.ADD_VIDEO;
-        if (docData.type === 'drawing') points = RATING_POINTS.ADD_DRAWING;
-
-        (ratingContext as any).addRating({
-          userId: user.id,
-          points,
-          reason: `added_${docData.type}_${newItem.id}`,
-          timestamp: new Date().toISOString()
-        });
-      }
       
     } catch (error) {
       console.error('❌ Ошибка создания документа:', error);
@@ -1431,79 +1490,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   const handleCloseItem = () => {
     setSelectedItem(null);
     praiseContext.clearCurrentContent();
-  };
-
-  const handleLike = async (item: LibraryItem) => {
-    if (!isAuthenticated) {
-      alert('Необходимо авторизоваться, чтобы ставить лайки');
-      return;
-    }
-
-    const itemId = item.id;
-    const isLiked = likedItems.has(itemId);
-
-    try {
-      setIsLoading(true);
-      
-      let result;
-      if (isLiked) {
-        result = await libraryApi.unlikeItem(itemId) as { likes: number; userLiked: boolean };
-      } else {
-        result = await libraryApi.likeItem(itemId) as { likes: number; userLiked: boolean };
-      }
-      
-      console.log('✅ Лайк обработан:', result);
-      
-      const newLikedItems = new Set(likedItems);
-      if (isLiked) {
-        newLikedItems.delete(itemId);
-      } else {
-        newLikedItems.add(itemId);
-      }
-      
-      setLikedItems(newLikedItems);
-      localStorage.setItem('library_liked_items', JSON.stringify(Array.from(newLikedItems)));
-      
-      // Обновляем данные в состоянии
-      setLibraryData(prev => prev.map(section => ({
-        ...section,
-        subsections: section.subsections.map(sub => ({
-          ...sub,
-          items: sub.items.map(i => 
-            i.id === itemId 
-              ? { ...i, likes: result.likes, userLiked: !isLiked }
-              : i
-          )
-        }))
-      })));
-      
-      if (selectedItem?.id === itemId) {
-        setSelectedItem(prev => prev ? { ...prev, likes: result.likes } : null);
-      }
-      
-      // Начисляем баллы за лайк (только если поставили, а не убрали)
-      if (!isLiked && ratingContext && typeof (ratingContext as any).addRating === 'function') {
-        (ratingContext as any).addRating({
-          userId: item.userId,
-          points: RATING_POINTS.RECEIVE_LIKE,
-          reason: `received_like_${itemId}`,
-          timestamp: new Date().toISOString()
-        });
-        
-        (ratingContext as any).addRating({
-          userId: user?.id,
-          points: 1,
-          reason: `like_activity_${itemId}`,
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-    } catch (error) {
-      console.error('❌ Ошибка при обработке лайка:', error);
-      alert('Не удалось обработать лайк. Попробуйте позже.');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const getCurrentItems = () => {
@@ -1741,7 +1727,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                         <div className="item-meta">
                           <span className="item-author">👤 {item.author}</span>
                           <span className="item-date">📅 {item.date}</span>
-                          <span className="item-likes">❤️ {item.likes}</span>
                         </div>
                         <PraiseStatsCompact item={item} />
                       </div>
@@ -1887,19 +1872,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                   <PraiseStatsDetailed item={selectedItem} />
                 </div>
 
-                <div className="footer-right">
-                  <button 
-                    className={`like-button ${likedItems.has(selectedItem.id) ? 'liked' : ''}`}
-                    onClick={() => handleLike(selectedItem)}
-                    disabled={!isAuthenticated || isLoading}
-                  >
-                    <span className="like-icon">❤️</span>
-                    <span className="like-count">{selectedItem.likes}</span>
-                    <span className="like-text">
-                      {likedItems.has(selectedItem.id) ? 'Вы поблагодарили' : 'Поблагодарить'}
-                    </span>
-                  </button>
-                </div>
+                {/* Блок с лайком полностью удален */}
               </div>
             </div>
           </div>

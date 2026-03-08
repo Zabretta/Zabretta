@@ -56,6 +56,7 @@ export const RatingProvider: React.FC<RatingProviderProps> = ({ children }) => {
     
     setIsLoading(true);
     try {
+      console.log('🔄 RatingContext: обновление рейтинга...');
       const stats: any = await userApi.getDashboardStats();
       
       const userData = stats.user || stats.data?.user || stats;
@@ -79,6 +80,7 @@ export const RatingProvider: React.FC<RatingProviderProps> = ({ children }) => {
         }
       };
       
+      console.log('✅ RatingContext: новый рейтинг:', ratingFromDB);
       setUserRating(ratingFromDB);
       
       setAllRatings(prev => {
@@ -87,11 +89,27 @@ export const RatingProvider: React.FC<RatingProviderProps> = ({ children }) => {
       });
       
     } catch (error) {
+      console.log('⚠️ RatingContext: ошибка загрузки, используем localStorage');
       loadFromLocalStorage();
     } finally {
       setIsLoading(false);
     }
   }, [user]);
+
+  // 👇 СЛУШАЕМ СОБЫТИЕ ОБНОВЛЕНИЯ КОНТЕНТА (ПОХВАЛЫ)
+  useEffect(() => {
+    const handleContentUpdated = (event: CustomEvent) => {
+      console.log('📢 RatingContext: получено событие content-updated', event.detail);
+      // Обновляем рейтинг при любой похвале
+      refreshRating();
+    };
+
+    window.addEventListener('content-updated', handleContentUpdated as EventListener);
+    
+    return () => {
+      window.removeEventListener('content-updated', handleContentUpdated as EventListener);
+    };
+  }, [refreshRating]);
 
   const loadFromLocalStorage = useCallback(() => {
     if (!user?.id) return;

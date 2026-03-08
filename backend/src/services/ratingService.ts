@@ -208,8 +208,9 @@ export class RatingService {
       { section: 'library', action: 'like_given', ratingPoints: 0, activityPoints: 2, description: 'Лайк публикации' },
       { section: 'general', action: 'registration', ratingPoints: 15, activityPoints: 0, description: 'Регистрация на сайте' },
       { section: 'general', action: 'daily_login', ratingPoints: 0, activityPoints: 2, description: 'Ежедневный вход' },
-      // 👇 ДОБАВЛЕНА ФОРМУЛА ДЛЯ ПОХВАЛЫ
-      { section: 'praise', action: 'praise_received', ratingPoints: 2, activityPoints: 3, description: 'Получил похвалу за полезный совет' }
+      // 👇 ФОРМУЛЫ ДЛЯ ПОХВАЛ
+      { section: 'praise', action: 'praise_received', ratingPoints: 2, activityPoints: 3, description: 'Получил похвалу' },
+      { section: 'praise', action: 'praise_given', ratingPoints: 0, activityPoints: 1, description: 'Похвалил материал' }
     ];
     
     const recentAdjustments = await prisma.rating_adjustments.findMany({
@@ -253,15 +254,21 @@ export class RatingService {
     section?: string
   ): Promise<{ awarded: boolean; ratingChange: number; activityChange: number; message: string }> {
     try {
+      console.log(`[RatingService] awardPoints вызван: userId=${userId}, action=${action}, targetId=${targetId}, section=${section}`);
+
       // 1. Получаем все формулы
       const { formulas } = await this.getRatingLevels();
       
       // 2. Ищем подходящую формулу
       let formula = formulas.find(f => f.action === action);
-      
+      console.log(`[RatingService] Поиск формулы для action=${action}:`, formula ? 'найдена' : 'не найдена');
+
       if (section) {
         const exactFormula = formulas.find(f => f.section === section && f.action === action);
-        if (exactFormula) formula = exactFormula;
+        if (exactFormula) {
+          formula = exactFormula;
+          console.log(`[RatingService] Найдена точная формула для section=${section}, action=${action}`);
+        }
       }
       
       if (!formula) {
@@ -274,7 +281,9 @@ export class RatingService {
         };
       }
 
-      // 👇 ИСПРАВЛЕНО: Проверяем daily_login ТОЛЬКО если это не вызов из админки
+      console.log(`[RatingService] Используется формула:`, formula);
+
+      // 👇 Проверяем daily_login ТОЛЬКО если это не вызов из админки
       if (action === 'daily_login' && !targetId?.startsWith('admin_')) {
         const today = new Date().toDateString();
         
@@ -289,6 +298,7 @@ export class RatingService {
         });
         
         if (todayAdjustments.length > 0) {
+          console.log(`[RatingService] Бонус за сегодня уже получен пользователем ${userId}`);
           return {
             awarded: false,
             ratingChange: 0,
@@ -298,10 +308,10 @@ export class RatingService {
         }
       }
 
-      // 👇 ДОБАВЛЕНО: Проверка для похвалы (нельзя похвалить самого себя)
+      // 👇 Проверка для похвалы (нельзя похвалить самого себя)
       if (action === 'praise_received' && targetId) {
-        // Здесь проверка будет в praiseService, но оставим на всякий случай
         if (userId === targetId) {
+          console.log(`[RatingService] Попытка похвалить самого себя: userId=${userId}`);
           return {
             awarded: false,
             ratingChange: 0,
@@ -323,6 +333,8 @@ export class RatingService {
           timestamp: new Date()
         }
       });
+
+      console.log(`[RatingService] Запись создана:`, adjustment);
 
       // 5. Обновляем суммарные поля пользователя
       await prisma.users.update({
@@ -357,7 +369,7 @@ export class RatingService {
    * Проверить и начислить бонус за ежедневный вход
    */
   static async checkAndAwardDailyLogin(userId: string): Promise<{ awarded: boolean; message: string }> {
-    // 👇 ИСПРАВЛЕНО: Убрали дублирующую проверку, доверяем awardPoints
+    console.log(`[RatingService] checkAndAwardDailyLogin вызван для userId=${userId}`);
     const result = await this.awardPoints(userId, 'daily_login');
     
     return {

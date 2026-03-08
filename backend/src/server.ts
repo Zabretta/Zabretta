@@ -17,7 +17,8 @@ import adminNotificationRoutes from './routes/admin/notifications';
 import settingsRoutes from './routes/settings';
 import rulesRoutes from './routes/rules';
 import marketRoutes from './routes/market';
-import libraryRoutes from './routes/library'; // 👈 ТОЛЬКО ЭТА СТРОКА ДОБАВЛЕНА
+import libraryRoutes from './routes/library';
+import praiseRoutes from './routes/praise'; // 👈 ДОБАВЛЕНО
 
 dotenv.config();
 
@@ -82,7 +83,8 @@ app.use('/api/admin/notifications', adminNotificationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/rules', rulesRoutes);
 app.use('/api/market', marketRoutes);
-app.use('/api/library', libraryRoutes); // 👈 ТОЛЬКО ЭТА СТРОКА ДОБАВЛЕНА
+app.use('/api/library', libraryRoutes);
+app.use('/api/praise', praiseRoutes); // 👈 ДОБАВЛЕНО
 
 // Обработка 404
 app.use('*', (req, res) => {

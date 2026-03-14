@@ -140,6 +140,13 @@ export interface UnreadCountResponse {
   count: number;
 }
 
+// 🔥 ДОБАВЛЯЕМ ТИП ДЛЯ ОТВЕТА ОТ INCREMENT VIEWS
+export interface IncrementViewsResponse {
+  success: boolean;
+  incremented?: boolean;
+  views?: number;
+}
+
 const getAuthToken = (): string | null => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('samodelkin_auth_token') || 
@@ -150,6 +157,9 @@ const getAuthToken = (): string | null => {
 };
 
 const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
+  console.log(`🔐 fetchWithAuth: ${endpoint}`);
+  console.log(`🔐 Token:`, getAuthToken()?.substring(0, 20) + '...');
+  
   const token = getAuthToken();
   
   const headers = {
@@ -158,18 +168,24 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
+  console.log('🔐 Headers:', headers);
+
   const response = await fetch(`${API_BASE}/api${endpoint}`, {
     ...options,
     headers,
     credentials: 'include',
   });
 
+  console.log(`🔐 Response status:`, response.status);
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Неизвестная ошибка' }));
+    console.error('🔐 Response error:', error);
     throw new Error(error.error || 'Ошибка запроса');
   }
 
   const result = await response.json();
+  console.log('🔐 Response data:', result);
   return result.data;
 };
 
@@ -177,7 +193,7 @@ export const marketApi = {
   /**
    * Загрузить объявления с фильтрацией
    */
-  loadItems: async (filters?: MarketFilters): Promise<MarketItem[]> => {
+  loadItems: async (filters?: MarketFilters): Promise<{ items: MarketItem[]; total: number; page: number; totalPages: number }> => {
     const queryParams = new URLSearchParams();
     if (filters?.type) queryParams.append('type', filters.type);
     if (filters?.category) queryParams.append('category', filters.category);
@@ -214,9 +230,9 @@ export const marketApi = {
 
   /**
    * Получить объявление по ID
-   * НУЖНО ДЛЯ РЕДАКТИРОВАНИЯ
+   * НУЖНО ДЛЯ РЕДАКТИРОВАНИЯ И ПРОСМОТРОВ
    */
-  getItemById: async (id: string): Promise<MarketItem> => {
+  getItem: async (id: string): Promise<MarketItem> => {
     return fetchWithAuth(`/market/items/${id}`);
   },
 
@@ -243,12 +259,44 @@ export const marketApi = {
 
   /**
    * Увеличить счетчик просмотров объявления
-   * 🔥 НОВЫЙ МЕТОД ДЛЯ СЧЕТЧИКА ПРОСМОТРОВ
+   * 🔥 ИСПРАВЛЕНО: принудительно передаем userId из localStorage
    */
-  incrementViews: async (id: string): Promise<{ success: boolean }> => {
-    return fetchWithAuth(`/market/items/${id}/views`, {
-      method: 'POST',
-    });
+  incrementViews: async (id: string): Promise<IncrementViewsResponse> => {
+    console.log(`\n📤 ===== INCREMENT VIEWS =====`);
+    console.log(`📤 ID товара: ${id}`);
+    
+    // 🔥 ПОЛУЧАЕМ userId ИЗ localStorage
+    let userId = null;
+    try {
+      const userStr = localStorage.getItem('samodelkin_user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        userId = user.id;
+        console.log(`📤 userId из localStorage: ${userId}`);
+      } else {
+        console.log(`📤 samodelkin_user не найден в localStorage`);
+      }
+    } catch (e) {
+      console.error('❌ Ошибка парсинга пользователя:', e);
+    }
+    
+    console.log(`📤 URL: /market/items/${id}/views`);
+    console.log(`📤 Тело запроса:`, { userId });
+    
+    try {
+      // 🔥 ЯВНО ПЕРЕДАЕМ userId В ТЕЛЕ ЗАПРОСА
+      const result = await fetchWithAuth(`/market/items/${id}/views`, {
+        method: 'POST',
+        body: JSON.stringify({ userId }),
+      });
+      console.log(`📥 API incrementViews ответ:`, result);
+      console.log(`📤 ===== КОНЕЦ INCREMENT VIEWS =====\n`);
+      return result;
+    } catch (error) {
+      console.error(`📥 API incrementViews ошибка:`, error);
+      console.log(`📤 ===== КОНЕЦ INCREMENT VIEWС (С ОШИБКОЙ) =====\n`);
+      throw error;
+    }
   },
 
   /**

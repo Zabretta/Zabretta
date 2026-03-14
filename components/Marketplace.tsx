@@ -1,3 +1,4 @@
+// components/Marketplace.tsx
 "use client"
 
 import { useState, useMemo, ChangeEvent, useEffect } from "react";
@@ -30,6 +31,7 @@ interface MarketItem {
   price: number | "free";
   location: string;
   author: string;
+  authorId?: string;
   rating: number;
   type: ItemType;
   imageUrl?: string;
@@ -46,6 +48,14 @@ interface MarketItem {
 }
 
 export default function Marketplace({ onClose, currentUser }: MarketplaceProps) {
+  // ===== ОТЛАДКА =====
+  console.log('🔥🔥🔥 Marketplace ЗАГРУЖЕН 🔥🔥🔥');
+  console.log('🔥 currentUser:', currentUser);
+  console.log('🔥 Роль пользователя:', currentUser?.role);
+  console.log('🔥 ID пользователя:', currentUser?.id);
+  console.log('🔥 Логин пользователя:', currentUser?.login);
+  // ===================
+
   const [activeFilter, setActiveFilter] = useState<ItemType | "all">("all");
   const [isCreatingAd, setIsCreatingAd] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,7 +74,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // 🔥 НОВЫЕ СОСТОЯНИЯ ДЛЯ ДЕТАЛЬНОГО ПРОСМОТРА
   const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
@@ -254,6 +263,18 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         const itemsArray = response.items || [];
         
         console.log(`✅ Загружено ${itemsArray.length} объявлений`);
+        
+        // ОТЛАДКА: выводим каждое объявление
+        itemsArray.forEach((item: MarketItem, index: number) => {
+          console.log(`📦 Товар #${index + 1}:`, {
+            id: item.id,
+            title: item.title,
+            author: item.author,
+            authorId: item.authorId,
+            views: item.views
+          });
+        });
+        
         setItems(itemsArray);
         
       } catch (error) {
@@ -305,7 +326,15 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
   }, [items, searchQuery]);
 
   const handleEditStart = (item: MarketItem) => {
-    if (!currentUser || currentUser.login !== item.author) {
+    console.log('✏️ Попытка редактирования:', item.title);
+    console.log('👤 Текущий пользователь:', currentUser);
+    console.log('📦 Автор объявления ID:', item.authorId);
+    
+    // Админ или модератор могут редактировать любые объявления
+    if (currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR') {
+      console.log('✅ Админ/модератор - разрешаем редактирование');
+    } else if (!currentUser || currentUser.id !== item.authorId) {
+      console.log('❌ Обычный пользователь - нет прав');
       alert("Вы можете редактировать только свои объявления");
       return;
     }
@@ -540,6 +569,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
         location: location.trim(),
         type: type,
         author: currentUser.login,
+        authorId: currentUser.id,
         category: category || null,
         imageUrl: imageUrl,
         negotiable: negotiable,
@@ -567,6 +597,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
       const newItemWithAuthor: MarketItem = {
         ...result,
         author: currentUser.login,
+        authorId: currentUser.id,
         rating: 4.5
       };
       
@@ -631,32 +662,63 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     }
   };
 
-  // 🔥 НОВЫЙ ОБРАБОТЧИК: Клик по карточке для детального просмотра
+  // 🔥 ИСПРАВЛЕНО: С ПОДРОБНЫМИ ЛОГАМИ
   const handleItemClick = async (item: MarketItem) => {
-    // Если это кнопки редактирования/удаления - не открываем модалку
+    console.log('🖱️ ===== КЛИК ПО ТОВАРУ =====');
+    console.log('🆔 ID товара:', item.id);
+    console.log('📌 Название:', item.title);
+    console.log('👤 Текущий пользователь:', currentUser);
+    console.log('✍️ Автор объявления ID:', item.authorId);
+    console.log('📊 Текущие просмотры до клика:', item.views);
+    console.log('🔍 Является ли пользователь автором:', currentUser?.id === item.authorId);
+    
     if ((window.event as any)?.target?.closest('.edit-btn, .delete-btn, .contact-btn')) {
+      console.log('🚫 Клик по кнопке, игнорируем');
       return;
     }
     
     setSelectedItem(item);
     setIsDetailModalOpen(true);
     
-    // Увеличиваем счетчик просмотров
     try {
-      await marketApi.incrementViews(item.id);
+      console.log('📤 Отправка запроса на увеличение просмотров...');
+      console.log('📤 URL:', `/api/market/items/${item.id}/views`);
+      console.log('📤 Токен:', localStorage.getItem('samodelkin_auth_token')?.substring(0, 20) + '...');
       
-      // Обновляем счетчик в списке
-      setItems(prev => prev.map(i => 
-        i.id === item.id 
-          ? { ...i, views: (i.views || 0) + 1 }
-          : i
-      ));
+      const result = await marketApi.incrementViews(item.id);
+      
+      console.log('📥 Ответ от сервера (полный):', result);
+      console.log('📥 success:', result.success);
+      console.log('📥 incremented:', result.incremented);
+      console.log('📥 views:', result.views);
+      
+      if (result.incremented && result.views !== undefined) {
+        console.log(`✅ ПРОСМОТР ЗАСЧИТАН! Было: ${item.views}, Стало: ${result.views}`);
+        
+        // Обновляем в списке
+        setItems(prev => prev.map(i => 
+          i.id === item.id 
+            ? { ...i, views: result.views }
+            : i
+        ));
+        
+        // Обновляем в открытом модальном окне
+        setSelectedItem(prev => prev ? { ...prev, views: result.views } : null);
+      } else {
+        console.log(`ℹ️ Просмотр НЕ засчитан. Причина: ${!currentUser ? 'не авторизован' : 'автор или уже смотрел'}`);
+        console.log(`📊 Текущее значение просмотров: ${result.views}`);
+      }
     } catch (error) {
-      console.error('❌ Ошибка при увеличении счетчика просмотров:', error);
+      console.error('❌ ОШИБКА при увеличении счетчика просмотров:', error);
+      if (error instanceof Error) {
+        console.error('❌ Сообщение ошибки:', error.message);
+        console.error('❌ Stack:', error.stack);
+      }
     }
+    
+    console.log('🖱️ ===== КОНЕЦ ОБРАБОТКИ КЛИКА =====\n');
   };
 
-  // 🔥 НОВЫЙ МЕТОД: Закрытие модалки детального просмотра
   const handleCloseDetailModal = () => {
     setIsDetailModalOpen(false);
     setSelectedItem(null);
@@ -975,7 +1037,6 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
     );
   };
 
-  // 🔥 НОВЫЙ КОМПОНЕНТ: Модальное окно детального просмотра
   const renderDetailModal = () => {
     if (!isDetailModalOpen || !selectedItem) return null;
     
@@ -1037,16 +1098,53 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
             <div className="author-info">
               <span className="author-name">{selectedItem.author}</span>
               <span className="author-rating">★ {selectedItem.rating?.toFixed(1) || "4.5"}</span>
+              {currentUser && currentUser.id === selectedItem.authorId && selectedItem.views !== undefined && (
+                <span className="item-views-badge" style={{marginLeft: '10px'}}>
+                  👁️ {selectedItem.views}
+                </span>
+              )}
             </div>
-            <button 
-              className="contact-btn"
-              onClick={() => {
-                handleCloseDetailModal();
-                handleContact(selectedItem.id);
-              }}
-            >
-              Связаться с автором
-            </button>
+            <div style={{display: 'flex', gap: '10px'}}>
+              {currentUser && (
+                (currentUser.role === 'ADMIN' || currentUser.role === 'MODERATOR' || currentUser.id === selectedItem.authorId) ? (
+                  <>
+                    <button 
+                      className="edit-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCloseDetailModal();
+                        handleEditStart(selectedItem);
+                      }}
+                      style={{width: '40px', height: '40px'}}
+                      aria-label="Редактировать объявление"
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      className="delete-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCloseDetailModal();
+                        handleDeleteConfirm(selectedItem.id);
+                      }}
+                      style={{width: '40px', height: '40px'}}
+                      aria-label="Удалить объявление"
+                    >
+                      🗑️
+                    </button>
+                  </>
+                ) : null
+              )}
+              <button 
+                className="contact-btn"
+                onClick={() => {
+                  handleCloseDetailModal();
+                  handleContact(selectedItem.id);
+                }}
+              >
+                Связаться с автором
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1382,7 +1480,7 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
 
         {renderEditForm()}
         {renderDeleteConfirmModal()}
-        {renderDetailModal()} {/* 🔥 НОВОЕ: модальное окно детального просмотра */}
+        {renderDetailModal()}
 
         {isLoading && !isCreatingAd && !isEditMode ? (
           <div className="loading-items">
@@ -1391,132 +1489,150 @@ export default function Marketplace({ onClose, currentUser }: MarketplaceProps) 
           </div>
         ) : filteredItems.length > 0 ? (
           <div className="items-grid">
-            {filteredItems.map(item => (
-              <div 
-                key={item.id} 
-                className="market-item"
-                onClick={() => handleItemClick(item)} // 🔥 НОВОЕ: клик по карточке
-              >
-                <div className="item-type-badge">
-                  <span className="badge-icon">{getTypeIcon(item.type)}</span>
-                  <span className="badge-text">{getTypeLabel(item.type)}</span>
-                </div>
-                {item.expirationDate && (
-                  <div className="item-expiration">
-                    <span className="expiration-icon">⏰</span>
-                    <span className="expiration-text">
-                      до {formatExpirationDate(item.expirationDate)}
-                    </span>
+            {filteredItems.map(item => {
+              // ОТЛАДКА для каждой карточки
+              console.log('📦 Рендер карточки:', item.title);
+              console.log('   authorId:', item.authorId);
+              console.log('   currentUser?.id:', currentUser?.id);
+              console.log('   currentUser?.role:', currentUser?.role);
+              console.log('   isAuthor:', currentUser?.id === item.authorId);
+              console.log('   isAdmin:', currentUser?.role === 'ADMIN');
+              console.log('   isModerator:', currentUser?.role === 'MODERATOR');
+              
+              return (
+                <div 
+                  key={item.id} 
+                  className="market-item"
+                  onClick={() => handleItemClick(item)}
+                >
+                  <div className="item-type-badge">
+                    <span className="badge-icon">{getTypeIcon(item.type)}</span>
+                    <span className="badge-text">{getTypeLabel(item.type)}</span>
                   </div>
-                )}
-                
-                <div className="item-image-container">
-                  <div className="item-image">
-                    {item.imageUrl ? (
-                      <img 
-                        src={item.imageUrl} 
-                        alt={item.title}
-                        onError={(e) => {
-                          console.log('❌ Ошибка загрузки изображения для объявления:', item.id, item.title);
-                          e.currentTarget.style.display = 'none';
-                          const parent = e.currentTarget.parentElement;
-                          if (parent) {
-                            parent.innerHTML = `
-                              <div class="image-placeholder">
-                                <span class="placeholder-icon">🛠️</span>
-                                <span class="placeholder-text">Фото не загрузилось</span>
-                              </div>
-                            `;
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="image-placeholder">
-                        <span className="placeholder-icon">🛠️</span>
-                        <span className="placeholder-text">Нет фотографии</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="item-content">
-                  <div className="item-title-row">
-                    <h3 className="item-title">{item.title}</h3>
-                    {/* 🔥 НОВОЕ: счетчик просмотров только для автора */}
-                    {currentUser && currentUser.login === item.author && item.views !== undefined && (
-                      <div className="item-views-badge" title="Просмотры">
-                        <span className="views-icon">👁️</span>
-                        <span className="views-count">{item.views}</span>
-                      </div>
-                    )}
-                  </div>
-                  <p className="item-description">{item.description}</p>
+                  {item.expirationDate && (
+                    <div className="item-expiration">
+                      <span className="expiration-icon">⏰</span>
+                      <span className="expiration-text">
+                        до {formatExpirationDate(item.expirationDate)}
+                      </span>
+                    </div>
+                  )}
                   
-                  <div className="item-meta">
-                    <div className="item-price">
-                      {item.price === "free" ? (
-                        <span className="free-price">Бесплатно</span>
-                      ) : item.price === 0 && item.negotiable ? (
-                        <span className="negotiable-price">Договорная</span>
+                  <div className="item-image-container">
+                    <div className="item-image">
+                      {item.imageUrl ? (
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.title}
+                          onError={(e) => {
+                            console.log('❌ Ошибка загрузки изображения для объявления:', item.id, item.title);
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) {
+                              parent.innerHTML = `
+                                <div class="image-placeholder">
+                                  <span class="placeholder-icon">🛠️</span>
+                                  <span class="placeholder-text">Фото не загрузилось</span>
+                                </div>
+                              `;
+                            }
+                          }}
+                        />
                       ) : (
-                        <>
-                          <span className="price-amount">{typeof item.price === 'number' ? item.price.toLocaleString() : item.price} ₽</span>
-                          {item.negotiable && <span className="negotiable-badge">Договорная</span>}
-                        </>
+                        <div className="image-placeholder">
+                          <span className="placeholder-icon">🛠️</span>
+                          <span className="placeholder-text">Нет фотографии</span>
+                        </div>
                       )}
                     </div>
-                    <div className="item-location">📍 {item.location}</div>
                   </div>
                   
-                  <div className="item-footer">
-                    <div className="item-author">
-                      <div>
-                        <span className="author-name">{item.author}</span>
-                        <span className="author-rating">★ {item.rating?.toFixed(1) || "4.5"}</span>
-                      </div>
+                  <div className="item-content">
+                    <div className="item-title-row">
+                      <h3 className="item-title">{item.title}</h3>
+                      {/* Счетчик просмотров для автора */}
+                      {currentUser && currentUser.id === item.authorId && item.views !== undefined && (
+                        <div className="item-views-badge" title="Просмотры">
+                          <span className="views-icon">👁️</span>
+                          <span className="views-count">{item.views}</span>
+                        </div>
+                      )}
                     </div>
                     
-                    {currentUser && currentUser.login === item.author ? (
-                      <div className="item-actions">
+                    <p className="item-description">{item.description}</p>
+                    
+                    <div className="item-meta">
+                      <div className="item-price">
+                        {item.price === "free" ? (
+                          <span className="free-price">Бесплатно</span>
+                        ) : item.price === 0 && item.negotiable ? (
+                          <span className="negotiable-price">Договорная</span>
+                        ) : (
+                          <>
+                            <span className="price-amount">{typeof item.price === 'number' ? item.price.toLocaleString() : item.price} ₽</span>
+                            {item.negotiable && <span className="negotiable-badge">Договорная</span>}
+                          </>
+                        )}
+                      </div>
+                      <div className="item-location">📍 {item.location}</div>
+                    </div>
+                    
+                    <div className="item-footer">
+                      <div className="item-author">
+                        <div>
+                          <span className="author-name">{item.author}</span>
+                          <span className="author-rating">★ {item.rating?.toFixed(1) || "4.5"}</span>
+                        </div>
+                      </div>
+                      
+                      <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+                        {/* Кнопки редактирования/удаления для админа/модератора/автора */}
+                        {currentUser && (
+                          (currentUser.role === 'ADMIN' || currentUser.role === 'MODERATOR' || currentUser.id === item.authorId) ? (
+                            <>
+                              <button 
+                                className="edit-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditStart(item);
+                                }}
+                                disabled={isLoading}
+                                aria-label="Редактировать объявление"
+                              >
+                                ✏️
+                              </button>
+                              <button 
+                                className="delete-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteConfirm(item.id);
+                                }}
+                                disabled={isLoading}
+                                aria-label="Удалить объявление"
+                              >
+                                🗑️
+                              </button>
+                            </>
+                          ) : null
+                        )}
+                        
+                        {/* Кнопка "Связаться" для ВСЕХ всегда */}
                         <button 
-                          className="edit-btn"
+                          className="contact-btn" 
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleEditStart(item);
+                            handleContact(item.id);
                           }}
                           disabled={isLoading}
-                          aria-label="Редактировать объявление"
                         >
-                          ✏️
-                        </button>
-                        <button 
-                          className="delete-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteConfirm(item.id);
-                          }}
-                          disabled={isLoading}
-                          aria-label="Удалить объявление"
-                        >
-                          🗑️
+                          Связаться
                         </button>
                       </div>
-                    ) : (
-                      <button 
-                        className="contact-btn" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleContact(item.id);
-                        }}
-                        disabled={isLoading}
-                      >
-                        Связаться
-                      </button>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="no-items">

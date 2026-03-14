@@ -1,3 +1,4 @@
+// backend/src/controllers/marketController.ts
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { MarketService } from '../services/marketService';
@@ -111,15 +112,19 @@ export class MarketController {
   static async getItemById(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const userId = req.user?.id;
+      
       console.log(`📥 GET /api/market/items/${id} - Запрос получен`);
+      console.log(`👤 Текущий пользователь: ${userId || 'не авторизован'}`);
 
       if (!id) {
         res.status(400).json(createErrorResponse('ID объявления не указан'));
         return;
       }
 
-      const item = await MarketService.getItemById(id);
+      const item = await MarketService.getItemById(id, userId);
       console.log(`✅ Объявление найдено: ${item.title}`);
+      console.log(`👁️ Просмотров: ${item.views}`);
       
       res.json(createSuccessResponse(item));
     } catch (error: any) {
@@ -368,22 +373,51 @@ export class MarketController {
   /**
    * POST /api/market/items/:id/views
    * Увеличить счетчик просмотров объявления
+   * 🔥 ИСПРАВЛЕНО: добавляем запасной вариант получения userId из тела запроса
    */
   static async incrementViews(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      
+      // 🔥 ПРОБУЕМ ПОЛУЧИТЬ userId ИЗ РАЗНЫХ ИСТОЧНИКОВ
+      // 1. Сначала пробуем из авторизации (req.user)
+      let userId = req.user?.id;
+      
+      // 2. Если нет в авторизации, пробуем из тела запроса
+      if (!userId && req.body && req.body.userId) {
+        console.log('📥 userId из тела запроса:', req.body.userId);
+        userId = req.body.userId;
+      }
+      
+      // 3. Если нет в теле, пробуем из query параметров
+      if (!userId && req.query && req.query.userId) {
+        console.log('📥 userId из query параметров:', req.query.userId);
+        userId = req.query.userId as string;
+      }
+      
       console.log(`📥 POST /api/market/items/${id}/views - Запрос получен`);
+      console.log(`👤 Текущий пользователь (итоговый): ${userId || 'не авторизован'}`);
+      console.log(`🔍 Источники: req.user=${req.user?.id || 'нет'}, req.body.userId=${req.body?.userId || 'нет'}`);
 
       if (!id) {
         res.status(400).json(createErrorResponse('ID объявления не указан'));
         return;
       }
 
-      await MarketService.incrementViews(id);
+      const result = await MarketService.incrementViews(id, userId);
       
-      console.log(`✅ Счетчик просмотров для объявления ${id} увеличен`);
+      if (result.incremented) {
+        console.log(`✅ Счетчик просмотров для объявления ${id} увеличен до ${result.views}`);
+      } else {
+        console.log(`ℹ️ Счетчик просмотров для объявления ${id} НЕ увеличен (текущее значение: ${result.views})`);
+      }
       
-      res.json(createSuccessResponse({ success: true }));
+      // 🔥 Возвращаем полный результат с views
+      res.json(createSuccessResponse({ 
+        success: true, 
+        incremented: result.incremented,
+        views: result.views 
+      }));
     } catch (error: any) {
       if (error.message === 'Объявление не найдено') {
         console.warn(`⚠️ Объявление с ID ${req.params.id} не найдено`);
@@ -435,7 +469,7 @@ export class MarketController {
       }
       
       // Получаем информацию об объявлении, чтобы узнать автора
-      const item = await MarketService.getItemById(itemId);
+      const item = await MarketService.getItemById(itemId, req.user.id);
       
       const contactData = {
         itemId,

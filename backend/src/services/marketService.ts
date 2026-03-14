@@ -1,3 +1,4 @@
+// backend/src/services/marketService.ts
 import { prisma } from '../config/database';
 import { ItemType, DurationType, ItemCategory, ModerationStatus, ModerationFlag } from '@prisma/client';
 
@@ -70,10 +71,7 @@ export class MarketService {
     const { type, category, search, page = 1, limit = 20, moderationStatus } = filters || {};
     const skip = (page - 1) * limit;
 
-    const where: any = {
-      // 🔥 Исключаем удаленные объявления
-      isDeleted: false
-    };
+    const where: any = {};
 
     if (type) {
       const typeEnum = type.toUpperCase() as ItemType;
@@ -151,11 +149,9 @@ export class MarketService {
         moderatedAt: item.moderatedAt?.toISOString(),
         moderatedBy: item.moderatedBy,
         moderatorNote: item.moderatorNote,
-        // НОВЫЕ ПОЛЯ ДЛЯ РЕДАКТИРОВАНИЯ И УДАЛЕНИЯ
+        // ПОЛЯ ДЛЯ РЕДАКТИРОВАНИЯ
         editCount: item.editCount,
-        lastEditedAt: item.lastEditedAt?.toISOString(),
-        isDeleted: item.isDeleted,
-        deletedAt: item.deletedAt?.toISOString()
+        lastEditedAt: item.lastEditedAt?.toISOString()
       }));
 
       return {
@@ -217,11 +213,9 @@ export class MarketService {
           moderatedAt: null,
           moderatedBy: null,
           moderatorNote: null,
-          // НОВЫЕ ПОЛЯ ПРИ СОЗДАНИИ
+          // ПОЛЯ ПРИ СОЗДАНИИ
           editCount: 0,
-          lastEditedAt: null,
-          isDeleted: false,
-          deletedAt: null
+          lastEditedAt: null
         }
       });
 
@@ -294,7 +288,7 @@ export class MarketService {
   /**
    * Получить объявление по ID
    */
-  static async getItemById(id: string) {
+  static async getItemById(id: string, userId?: string) {
     try {
       const item = await prisma.marketItem.findUnique({
         where: { id },
@@ -313,10 +307,52 @@ export class MarketService {
         throw new Error('Объявление не найдено');
       }
 
-      await prisma.marketItem.update({
-        where: { id },
-        data: { views: { increment: 1 } }
-      });
+      // 🔥 ПРОВЕРЯЕМ: если пользователь авторизован и это НЕ автор - увеличиваем просмотры
+      const shouldIncrementViews = userId && userId !== item.authorId;
+      
+      let finalViews = item.views;
+      
+      if (shouldIncrementViews) {
+        console.log(`👁️ Пользователь ${userId} (НЕ автор) просматривает объявление ${id} - увеличиваем счетчик`);
+        
+        // Проверяем, смотрел ли уже этот пользователь
+        const existingView = await prisma.itemView.findUnique({
+          where: {
+            itemId_userId: {
+              itemId: id,
+              userId: userId
+            }
+          }
+        });
+
+        if (!existingView) {
+          // Первый просмотр - увеличиваем и запоминаем
+          const result = await prisma.$transaction([
+            prisma.itemView.create({
+              data: {
+                itemId: id,
+                userId: userId
+              }
+            }),
+            prisma.marketItem.update({
+              where: { id },
+              data: { views: { increment: 1 } }
+            })
+          ]);
+          
+          finalViews = result[1].views;
+          console.log(`👁️✅ Первый просмотр от пользователя ${userId}, новый счетчик: ${finalViews}`);
+        } else {
+          console.log(`👁️ℹ️ Пользователь ${userId} уже смотрел это объявление, просмотр не засчитывается`);
+          finalViews = item.views;
+        }
+      } else if (userId && userId === item.authorId) {
+        console.log(`👁️ Автор просматривает свое объявление ${id} - счетчик НЕ увеличиваем`);
+        finalViews = item.views;
+      } else {
+        console.log(`👁️ Неавторизованный пользователь просматривает объявление ${id} - счетчик НЕ увеличиваем`);
+        finalViews = item.views;
+      }
 
       return {
         id: item.id,
@@ -335,7 +371,7 @@ export class MarketService {
         duration: item.duration?.toLowerCase() as any,
         createdAt: item.createdAt.toISOString(),
         updatedAt: item.updatedAt.toISOString(),
-        views: item.views + 1,
+        views: finalViews,
         contacts: item.contacts,
         category: item.category?.toLowerCase() as any,
         // ПОЛЯ ДЛЯ МОДЕРАЦИИ
@@ -344,11 +380,9 @@ export class MarketService {
         moderatedAt: item.moderatedAt?.toISOString(),
         moderatedBy: item.moderatedBy,
         moderatorNote: item.moderatorNote,
-        // НОВЫЕ ПОЛЯ ДЛЯ РЕДАКТИРОВАНИЯ
+        // ПОЛЯ ДЛЯ РЕДАКТИРОВАНИЯ
         editCount: item.editCount,
-        lastEditedAt: item.lastEditedAt?.toISOString(),
-        isDeleted: item.isDeleted,
-        deletedAt: item.deletedAt?.toISOString()
+        lastEditedAt: item.lastEditedAt?.toISOString()
       };
     } catch (error) {
       console.error('❌ Ошибка получения объявления:', error);
@@ -357,7 +391,7 @@ export class MarketService {
   }
 
   /**
-   * Удалить объявление
+   * УДАЛИТЬ объявление ПОЛНОСТЬЮ из БД
    */
   static async deleteItem(id: string, userId: string) {
     try {
@@ -369,22 +403,73 @@ export class MarketService {
         throw new Error('Объявление не найдено');
       }
 
-      if (item.authorId !== userId) {
+      // Проверка прав: автор, админ или модератор
+      const user = await prisma.users.findUnique({
+        where: { id: userId },
+        select: { role: true }
+      });
+
+      const isAdmin = user?.role === 'ADMIN';
+      const isModerator = user?.role === 'MODERATOR';
+      const isAuthor = item.authorId === userId;
+
+      if (!isAuthor && !isAdmin && !isModerator) {
         throw new Error('Нет прав на удаление этого объявления');
       }
 
-      // Мягкое удаление - помечаем как удаленное, но не удаляем физически
-      await prisma.marketItem.update({
-        where: { id },
-        data: { 
-          isDeleted: true,
-          deletedAt: new Date()
-        }
+      // Сначала удаляем связанные сообщения
+      await prisma.marketMessage.deleteMany({
+        where: { itemId: id }
       });
+
+      // Потом удаляем само объявление
+      const deletedItem = await prisma.marketItem.delete({
+        where: { id }
+      });
+
+      console.log(`🗑️ Объявление ${id} (${deletedItem.title}) ПОЛНОСТЬЮ удалено из БД пользователем ${userId}`);
 
       return { success: true };
     } catch (error) {
       console.error('❌ Ошибка удаления объявления:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Автоматическое удаление просроченных объявлений
+   */
+  static async expireOldItems() {
+    try {
+      console.log('⏰ Запуск автоматического удаления просроченных объявлений');
+      
+      const now = new Date();
+      
+      const expiredItems = await prisma.marketItem.findMany({
+        where: {
+          expirationDate: { lt: now }
+        }
+      });
+
+      console.log(`📦 Найдено просроченных объявлений: ${expiredItems.length}`);
+
+      for (const item of expiredItems) {
+        // Сначала удаляем сообщения
+        await prisma.marketMessage.deleteMany({
+          where: { itemId: item.id }
+        });
+        
+        // Потом удаляем объявление
+        await prisma.marketItem.delete({
+          where: { id: item.id }
+        });
+        
+        console.log(`🗑️ Просроченное объявление ${item.id} (${item.title}) ПОЛНОСТЬЮ удалено из БД`);
+      }
+
+      return { success: true, count: expiredItems.length };
+    } catch (error) {
+      console.error('❌ Ошибка при автоматическом удалении:', error);
       throw error;
     }
   }
@@ -436,7 +521,7 @@ export class MarketService {
         console.log(`🔍 [UPDATE] Цена после обработки:`, { price: updateData.price, priceValue: updateData.priceValue });
       }
 
-      // 🔥 ИСПРАВЛЕНИЕ: Преобразуем duration в верхний регистр для Prisma enum
+      // Преобразуем duration в верхний регистр для Prisma enum
       if (data.duration) {
         console.log(`🔍 [UPDATE] Обработка длительности:`, data.duration);
         
@@ -514,7 +599,7 @@ export class MarketService {
         // ПОЛЯ ДЛЯ МОДЕРАЦИИ
         moderationStatus: updatedItem.moderationStatus,
         moderationFlags: updatedItem.moderationFlags,
-        // НОВЫЕ ПОЛЯ
+        // ПОЛЯ ДЛЯ РЕДАКТИРОВАНИЯ
         editCount: updatedItem.editCount,
         lastEditedAt: updatedItem.lastEditedAt?.toISOString()
       };
@@ -530,29 +615,75 @@ export class MarketService {
 
   /**
    * Увеличить счетчик просмотров объявления
-   * 🔥 НОВЫЙ МЕТОД
+   * 🔥 ИСПРАВЛЕНО: с защитой от накрутки (один пользователь = +1)
    */
-  static async incrementViews(id: string) {
+  static async incrementViews(id: string, userId?: string) {
     try {
-      console.log(`👁️ [VIEWS] Увеличение счетчика просмотров для объявления ID: ${id}`);
+      console.log('\n👁️ ===== INCREMENT VIEWS DEBUG =====');
+      console.log('👁️ Время:', new Date().toISOString());
+      console.log('👁️ ID товара:', id);
+      console.log('👁️ userId:', userId);
 
       const item = await prisma.marketItem.findUnique({
         where: { id }
       });
 
       if (!item) {
-        console.log(`❌ [VIEWS] Объявление с ID ${id} не найдено`);
+        console.log('❌ Товар не найден');
         throw new Error('Объявление не найдено');
       }
 
-      await prisma.marketItem.update({
-        where: { id },
-        data: { views: { increment: 1 } }
+      console.log('👁️ Автор товара:', item.authorId);
+      
+      // 🔥 Если пользователь не авторизован или это автор - не увеличиваем
+      if (!userId || userId === item.authorId) {
+        console.log(`👁️❌ НЕ увеличиваем: ${!userId ? 'не авторизован' : 'автор'}`);
+        return { success: true, incremented: false, views: item.views };
+      }
+
+      // 🔥 ПРОВЕРЯЕМ, СМОТРЕЛ ЛИ УЖЕ ЭТОТ ПОЛЬЗОВАТЕЛЬ
+      const existingView = await prisma.itemView.findUnique({
+        where: {
+          itemId_userId: {
+            itemId: id,
+            userId: userId
+          }
+        }
       });
 
-      console.log(`✅ [VIEWS] Счетчик просмотров для объявления ${id} успешно увеличен`);
+      if (existingView) {
+        console.log(`👁️❌ Пользователь ${userId} УЖЕ СМОТРЕЛ это объявление (первый просмотр был: ${existingView.viewedAt})`);
+        return { success: true, incremented: false, views: item.views };
+      }
+
+      // 🔥 ПЕРВЫЙ ПРОСМОТР - УВЕЛИЧИВАЕМ И ЗАПОМИНАЕМ
+      console.log(`👁️✅ Первый просмотр от пользователя ${userId} - УВЕЛИЧИВАЕМ!`);
       
-      return { success: true };
+      // Используем транзакцию для гарантии целостности
+      const result = await prisma.$transaction([
+        // Создаем запись о просмотре
+        prisma.itemView.create({
+          data: {
+            itemId: id,
+            userId: userId
+          }
+        }),
+        // Увеличиваем счетчик
+        prisma.marketItem.update({
+          where: { id },
+          data: { views: { increment: 1 } }
+        })
+      ]);
+
+      const updatedItem = result[1];
+      console.log(`👁️✅ Новое значение просмотров: ${updatedItem.views}`);
+      console.log('👁️ ===== КОНЕЦ INCREMENT VIEWS =====\n');
+      
+      return { 
+        success: true, 
+        incremented: true, 
+        views: updatedItem.views 
+      };
     } catch (error) {
       console.error('❌ [VIEWS] Ошибка увеличения счетчика просмотров:', error);
       throw error;

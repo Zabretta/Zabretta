@@ -1,4 +1,4 @@
-/* Marketplace.css - фикс для показа фотографий */
+/* Marketplace.css - полная версия со всеми стилями */
 .marketplace-overlay {
   position: fixed;
   top: 0;
@@ -897,509 +897,6 @@ input[type="checkbox"] {
   border-top: 1px solid rgba(93, 64, 55, 0.5);
 }
 
-/* Бейдж срока действия в карточке товара */
-.item-expiration {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  background: rgba(43, 32, 28, 0.95);
-  color: #8B9DCE;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 0.8em;
-  font-weight: 600;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid rgba(139, 157, 206, 0.3);
-  backdrop-filter: blur(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.expiration-icon {
-  font-size: 0.9em;
-}
-
-.expiration-text {
-  white-space: nowrap;
-}
-
-.type-selector {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.type-option {
-  flex: 1;
-  padding: 15px;
-  background: rgba(93, 64, 55, 0.5);
-  border: 2px solid #5D4037;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.type-option:hover {
-  background: rgba(139, 69, 19, 0.3);
-  border-color: #8B4513;
-}
-
-.type-option input[type="radio"] {
-  display: none;
-}
-
-.type-option input[type="radio"]:checked + span {
-  color: #D2691E;
-  font-weight: bold;
-}
-
-.type-option span {
-  color: #D7CCC8;
-  font-size: 1.1em;
-}
-
-/* Общие стили для select в форме (кроме категорий) */
-.create-ad-form select:not([name="category"]) {
-  width: 100%;
-  padding: 14px;
-  background: rgba(245, 222, 179, 0.1);
-  border: 2px solid #8B7355;
-  border-radius: 6px;
-  color: #D7CCC8;
-  font-size: 1em;
-  box-sizing: border-box;
-}
-
-.create-ad-form input[type="text"],
-.create-ad-form input[type="number"],
-.create-ad-form textarea {
-  width: 100%;
-  padding: 14px;
-  background: rgba(245, 222, 179, 0.1);
-  border: 2px solid #8B7355;
-  border-radius: 6px;
-  color: #D7CCC8;
-  font-size: 1em;
-  box-sizing: border-box;
-}
-
-.create-ad-form input:focus,
-.create-ad-form select:focus,
-.create-ad-form textarea:focus {
-  outline: none;
-  border-color: #D2691E;
-  background: rgba(245, 222, 179, 0.15);
-}
-
-.form-actions {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-  margin-top: 30px;
-}
-
-.submit-btn {
-  background: linear-gradient(to right, #388E3C, #2E7D32);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 15px 35px;
-  font-size: 1.1em;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.submit-btn:hover:not(:disabled) {
-  background: linear-gradient(to right, #43A047, #388E3C);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(56, 142, 60, 0.3);
-}
-
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.cancel-btn {
-  background: rgba(245, 222, 179, 0.1);
-  color: #F5DEB3;
-  border: 1px solid #8B7355;
-  border-radius: 6px;
-  padding: 15px 35px;
-  font-size: 1.1em;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.cancel-btn:hover {
-  background: rgba(245, 222, 179, 0.2);
-  border-color: #D2691E;
-}
-
-/* Сетка объявлений */
-.items-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 25px;
-}
-
-.market-item {
-  background: linear-gradient(to bottom, #4E342E, #3E2723);
-  border: 2px solid #5D4037;
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  cursor: pointer;
-}
-
-.market-item:hover {
-  transform: translateY(-5px);
-  border-color: #8B4513;
-  box-shadow: 0 10px 25px rgba(139, 69, 19, 0.3);
-}
-
-/* ИСПРАВЛЕННЫЙ БЕЙДЖ - ТЕПЕРЬ НЕ МЕШАЕТ ФОТО */
-.item-type-badge {
-  position: absolute;
-  top: 15px;
-  left: 15px;
-  background: linear-gradient(135deg, rgba(139, 69, 19, 0.95), rgba(160, 82, 45, 0.95)) !important;
-  color: white !important;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 0.85em;
-  font-weight: 600;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-  max-width: calc(100% - 30px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  backdrop-filter: blur(4px);
-}
-
-.badge-icon {
-  font-size: 1em;
-  flex-shrink: 0;
-}
-
-.badge-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ФИКС: ПЕРЕРАБОТАННАЯ СЕКЦИЯ ИЗОБРАЖЕНИЯ */
-.item-image-container {
-  position: relative;
-  width: 100%;
-  height: 220px;
-  overflow: hidden;
-  background: linear-gradient(135deg, #3E2723, #5D4037);
-  flex-shrink: 0;
-}
-
-.item-image {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.item-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  transition: transform 0.5s ease;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
-.market-item:hover .item-image img {
-  transform: scale(1.05);
-}
-
-.image-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #5D4037, #8D6E63);
-  color: #D7CCC8;
-  padding: 20px;
-  text-align: center;
-}
-
-.placeholder-icon {
-  font-size: 3em;
-  margin-bottom: 10px;
-  opacity: 0.8;
-}
-
-.placeholder-text {
-  font-size: 0.9em;
-  opacity: 0.7;
-}
-
-/* ФИКС: КОНТЕНТ КАРТОЧКИ */
-.item-content {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  position: relative;
-  z-index: 1;
-}
-
-/* 🔥 НОВЫЙ СТИЛЬ: строка заголовка с счетчиком просмотров */
-.item-title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  gap: 10px;
-}
-
-.item-title {
-  color: #F5DEB3 !important;
-  font-size: 1.3em;
-  font-weight: 600;
-  line-height: 1.4;
-  word-wrap: break-word;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  line-clamp: 2;
-  background: transparent !important;
-  flex: 1;
-  margin: 0;
-}
-
-/* 🔥 НОВЫЙ СТИЛЬ: счетчик просмотров */
-.item-views-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid #8B7355;
-  border-radius: 12px;
-  padding: 4px 8px;
-  font-size: 0.8em;
-  color: #8B9DCE;
-  white-space: nowrap;
-  backdrop-filter: blur(4px);
-}
-
-.views-icon {
-  font-size: 0.9em;
-}
-
-.views-count {
-  font-weight: 600;
-}
-
-.item-description {
-  color: #BCAAA4;
-  font-size: 0.95em;
-  line-height: 1.5;
-  margin-bottom: 20px;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  line-clamp: 3;
-  flex-grow: 1;
-}
-
-.item-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.item-price {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.price-amount {
-  color: #FFD54F;
-  font-size: 1.4em;
-  font-weight: bold;
-}
-
-.free-price {
-  color: #8BC34A;
-  font-weight: 600;
-  font-size: 1.2em;
-}
-
-.negotiable-badge {
-  background: rgba(255, 152, 0, 0.2);
-  color: #FFB74D;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.85em;
-  border: 1px solid rgba(255, 152, 0, 0.3);
-}
-
-.item-location {
-  color: #8B9DCE;
-  font-size: 0.9em;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 500;
-}
-
-.item-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 15px;
-  border-top: 1px solid #5D4037;
-  margin-top: auto;
-}
-
-.item-author {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.author-name {
-  color: #D7CCC8;
-  font-weight: 600;
-}
-
-.author-rating {
-  color: #FFD54F;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-/* Сделать дату создания полностью невидимой, но оставить в DOM */
-.item-date {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  width: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  font-size: 0 !important;
-  opacity: 0 !important;
-  position: absolute !important;
-  left: -9999px !important;
-}
-
-/* Кнопка связаться */
-.contact-btn {
-  background: linear-gradient(to right, #5D4037, #8B4513);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 10px 20px;
-  font-size: 0.95em;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-  min-width: 120px;
-  text-align: center;
-}
-
-.contact-btn:hover:not(:disabled) {
-  background: linear-gradient(to right, #8B4513, #A0522D);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(139, 69, 19, 0.3);
-}
-
-.contact-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* ===== СТИЛИ ДЛЯ КНОПОК РЕДАКТИРОВАНИЯ И УДАЛЕНИЯ ===== */
-.item-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.edit-btn, .delete-btn {
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  font-size: 1.2em;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-.edit-btn {
-  background: linear-gradient(to right, #4a90e2, #357abd);
-  color: white;
-}
-
-.edit-btn:hover:not(:disabled) {
-  background: linear-gradient(to right, #5a9ef2, #4a90e2);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);
-}
-
-.delete-btn {
-  background: linear-gradient(to right, #e25c5c, #c44b4b);
-  color: white;
-}
-
-.delete-btn:hover:not(:disabled) {
-  background: linear-gradient(to right, #f26c6c, #e25c5c);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(226, 92, 92, 0.3);
-}
-
-.edit-btn:disabled, .delete-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none !important;
-}
-
 /* ===== СТИЛИ ДЛЯ ФОРМЫ РЕДАКТИРОВАНИЯ ===== */
 .edit-form-container {
   margin-bottom: 30px;
@@ -1905,28 +1402,10 @@ input[type="checkbox"] {
     margin-left: 34px;
   }
   
-  .item-type-badge {
-    max-width: calc(100% - 30px);
-    font-size: 0.8em;
-    padding: 6px 10px;
-  }
-  
   .category-filter {
     padding: 12px 45px 12px 15px;
     font-size: 0.95em;
     background-position: right 15px center;
-  }
-  
-  .item-actions {
-    flex-direction: row;
-    width: auto;
-    gap: 5px;
-  }
-  
-  .edit-btn, .delete-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 1.1em;
   }
   
   .delete-confirm-content {
@@ -2036,21 +1515,6 @@ input[type="checkbox"] {
     max-height: 150px;
   }
   
-  .item-type-badge {
-    top: 10px;
-    left: 10px;
-    max-width: calc(100% - 20px);
-    font-size: 0.75em;
-    padding: 5px 8px;
-  }
-  
-  .item-expiration {
-    top: 10px;
-    right: 10px;
-    padding: 4px 8px;
-    font-size: 0.7em;
-  }
-  
   .form-author-info {
     flex-direction: column;
     gap: 8px;
@@ -2065,17 +1529,6 @@ input[type="checkbox"] {
     font-size: 1em;
     padding: 3px 10px;
     min-width: 100px;
-  }
-  
-  .item-actions {
-    flex-direction: row;
-    gap: 4px;
-  }
-  
-  .edit-btn, .delete-btn {
-    width: 34px;
-    height: 34px;
-    font-size: 1em;
   }
   
   .delete-confirm-content {
@@ -2123,9 +1576,444 @@ input[type="checkbox"] {
   .detail-modal-description p {
     font-size: 1em;
   }
-  
-  .item-views-badge {
-    font-size: 0.75em;
-    padding: 3px 6px;
-  }
+}
+
+/* ===== ШАГ 1: Базовая сетка и рамки карточек ===== */
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 25px;
+  margin-top: 10px;
+}
+
+.market-item {
+  border: 2px solid #5D4037;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 550px;  /* ← добавьте эту строку */
+  cursor: pointer;
+}
+
+.market-item:hover {
+  transform: translateY(-5px);
+  border-color: #8B4513;
+  box-shadow: 0 10px 25px rgba(139, 69, 19, 0.3);
+}
+
+/* ===== ШАГ 2: Только фон карточек ===== */
+.market-item {
+  background: linear-gradient(to bottom, #4E342E, #3E2723);
+}
+
+/* Эти стили уже есть в ШАГЕ 1, мы их не трогаем */
+.market-item:hover {
+  transform: translateY(-5px);
+  border-color: #8B4513;
+  box-shadow: 0 10px 25px rgba(139, 69, 19, 0.3);
+}
+
+/* ===== ШАГ 3: Только высота контейнера изображения ===== */
+.item-image-container {
+  height: 220px;
+}
+
+/* ===== ТЕКУЩИЙ РАБОЧИЙ КОД ===== */
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 25px;
+  margin-top: 30px;
+}
+
+.market-item {
+  border: 2px solid #5D4037;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  cursor: pointer;
+  background: linear-gradient(to bottom, #4E342E, #3E2723);
+}
+
+.market-item:hover {
+  transform: translateY(-5px);
+  border-color: #8B4513;
+  box-shadow: 0 10px 25px rgba(139, 69, 19, 0.3);
+}
+
+.item-image-container {
+  height: 200px;
+  width: 100%;
+}
+
+.item-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+/* ===== ШАГ 6: Базовые стили для контейнера изображения ===== */
+.item-image-container {
+  height: 200px;
+  width: 100%;
+  position: relative;
+  background: linear-gradient(135deg, #3E2723, #5D4037);
+}
+
+/* ===== ШАГ 7: Добавляем overflow для обрезки изображения ===== */
+.item-image-container {
+  height: 200px;
+  width: 100%;
+  position: relative;
+  background: linear-gradient(135deg, #3E2723, #5D4037);
+  overflow: hidden;
+}
+
+/* ===== ШАГ 8: Стили для изображения ===== */
+.item-image {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.market-item:hover .item-image img {
+  transform: scale(1.05);
+}
+
+.image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #5D4037, #8D6E63);
+  color: #D7CCC8;
+  padding: 20px;
+  text-align: center;
+}
+
+.placeholder-icon {
+  font-size: 3em;
+  margin-bottom: 10px;
+  opacity: 0.8;
+}
+
+.placeholder-text {
+  font-size: 0.9em;
+  opacity: 0.7;
+}
+
+/* ===== ШАГ 8: Стили для изображения и заглушки ===== */
+.item-image {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+  display: block; /* гарантируем, что фото показывается */
+}
+
+.market-item:hover .item-image img {
+  transform: scale(1.05);
+}
+
+/* Заглушка показывается ТОЛЬКО если нет фото */
+.item-image .image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #5D4037, #8D6E63);
+  color: #D7CCC8;
+  padding: 20px;
+  text-align: center;
+}
+
+.placeholder-icon {
+  font-size: 3em;
+  margin-bottom: 10px;
+  opacity: 0.8;
+}
+
+.placeholder-text {
+  font-size: 0.9em;
+  opacity: 0.7;
+}
+
+/* Если есть фото - заглушка не показывается */
+.item-image img + .image-placeholder {
+  display: none;
+}
+
+/* ===== ШАГ 9: Стили для заголовка и счетчика просмотров ===== */
+.item-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.item-title {
+  color: #F5DEB3;
+  font-size: 1.2em;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0;
+  flex: 1;
+}
+
+.item-views-badge {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid #8B7355;
+  border-radius: 10px;
+  padding: 3px 6px;
+  font-size: 0.75em;
+  color: #8B9DCE;
+  white-space: nowrap;
+}
+
+/* ===== ШАГ 10: Стили для описания ===== */
+.item-description {
+  color: #BCAAA4;
+  font-size: 0.9em;
+  line-height: 1.4;
+  margin-bottom: 12px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  display: box;
+  line-clamp: 2;
+  box-orient: vertical;
+  flex-grow: 1;
+}
+
+/* ===== ШАГ 11: Стили для цены и локации ===== */
+.item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.item-price {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.price-amount {
+  color: #FFD54F;
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+.free-price {
+  color: #8BC34A;
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+.negotiable-badge {
+  background: rgba(255, 152, 0, 0.2);
+  color: #FFB74D;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.item-location {
+  color: #8B9DCE;
+  font-size: 0.85em;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ===== ШАГ 12: Стили для футера, автора и кнопок ===== */
+.item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #5D4037;
+}
+
+.item-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.author-name {
+  color: #D7CCC8;
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+.author-rating {
+  color: #FFD54F;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.9em;
+}
+
+.item-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-btn, .delete-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.1em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.edit-btn {
+  background: linear-gradient(to right, #4a90e2, #357abd);
+  color: white;
+}
+
+.delete-btn {
+  background: linear-gradient(to right, #e25c5c, #c44b4b);
+  color: white;
+}
+
+.contact-btn {
+  background: linear-gradient(to right, #5D4037, #8B4513);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.9em;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ===== ШАГ 13: Стили для верхних бейджей ===== */
+.item-type-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: linear-gradient(135deg, rgba(139, 69, 19, 0.95), rgba(160, 82, 45, 0.95));
+  color: white;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 0.8em;
+  font-weight: 600;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+}
+
+.badge-icon {
+  font-size: 0.9em;
+}
+
+.badge-text {
+  white-space: nowrap;
+}
+
+.item-expiration {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #8B9DCE;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 0.8em;
+  font-weight: 600;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(139, 157, 206, 0.3);
+  backdrop-filter: blur(4px);
+}
+
+.expiration-icon {
+  font-size: 0.9em;
+}
+
+.expiration-text {
+  white-space: nowrap;
+}
+
+/* ===== Стили для кнопки публикации объявления ===== */
+.submit-btn {
+  background: linear-gradient(135deg, #4a90e2, #357abd);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 14px 30px;
+  font-size: 1.1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  display: block;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a9ef2, #4a90e2);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(74, 144, 226, 0.4);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }

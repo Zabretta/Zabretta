@@ -95,8 +95,8 @@ model Praise {
   toUser      users         @relation("PraiseToUser", fields: [toUserId], references: [id], onDelete: Cascade)
   
   // 👇 СВЯЗИ С РАЗНЫМИ ТИПАМИ КОНТЕНТА
-  content     content?      @relation(fields: [contentId], references: [id], onDelete: SetNull)
-  libraryItem libraryItem?  @relation(fields: [libraryItemId], references: [id])
+  content     content?      @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  libraryItem libraryItem?  @relation(fields: [libraryItemId], references: [id], onDelete: Cascade)
 
   // Уникальность для разных типов контента
   @@unique([fromUserId, contentId])
@@ -151,9 +151,9 @@ model librarySection {
   // Связи
   subsections  librarySubsection[]
   items        libraryItem[]
-  creator      users                @relation("section_creator", fields: [createdBy], references: [id])
-  lastEditor   users?               @relation("section_last_editor", fields: [updatedBy], references: [id])
-  deleter      users?               @relation("section_deleter", fields: [deletedBy], references: [id])
+  creator      users                @relation("section_creator", fields: [createdBy], references: [id], onDelete: Cascade)
+  lastEditor   users?               @relation("section_last_editor", fields: [updatedBy], references: [id], onDelete: SetNull)
+  deleter      users?               @relation("section_deleter", fields: [deletedBy], references: [id], onDelete: SetNull)
 
   @@index([createdBy])
   @@index([isDeleted])
@@ -180,9 +180,9 @@ model librarySubsection {
   // Связи
   section     librarySection   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   items       libraryItem[]
-  creator     users            @relation("subsection_creator", fields: [createdBy], references: [id])
-  lastEditor  users?           @relation("subsection_last_editor", fields: [updatedBy], references: [id])
-  deleter     users?           @relation("subsection_deleter", fields: [deletedBy], references: [id])
+  creator     users            @relation("subsection_creator", fields: [createdBy], references: [id], onDelete: Cascade)
+  lastEditor  users?           @relation("subsection_last_editor", fields: [updatedBy], references: [id], onDelete: SetNull)
+  deleter     users?           @relation("subsection_deleter", fields: [deletedBy], references: [id], onDelete: SetNull)
 
   @@index([sectionId])
   @@index([createdBy])
@@ -221,11 +221,11 @@ model libraryItem {
   // Связи
   sectionId      String
   subsectionId   String
-  section        librarySection     @relation(fields: [sectionId], references: [id])
-  subsection     librarySubsection  @relation(fields: [subsectionId], references: [id])
-  creator        users              @relation("item_creator", fields: [createdBy], references: [id])
-  lastEditor     users?             @relation("item_last_editor", fields: [updatedBy], references: [id])
-  deleter        users?             @relation("item_deleter", fields: [deletedBy], references: [id])
+  section        librarySection     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  subsection     librarySubsection  @relation(fields: [subsectionId], references: [id], onDelete: Cascade)
+  creator        users              @relation("item_creator", fields: [createdBy], references: [id], onDelete: Cascade)
+  lastEditor     users?             @relation("item_last_editor", fields: [updatedBy], references: [id], onDelete: SetNull)
+  deleter        users?             @relation("item_deleter", fields: [deletedBy], references: [id], onDelete: SetNull)
   praises        Praise[]           // Связь с похвалами (8 эмоций)
 
   // Индексы для быстрого поиска
@@ -334,6 +334,7 @@ model ruleAcceptance {
   @@map("rule_acceptances")
 }
 
+// 👇 МОДЕЛЬ ДЛЯ МАРКЕТА (БАРАХОЛКИ)
 model marketItem {
   id             String        @id @default(cuid())
   title          String
@@ -366,12 +367,14 @@ model marketItem {
   // Поля для редактирования и удаления
   editCount        Int              @default(0)      // Счетчик редактирований
   lastEditedAt     DateTime?                          // Дата последнего редактирования
-  isDeleted        Boolean          @default(false)   // Мягкое удаление
-  deletedAt        DateTime?                          // Дата удаления
 
   users        users           @relation(fields: [authorId], references: [id], onDelete: Cascade)
   marketCategory marketCategory? @relation(fields: [categoryId], references: [id])
+  
+  // Связи
   messages     marketMessage[]
+  // 👇 ДОБАВЛЯЕМ СВЯЗЬ С ПРОСМОТРАМИ
+  views_history ItemView[]      // История просмотров
 
   @@map("market_items")
 }
@@ -391,6 +394,7 @@ model marketCategory {
   @@map("market_categories")
 }
 
+// 👇 МОДЕЛЬ ДЛЯ СООБЩЕНИЙ МАРКЕТА
 model marketMessage {
   id         String   @id @default(cuid())
   parentId   String?  
@@ -405,11 +409,11 @@ model marketMessage {
 
   // Связи
   item     marketItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  fromUser users @relation("messages_from", fields: [fromUserId], references: [id])
-  toUser   users @relation("messages_to", fields: [toUserId], references: [id])
+  fromUser users @relation("messages_from", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   users @relation("messages_to", fields: [toUserId], references: [id], onDelete: Cascade)
   
   // Для древовидных ответов
-  parent   marketMessage? @relation("MessageReplies", fields: [parentId], references: [id])
+  parent   marketMessage? @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
   replies  marketMessage[] @relation("MessageReplies")
 
   // Индексы
@@ -420,6 +424,28 @@ model marketMessage {
   @@index([parentId])
   
   @@map("market_messages")
+}
+
+// 👇 НОВАЯ МОДЕЛЬ ДЛЯ ОТСЛЕЖИВАНИЯ ПРОСМОТРОВ
+model ItemView {
+  id        String   @id @default(cuid())
+  itemId    String
+  userId    String
+  viewedAt  DateTime @default(now())
+
+  // Связи
+  item      marketItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user      users      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Один пользователь - один просмотр на товар
+  @@unique([itemId, userId])
+  
+  // Индексы для быстрого поиска
+  @@index([itemId])
+  @@index([userId])
+  @@index([viewedAt])
+  
+  @@map("item_views")
 }
 
 model users {
@@ -480,6 +506,9 @@ model users {
   
   likes              Like[]
   comments           Comment[]
+  
+  // 👇 ДОБАВЛЯЕМ СВЯЗЬ С ПРОСМОТРАМИ
+  viewedItems        ItemView[]           // История просмотренных товаров
 }
 
 enum NotificationType {

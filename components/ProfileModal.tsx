@@ -417,13 +417,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     
     setIsLoadingStats(true);
     try {
-      // @ts-ignore
-      const response = await userApi.getDashboardStats();
-      // @ts-ignore
+      const response = await userApi.getDashboardStats() as unknown as ApiResponse<DashboardStatsData>;
       const statsData = response?.data || response;
       
       if (statsData) {
         setDashboardStats(statsData);
+        console.log('📊 Статистика загружена:', statsData);
       }
     } catch (error) {
       console.error('Ошибка загрузки статистики:', error);
@@ -437,9 +436,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     if (!user) return;
     
     try {
-      // @ts-ignore
-      const response = await userApi.getCurrentUser();
-      // @ts-ignore
+      const response = await userApi.getCurrentUser() as unknown as ApiResponse<UserProfile>;
       const userData = response?.data || response;
       
       if (userData) {
@@ -490,7 +487,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
         loadDashboardStats();
       }, 100);
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, loadUserProfile, loadDashboardStats]);
 
   // Загрузка локальных данных при открытии
   useEffect(() => {
@@ -517,26 +514,97 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     }
   }, [extendedUser, isOpen, profileDataLoaded]);
 
-  // Загрузка уведомлений при открытии вкладки
-  useEffect(() => {
-    if (activeTab === 'notifications' && user) {
-      loadNotifications(1);
-    }
-  }, [activeTab, notificationsFilter, user]);
+  // ========== ОБЪЯВЛЯЕМ ФУНКЦИИ ПЕРЕД ИХ ИСПОЛЬЗОВАНИЕМ ==========
 
-  // Загрузка сообщений при открытии вкладки
-  useEffect(() => {
-    if (activeTab === 'messages' && user) {
-      loadMarketMessages();
+  // Загрузка уведомлений
+  const loadNotifications = useCallback(async (page: number = 1) => {
+    if (!user) return;
+    
+    setIsLoadingNotifications(true);
+    try {
+      const token = localStorage.getItem('samodelkin_auth_token');
+      
+      let url = `http://localhost:3001/api/notifications?page=${page}&limit=10`;
+      
+      if (notificationsFilter !== 'all' && notificationsFilter !== 'unread') {
+        const typeMap: Record<string, string> = {
+          'likes': 'LIKE',
+          'comments': 'COMMENT',
+          'messages': 'MESSAGE',
+          'system': 'SYSTEM'
+        };
+        
+        const dbType = typeMap[notificationsFilter];
+        if (dbType) {
+          url += `&type=${dbType}`;
+        }
+      }
+      
+      if (notificationsFilter === 'unread') {
+        url += `&read=false`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Ошибка загрузки: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        const { notifications: newNotifications, totalPages } = result.data;
+        setNotifications(newNotifications || []);
+        setTotalPages(totalPages || 1);
+        setCurrentPage(page);
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки уведомлений:', error);
+    } finally {
+      setIsLoadingNotifications(false);
     }
-  }, [activeTab, user]);
+  }, [user, notificationsFilter]);
+
+  // Загрузка сообщений через API
+  const loadMarketMessages = useCallback(async () => {
+    if (!user) return;
+    
+    setIsLoadingMessages(true);
+    try {
+      const messages = await marketApi.getMessages();
+      setMessages(messages);
+    } catch (error) {
+      console.error('Ошибка загрузки сообщений:', error);
+      setMessages([]);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }, [user]);
 
   // Загрузка статистики при открытии вкладки
   useEffect(() => {
     if (activeTab === 'stats' && user) {
       loadDashboardStats();
     }
-  }, [activeTab, user]);
+  }, [activeTab, user, loadDashboardStats]);
+
+  // Загрузка уведомлений при открытии вкладки
+  useEffect(() => {
+    if (activeTab === 'notifications' && user) {
+      loadNotifications(1);
+    }
+  }, [activeTab, notificationsFilter, user, loadNotifications]);
+
+  // Загрузка сообщений при открытии вкладки
+  useEffect(() => {
+    if (activeTab === 'messages' && user) {
+      loadMarketMessages();
+    }
+  }, [activeTab, user, loadMarketMessages]);
 
   // Сброс состояния при выходе из режима редактирования
   useEffect(() => {
@@ -555,22 +623,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       loadMessageThread(selectedMessage.id);
     }
   }, [selectedMessage]);
-
-  // Загрузка сообщений через API
-  const loadMarketMessages = useCallback(async () => {
-    if (!user) return;
-    
-    setIsLoadingMessages(true);
-    try {
-      const messages = await marketApi.getMessages();
-      setMessages(messages);
-    } catch (error) {
-      console.error('Ошибка загрузки сообщений:', error);
-      setMessages([]);
-    } finally {
-      setIsLoadingMessages(false);
-    }
-  }, [user]);
 
   // Загрузка переписки через API
   const loadMessageThread = async (messageId: string) => {
@@ -709,58 +761,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
       console.error('Ошибка при отметке уведомления:', error);
     }
   };
-
-  const loadNotifications = useCallback(async (page: number = 1) => {
-    if (!user) return;
-    
-    setIsLoadingNotifications(true);
-    try {
-      const token = localStorage.getItem('samodelkin_auth_token');
-      
-      let url = `http://localhost:3001/api/notifications?page=${page}&limit=10`;
-      
-      if (notificationsFilter !== 'all' && notificationsFilter !== 'unread') {
-        const typeMap: Record<string, string> = {
-          'likes': 'LIKE',
-          'comments': 'COMMENT',
-          'messages': 'MESSAGE',
-          'system': 'SYSTEM'
-        };
-        
-        const dbType = typeMap[notificationsFilter];
-        if (dbType) {
-          url += `&type=${dbType}`;
-        }
-      }
-      
-      if (notificationsFilter === 'unread') {
-        url += `&read=false`;
-      }
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Ошибка загрузки: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        const { notifications: newNotifications, totalPages } = result.data;
-        setNotifications(newNotifications || []);
-        setTotalPages(totalPages || 1);
-        setCurrentPage(page);
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки уведомлений:', error);
-    } finally {
-      setIsLoadingNotifications(false);
-    }
-  }, [user, notificationsFilter]);
 
   const handleMarkAllNotificationsRead = async () => {
     try {
@@ -1130,14 +1130,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                 <span className="quick-stat-label">проектов</span>
               </div>
               <div className="quick-stat">
-                <span className="quick-stat-icon">⭐</span>
-                <span className="quick-stat-value">{dashboardStats?.stats?.likesReceived || 0}</span>
-                <span className="quick-stat-label">лайков</span>
+                <span className="quick-stat-icon">📦</span>
+                <span className="quick-stat-value">{dashboardStats?.stats?.mastersAdsCreated || 0}</span>
+                <span className="quick-stat-label">объявлений</span>
               </div>
               <div className="quick-stat">
-                <span className="quick-stat-icon">💬</span>
-                <span className="quick-stat-value">{dashboardStats?.stats?.commentsMade || 0}</span>
-                <span className="quick-stat-label">комментариев</span>
+                <span className="quick-stat-icon">📚</span>
+                <span className="quick-stat-value">{dashboardStats?.stats?.libraryPostsCreated || 0}</span>
+                <span className="quick-stat-label">документов</span>
               </div>
             </div>
           </div>

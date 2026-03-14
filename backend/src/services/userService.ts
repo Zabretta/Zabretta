@@ -1,3 +1,4 @@
+// backend/src/services/userService.ts
 import { prisma } from '../config/database';
 import { UserRole } from '@prisma/client';
 
@@ -33,7 +34,7 @@ export class UserService {
         login: true,
         name: true,
         avatar: true,
-        role: true, // ← добавлено поле role
+        role: true,
         bio: true,
         location: true,
         phone: true,
@@ -62,7 +63,7 @@ export class UserService {
     });
 
     if (!user) {
-      throw new Error('Пользователь не найдено');
+      throw new Error('Пользователь не найден');
     }
 
     return {
@@ -237,7 +238,7 @@ export class UserService {
     ]);
 
     if (!user) {
-      throw new Error('Пользователь не найдено');
+      throw new Error('Пользователь не найден');
     }
 
     const statsByType = (contentStats || []).reduce((acc: Record<string, number>, item: any) => {
@@ -331,6 +332,7 @@ export class UserService {
 
   /**
    * Получение полной статистики пользователя для личного кабинета
+   * Включает данные из таблиц content, library_items и market_items
    */
   static async getUserDashboardStats(userId: string) {
     const user = await prisma.users.findUnique({
@@ -348,15 +350,36 @@ export class UserService {
     });
 
     if (!user) {
-      throw new Error('Пользователь не найдено');
+      throw new Error('Пользователь не найден');
     }
 
+    // Статистика из таблицы content (проекты, помощь)
     const contentByType = await prisma.content.groupBy({
       by: ['type'],
       _count: true,
-      where: { userId }
+      where: { 
+        userId,
+        status: 'ACTIVE' // Считаем только активные записи
+      }
     });
 
+    // 👇 СТАТИСТИКА ДЛЯ БИБЛИОТЕКИ - все записи (физическое удаление)
+    const libraryItemsCount = await prisma.libraryItem.count({
+      where: { 
+        createdBy: userId
+        // 🔥 УДАЛЕНО: isDeleted - этой колонки больше нет
+      }
+    });
+
+    // 👇 СТАТИСТИКА ДЛЯ МАРКЕТА (БАРАХОЛКИ) - все записи (физическое удаление)
+    const marketItemsCount = await prisma.marketItem.count({
+      where: { 
+        authorId: userId
+        // 🔥 УДАЛЕНО: isDeleted - этой колонки больше нет
+      }
+    });
+
+    // Лайки
     const [likesGiven, likesReceived] = await Promise.all([
       prisma.like.count({ where: { userId } }),
       prisma.like.count({
@@ -368,6 +391,7 @@ export class UserService {
       })
     ]);
 
+    // Комментарии
     const [commentsMade, commentsReceived] = await Promise.all([
       prisma.comment.count({ where: { userId } }),
       prisma.comment.count({
@@ -379,34 +403,45 @@ export class UserService {
       })
     ]);
 
+    // Просмотры из content
     const totalViews = await prisma.content.aggregate({
       _sum: { views: true },
-      where: { userId }
+      where: { 
+        userId,
+        status: 'ACTIVE'
+      }
     });
 
+    // 👇 ФОРМИРУЕМ СТАТИСТИКУ ИЗ ВСЕХ ИСТОЧНИКОВ
     const statsByType = {
       projectsCreated: 0,
-      mastersAdsCreated: 0,
+      mastersAdsCreated: marketItemsCount, // ← все объявления в базе
       helpRequestsCreated: 0,
-      libraryPostsCreated: 0
+      libraryPostsCreated: libraryItemsCount // ← все документы в базе
     };
 
+    // Обрабатываем contentByType только для PROJECT и HELP
     contentByType.forEach((item: any) => {
       switch(item.type) {
         case 'PROJECT':
           statsByType.projectsCreated = item._count;
           break;
-        case 'MARKET':
-          statsByType.mastersAdsCreated = item._count;
-          break;
         case 'HELP':
           statsByType.helpRequestsCreated = item._count;
           break;
-        case 'LIBRARY':
-          statsByType.libraryPostsCreated = item._count;
-          break;
       }
     });
+
+    // 👇 Общее количество контента (сумма из всех таблиц)
+    const totalContentFromContent = contentByType.reduce((sum: number, item: any) => sum + item._count, 0);
+    const totalContent = totalContentFromContent + libraryItemsCount + marketItemsCount;
+
+    // Для отладки
+    console.log(`📊 Статистика для пользователя ${userId}:`);
+    console.log(`   - libraryItemsCount: ${libraryItemsCount}`);
+    console.log(`   - marketItemsCount: ${marketItemsCount}`);
+    console.log(`   - contentByType:`, contentByType);
+    console.log(`   - totalContent: ${totalContent}`);
 
     return {
       user: {
@@ -427,7 +462,7 @@ export class UserService {
         commentsReceived,
         totalViews: totalViews._sum.views || 0
       },
-      totalContent: contentByType.reduce((sum: number, item: any) => sum + item._count, 0)
+      totalContent
     };
   }
 }

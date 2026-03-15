@@ -2017,3 +2017,161 @@ input[type="checkbox"] {
   cursor: not-allowed;
   transform: none;
 }
+
+
+/* ===== СТИЛИ ДЛЯ ВЫБОРА ТИПА ОБЪЯВЛЕНИЯ ===== */
+.type-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 25px;
+  padding: 15px;
+  background: rgba(26, 18, 11, 0.7);
+  border-radius: 12px;
+  border: 2px solid #8B4513;
+}
+
+.type-option {
+  flex: 1 1 auto;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #A0522D, #8B4513);
+  border: 2px solid #D2691E;
+  border-radius: 30px;
+  color: #F5DEB3;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.type-option::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+  z-index: 1;
+}
+
+.type-option:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.type-option:hover {
+  transform: translateY(-3px);
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  border-color: #FF8C00;
+  box-shadow: 0 6px 15px rgba(210, 105, 30, 0.5);
+}
+
+.type-option:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 5px rgba(210, 105, 30, 0.5);
+}
+
+.type-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.type-option span {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.type-option span::before {
+  font-size: 20px;
+  transition: transform 0.3s ease;
+}
+
+.type-option:hover span::before {
+  transform: scale(1.2);
+}
+
+/* Специфичные иконки для каждого типа */
+.type-option[data-type="sell"] span::before {
+  content: "💰";
+}
+
+.type-option[data-type="buy"] span::before {
+  content: "🛒";
+}
+
+.type-option[data-type="free"] span::before {
+  content: "🎁";
+}
+
+.type-option[data-type="exchange"] span::before {
+  content: "🔄";
+}
+
+.type-option[data-type="auction"] span::before {
+  content: "🔨";
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+  .type-selector {
+    gap: 8px;
+    padding: 12px;
+  }
+  
+  .type-option {
+    min-width: calc(50% - 8px);
+    padding: 10px 15px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .type-option {
+    min-width: 100%;
+    padding: 12px;
+    font-size: 15px;
+  }
+  
+  .type-option span {
+    justify-content: center;
+  }
+}
+
+/* Анимация появления */
+@keyframes typeOptionAppear {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.type-option {
+  animation: typeOptionAppear 0.4s ease forwards;
+}
+
+.type-option:nth-child(1) { animation-delay: 0.1s; }
+.type-option:nth-child(2) { animation-delay: 0.2s; }
+.type-option:nth-child(3) { animation-delay: 0.3s; }
+.type-option:nth-child(4) { animation-delay: 0.4s; }
+.type-option:nth-child(5) { animation-delay: 0.5s; }

@@ -206,6 +206,10 @@ model libraryItem {
   fileUrl        String?          // URL для доступа к файлу
   thumbnail      String?          // URL превью
   url            String?          // Внешняя ссылка
+  
+  // 🔥 НОВОЕ ПОЛЕ для нескольких фото
+  images         Json?            // Массив объектов с информацией о файлах
+  // Пример: [{ fileName: "photo1.jpg", fileSize: 1024, fileType: "image/jpeg", fileUrl: "...", thumbnail: "..." }]
 
   // Статистика
   views          Int              @default(0)

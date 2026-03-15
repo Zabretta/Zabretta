@@ -25,6 +25,13 @@ interface ItemsResponse {
 interface ExtendedApiLibraryItem extends ApiLibraryItem {
   canEdit?: boolean;
   canDelete?: boolean;
+  images?: Array<{
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    fileUrl: string;
+    thumbnail?: string;
+  }>;
 }
 
 interface ExtendedApiLibrarySubsection extends ApiLibrarySubsection {
@@ -169,7 +176,7 @@ const PraiseStatsDetailed: React.FC<{ item: LibraryItem }> = ({ item }) => {
 
   // Преобразуем ключи в эмодзи для отображения
   const distributionWithEmojis = Object.entries(item.praises.distribution).map(([key, count]) => {
-    const emoji = praiseTypeToEmoji[key] || '🔨'; // По умолчанию молоток
+    const emoji = praiseTypeToEmoji[key] || '🔨';
     return { emoji, count: count as number, originalKey: key };
   });
 
@@ -392,18 +399,27 @@ const EditDocumentModal: React.FC<{
       return;
     }
 
-    onSave({
+    const updateData: any = {
       id: document.id,
       title: docTitle.trim(),
       content: docContent.trim(),
       type: document.type,
-      ...(selectedFile && {
-        fileName: selectedFile.name,
-        fileSize: selectedFile.size,
-        fileType: selectedFile.type,
-        fileUrl: URL.createObjectURL(selectedFile)
-      })
-    });
+    };
+
+    if (selectedFile) {
+      updateData.fileName = selectedFile.name;
+      updateData.fileSize = selectedFile.size;
+      updateData.fileType = selectedFile.type;
+      updateData.fileUrl = URL.createObjectURL(selectedFile);
+    }
+
+    // Сохраняем существующие images при редактировании
+    if (document.images && document.images.length > 0) {
+      updateData.images = document.images;
+    }
+
+    console.log('📝 Сохраняем изменения документа:', updateData);
+    onSave(updateData);
     onClose();
   };
 
@@ -509,6 +525,19 @@ const EditDocumentModal: React.FC<{
           {filePreview && (
             <div className="edit-document-preview">
               <img src={filePreview} alt="Preview" />
+            </div>
+          )}
+
+          {document.type === 'photo' && document.images && document.images.length > 0 && (
+            <div className="edit-document-previews">
+              <label>Текущие фотографии ({document.images.length}):</label>
+              <div className="previews-grid">
+                {document.images.map((image, index) => (
+                  <div key={index} className="preview-item">
+                    <img src={image.fileUrl} alt={`${document.title} - ${index + 1}`} />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -649,7 +678,7 @@ const AddSubsectionModal: React.FC<{
   );
 };
 
-// Модальное окно добавления документа
+// ========== МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ ДОКУМЕНТА ==========
 const AddDocumentModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -661,8 +690,13 @@ const AddDocumentModal: React.FC<{
   const [docTitle, setDocTitle] = useState("");
   const [docContent, setDocContent] = useState("");
   const [docType, setDocType] = useState<"text" | "photo" | "drawing" | "video" | "other">("text");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  // Состояния для нескольких фото
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null); // для остальных типов
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -676,7 +710,57 @@ const AddDocumentModal: React.FC<{
 
   if (!isOpen) return null;
 
-  const handleFileSelect = (file: File | null) => {
+  // Обработчик для нескольких файлов (только для фото)
+  const handleFilesSelect = (files: FileList | null) => {
+    setFileError(null);
+    
+    if (!files || files.length === 0) return;
+
+    const newFiles: File[] = [];
+    const newPreviews: string[] = [];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Проверяем тип файла
+      if (!allowedTypes.includes(file.type)) {
+        setFileError(`Файл "${file.name}" имеет неподдерживаемый формат. Разрешены: JPG, PNG, WebP, GIF.`);
+        continue;
+      }
+
+      // Проверяем размер (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setFileError(`Файл "${file.name}" слишком большой. Максимальный размер: 10MB.`);
+        continue;
+      }
+
+      newFiles.push(file);
+
+      // Создаем превью для изображений
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFilePreviews(prev => [...prev, e.target?.result as string]);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    setSelectedFiles(prev => [...prev, ...newFiles]);
+  };
+
+  // Удаление файла из списка
+  const handleRemoveFile = (index: number) => {
+    const newFiles = [...selectedFiles];
+    newFiles.splice(index, 1);
+    setSelectedFiles(newFiles);
+    
+    const newPreviews = [...filePreviews];
+    newPreviews.splice(index, 1);
+    setFilePreviews(newPreviews);
+  };
+
+  // Обработчик для одиночного файла (для других типов)
+  const handleSingleFileSelect = (file: File | null) => {
     setFileError(null);
     
     if (!file) {
@@ -691,7 +775,7 @@ const AddDocumentModal: React.FC<{
       return;
     }
 
-    // Валидируем файл только если это файловый тип
+    // Валидируем файл
     if (isFileConfig(contentTypeConfig)) {
       const validation = validateFile(file, contentTypeConfig);
       if (!validation.valid) {
@@ -714,12 +798,21 @@ const AddDocumentModal: React.FC<{
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    handleFileSelect(file);
+    
+    if (docType === 'photo') {
+      // Для фото - множественный выбор
+      handleFilesSelect(e.dataTransfer.files);
+    } else {
+      // Для остальных - одиночный
+      const file = e.dataTransfer.files[0];
+      handleSingleFileSelect(file);
+    }
   };
 
   const handleTypeChange = (type: "text" | "photo" | "drawing" | "video" | "other") => {
     setDocType(type);
+    setSelectedFiles([]);
+    setFilePreviews([]);
     setSelectedFile(null);
     setFilePreview(null);
     setFileError(null);
@@ -738,7 +831,12 @@ const AddDocumentModal: React.FC<{
       return;
     }
 
-    if (docType !== 'text' && !selectedFile) {
+    if (docType === 'photo' && selectedFiles.length === 0) {
+      alert('Выберите хотя бы одну фотографию');
+      return;
+    }
+
+    if (docType !== 'text' && docType !== 'photo' && !selectedFile) {
       alert('Выберите файл для загрузки');
       return;
     }
@@ -756,7 +854,26 @@ const AddDocumentModal: React.FC<{
       subsectionId: subsection.id
     };
 
-    if (selectedFile) {
+    // ДЛЯ ФОТО - сохраняем массив images
+    if (docType === 'photo' && selectedFiles.length > 0) {
+      const images = selectedFiles.map(file => ({
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        fileUrl: URL.createObjectURL(file),
+        thumbnail: URL.createObjectURL(file)
+      }));
+      newDoc.images = images;
+      console.log('📸 Добавляем фото:', images.length);
+      
+      // Для обратной совместимости сохраняем первое фото как fileUrl
+      newDoc.fileUrl = images[0].fileUrl;
+      newDoc.fileName = images[0].fileName;
+      newDoc.fileSize = images[0].fileSize;
+      newDoc.fileType = images[0].fileType;
+    } 
+    // ДЛЯ ОСТАЛЬНЫХ ТИПОВ - как было
+    else if (selectedFile) {
       newDoc.fileName = selectedFile.name;
       newDoc.fileSize = selectedFile.size;
       newDoc.fileType = selectedFile.type;
@@ -764,9 +881,13 @@ const AddDocumentModal: React.FC<{
     }
 
     onAdd(newDoc);
+    
+    // Очистка
     setDocTitle("");
     setDocContent("");
     setDocType("text");
+    setSelectedFiles([]);
+    setFilePreviews([]);
     setSelectedFile(null);
     setFilePreview(null);
     setFileError(null);
@@ -838,7 +959,73 @@ const AddDocumentModal: React.FC<{
             </div>
           )}
 
-          {docType !== 'text' && isFileConfig(contentTypeConfig) && (
+          {/* ДЛЯ ФОТО - множественный выбор */}
+          {docType === 'photo' && (
+            <div className="add-document-form-group">
+              <label>Загрузите фотографии (можно несколько):</label>
+              <div 
+                className={`add-document-file-area ${isDragging ? 'dragging' : ''} ${fileError ? 'has-error' : ''}`}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => handleFilesSelect(e.target.files)}
+                  accept="image/*"
+                  multiple
+                  style={{ display: 'none' }}
+                />
+                
+                {selectedFiles.length > 0 ? (
+                  <div className="files-preview">
+                    <div className="files-list">
+                      {selectedFiles.map((file, index) => (
+                        <div key={index} className="file-item">
+                          <span className="file-icon">📷</span>
+                          <span className="file-name">{file.name}</span>
+                          <span className="file-size">({(file.size / 1024 / 1024).toFixed(2)}MB)</span>
+                          <button 
+                            type="button"
+                            className="file-remove"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveFile(index);
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="file-upload-hint">Нажмите для добавления еще фото</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="file-upload-icon">📂</div>
+                    <p>Нажмите для выбора файлов</p>
+                    <p className="file-upload-hint">или перетащите их сюда</p>
+                    <p className="file-upload-extensions">
+                      Поддерживаются: JPG, PNG, WebP, GIF
+                    </p>
+                    <p className="file-upload-size">
+                      Макс. размер: 10MB на файл
+                    </p>
+                    <p className="file-upload-description">
+                      Можно выбрать несколько фотографий одновременно
+                    </p>
+                  </>
+                )}
+              </div>
+              {fileError && (
+                <div className="file-error-message">
+                  ⚠️ {fileError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ДЛЯ ОСТАЛЬНЫХ ТИПОВ - одиночный выбор */}
+          {docType !== 'text' && docType !== 'photo' && isFileConfig(contentTypeConfig) && (
             <div className="add-document-form-group">
               <label>Загрузите файл:</label>
               <div 
@@ -848,7 +1035,7 @@ const AddDocumentModal: React.FC<{
                 <input
                   type="file"
                   ref={fileInputRef}
-                  onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+                  onChange={(e) => handleSingleFileSelect(e.target.files?.[0] || null)}
                   accept={contentTypeConfig.ALLOWED_EXTENSIONS.join(',')}
                   style={{ display: 'none' }}
                 />
@@ -862,7 +1049,7 @@ const AddDocumentModal: React.FC<{
                       className="file-remove"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleFileSelect(null);
+                        handleSingleFileSelect(null);
                       }}
                     >
                       ✕
@@ -893,7 +1080,22 @@ const AddDocumentModal: React.FC<{
             </div>
           )}
 
-          {filePreview && (
+          {/* ПРЕВЬЮ для нескольких фото */}
+          {docType === 'photo' && filePreviews.length > 0 && (
+            <div className="add-document-previews">
+              <label>Превью фотографий:</label>
+              <div className="previews-grid">
+                {filePreviews.map((preview, index) => (
+                  <div key={index} className="preview-item">
+                    <img src={preview} alt={`Preview ${index + 1}`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Превью для одиночного файла */}
+          {docType !== 'photo' && filePreview && (
             <div className="add-document-preview">
               <img src={filePreview} alt="Preview" />
             </div>
@@ -909,7 +1111,8 @@ const AddDocumentModal: React.FC<{
               disabled={
                 !docTitle.trim() || 
                 (docType === 'text' && !docContent.trim()) ||
-                (docType !== 'text' && !selectedFile) ||
+                (docType === 'photo' && selectedFiles.length === 0) ||
+                (docType !== 'text' && docType !== 'photo' && !selectedFile) ||
                 fileError !== null
               }
             >
@@ -948,10 +1151,17 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   const [showDeleteDocument, setShowDeleteDocument] = useState(false);
   const [editingDocument, setEditingDocument] = useState<{ shelf: Section; document: LibraryItem } | null>(null);
   
+  // Состояние для увеличенного просмотра фото
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  
   const mainContainerRef = useRef<HTMLDivElement>(null);
   
   const { user, isAuthenticated } = useAuth();
   const praiseContext = usePraise();
+
+  const closePhotoModal = () => {
+    setSelectedPhoto(null);
+  };
 
   // Отладка - логируем пользователя при монтировании и изменении
   useEffect(() => {
@@ -977,7 +1187,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
             ...prev,
             ...updatedItem,
             contentId: updatedItem.id,
-            praises: updatedItem.praises
+            praises: updatedItem.praises,
+            images: (updatedItem as any).images
           } : null);
         }
         
@@ -992,7 +1203,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                     ...item, 
                     ...updatedItem, 
                     contentId: updatedItem.id, 
-                    praises: updatedItem.praises 
+                    praises: updatedItem.praises,
+                    images: (updatedItem as any).images
                   }
                 : item
             )
@@ -1075,7 +1287,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                     ...item,
                     contentId: item.id,
                     canEdit: (item as any).canEdit,
-                    canDelete: (item as any).canDelete
+                    canDelete: (item as any).canDelete,
+                    images: (item as any).images
                   })),
                   canEdit: (sub as any).canEdit,
                   canDelete: (sub as any).canDelete
@@ -1095,7 +1308,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
         
       } catch (error) {
         console.error('❌ Ошибка загрузки библиотеки:', error);
-        // Показываем пустой массив при ошибке
         setLibraryData([]);
       } finally {
         setIsLoading(false);
@@ -1178,7 +1390,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
       const newSubsection = response.data;
       console.log('✅ Подраздел создан:', newSubsection);
       
-      // Обновляем локальные данные
       setLibraryData(prev => prev.map(shelf => 
         shelf.id === selectedShelfForAdd.id
           ? { 
@@ -1202,7 +1413,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   };
 
   const handleEditSubsection = (shelf: Section, subsection: Subsection) => {
-    // Используем поле canEdit из данных, которое пришло с сервера
     if (!subsection.canEdit) {
       alert('У вас нет прав на редактирование этого раздела');
       return;
@@ -1247,7 +1457,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   };
 
   const handleDeleteSubsection = (shelf: Section, subsection: Subsection) => {
-    // Используем поле canDelete из данных, которое пришло с сервера
     if (!subsection.canDelete) {
       alert('У вас нет прав на удаление этого раздела');
       return;
@@ -1299,13 +1508,16 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     try {
       setIsLoading(true);
       console.log('📝 Создание документа:', docData);
+      if (docData.images) {
+        console.log('📸 Количество фото в документе:', docData.images.length);
+      }
       
       const response = await libraryApi.createItem(docData) as unknown as ApiResponse<ApiLibraryItem>;
       const newItem = response.data;
       
       console.log('✅ Документ создан:', newItem);
+      console.log('📸 Получено images с сервера:', newItem.images ? (newItem.images as any[]).length : 0);
       
-      // Обновляем локальные данные
       setLibraryData(prev => prev.map(shelf => 
         shelf.id === selectedShelfForAdd?.id
           ? {
@@ -1318,7 +1530,8 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                         ...newItem, 
                         contentId: newItem.id,
                         canEdit: true,
-                        canDelete: true
+                        canDelete: true,
+                        images: (newItem as any).images
                       }] 
                     }
                   : sub
@@ -1336,7 +1549,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   };
 
   const handleEditDocument = (shelf: Section, document: LibraryItem) => {
-    // Используем поле canEdit из данных, которое пришло с сервера
     if (!document.canEdit) {
       alert('У вас нет прав на редактирование этого документа');
       return;
@@ -1358,10 +1570,12 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
         fileName: updatedDoc.fileName,
         fileSize: updatedDoc.fileSize,
         fileType: updatedDoc.fileType,
-        fileUrl: updatedDoc.fileUrl
+        fileUrl: updatedDoc.fileUrl,
+        images: updatedDoc.images
       }) as unknown as ApiResponse<ApiLibraryItem>;
       
       console.log('✅ Документ обновлен:', response.data);
+      console.log('📸 images после обновления:', response.data.images ? (response.data.images as any[]).length : 0);
       
       setLibraryData(prev => prev.map(shelf => 
         shelf.id === editingDocument.shelf.id
@@ -1371,7 +1585,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 ...sub,
                 items: sub.items.map(item =>
                   item.id === updatedDoc.id 
-                    ? { ...item, ...updatedDoc, contentId: item.id }
+                    ? { ...item, ...updatedDoc, contentId: item.id, images: updatedDoc.images }
                     : item
                 )
               }))
@@ -1379,7 +1593,7 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
           : shelf
       ));
 
-      setSelectedItem(prev => prev ? { ...prev, ...updatedDoc } : null);
+      setSelectedItem(prev => prev ? { ...prev, ...updatedDoc, images: updatedDoc.images } : null);
       
     } catch (error) {
       console.error('❌ Ошибка обновления документа:', error);
@@ -1390,7 +1604,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
   };
 
   const handleDeleteDocument = (shelf: Section, document: LibraryItem) => {
-    // Используем поле canDelete из данных, которое пришло с сервера
     if (!document.canDelete) {
       alert('У вас нет прав на удаление этого документа');
       return;
@@ -1521,7 +1734,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
     return null;
   };
 
-  // Проверка на возможность добавления (только авторизация)
   const canAdd = (): boolean => {
     return isAuthenticated;
   };
@@ -1632,7 +1844,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 {currentSection.icon} {currentSection.title}
               </h3>
               
-              {/* Кнопка добавления раздела - только для авторизованных */}
               {canAdd() && (
                 <button 
                   className="add-subsection-button"
@@ -1655,7 +1866,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                       <span className="subsection-count">{sub.items.length}</span>
                     </button>
                     
-                    {/* Кнопки редактирования/удаления для подраздела - используем canEdit/canDelete с сервера */}
                     {(sub.canEdit || sub.canDelete) && (
                       <div className="subsection-actions">
                         {sub.canEdit && (
@@ -1695,7 +1905,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
               <div className="items-header">
                 <h3 className="items-title">Документы</h3>
                 
-                {/* Кнопка добавления документа - только для авторизованных */}
                 {canAdd() && currentSection && currentSubsection && (
                   <button 
                     className="add-document-button"
@@ -1736,7 +1945,6 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                   <div className="empty-items">
                     <p>В этом разделе пока нет документов</p>
                     
-                    {/* Кнопка добавления первого документа - только для авторизованных */}
                     {canAdd() && currentSection && currentSubsection && (
                       <button 
                         className="add-first-document-button"
@@ -1764,12 +1972,13 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 <div className="item-view-meta">
                   <span>Автор: {selectedItem.author}</span>
                   <span>Дата: {selectedItem.date}</span>
-                  {selectedItem.fileName && (
+                  {selectedItem.images && selectedItem.images.length > 0 ? (
+                    <span>Фотографий: {selectedItem.images.length}</span>
+                  ) : selectedItem.fileName && (
                     <span>Файл: {selectedItem.fileName} ({configFormatFileSize(selectedItem.fileSize || 0)})</span>
                   )}
                 </div>
                 
-                {/* Кнопки редактирования/удаления в модалке документа - используем canEdit/canDelete с сервера */}
                 {(selectedItem.canEdit || selectedItem.canDelete) && (
                   <div className="item-view-actions">
                     {selectedItem.canEdit && (
@@ -1809,9 +2018,35 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                   <div className="item-text-content">{selectedItem.content}</div>
                 )}
                 
-                {selectedItem.type === 'photo' && selectedItem.fileUrl && (
-                  <div className="item-image-container">
-                    <img src={selectedItem.fileUrl} alt={selectedItem.title} />
+                {selectedItem.type === 'photo' && (
+                  <div className="item-images-gallery">
+                    {selectedItem.images && selectedItem.images.length > 0 ? (
+                      selectedItem.images.map((image, index) => (
+                        <div 
+                          key={index} 
+                          className="gallery-item"
+                          onClick={() => setSelectedPhoto(image.fileUrl)}
+                        >
+                          <img src={image.fileUrl} alt={`${selectedItem.title} - ${index + 1}`} />
+                          <div className="gallery-item-caption">
+                            {image.fileName}
+                          </div>
+                        </div>
+                      ))
+                    ) : selectedItem.fileUrl ? (
+                      <div className="item-image-container">
+                        <img 
+                          src={selectedItem.fileUrl} 
+                          alt={selectedItem.title}
+                          onClick={() => setSelectedPhoto(selectedItem.fileUrl as string)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="item-file-placeholder">
+                        <div className="placeholder-icon">🖼️</div>
+                        <p>Нет изображений</p>
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -1871,13 +2106,21 @@ const LibraryModal: React.FC<LibraryModalProps> = ({ isOpen, onClose, currentUse
                 <div className="footer-center">
                   <PraiseStatsDetailed item={selectedItem} />
                 </div>
-
-                {/* Блок с лайком полностью удален */}
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Модальное окно для увеличенного просмотра фото */}
+      {selectedPhoto && (
+        <div className="photo-modal-overlay" onClick={closePhotoModal}>
+          <div className="photo-modal-content" onClick={e => e.stopPropagation()}>
+            <button className="photo-modal-close" onClick={closePhotoModal}>✕</button>
+            <img src={selectedPhoto} alt="Увеличенное фото" />
+          </div>
+        </div>
+      )}
 
       {/* Модалки для подразделов */}
       <AddSubsectionModal

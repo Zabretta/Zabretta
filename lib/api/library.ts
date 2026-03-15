@@ -3,6 +3,7 @@ import { fetchWithAuth } from './client';  // 👈 ИСПРАВЛЕННЫЙ ИМ
 
 // ========== ТИПЫ ДАННЫХ ==========
 
+// 🔥 ОБНОВЛЕНО: добавлено поле images
 export interface LibraryItem {
   id: string;
   title: string;
@@ -21,6 +22,15 @@ export interface LibraryItem {
   fileName?: string;
   fileSize?: number;
   fileType?: string;
+  
+  // 🔥 НОВОЕ ПОЛЕ для нескольких фото
+  images?: Array<{
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    fileUrl: string;
+    thumbnail?: string;
+  }>;
   
   // Статистика похвал
   praises?: {
@@ -66,6 +76,7 @@ export interface CreateSubsectionData {
   sectionId: string;
 }
 
+// 🔥 ОБНОВЛЕНО: добавлено поле images
 export interface CreateItemData {
   title: string;
   content: string;
@@ -77,12 +88,21 @@ export interface CreateItemData {
   fileType?: string;
   fileUrl?: string;
   thumbnail?: string;
+  // 🔥 НОВОЕ ПОЛЕ для нескольких фото
+  images?: Array<{
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    fileUrl: string;
+    thumbnail?: string;
+  }>;
 }
 
 export interface UpdateSubsectionData {
   title?: string;
 }
 
+// 🔥 ОБНОВЛЕНО: добавлено поле images
 export interface UpdateItemData {
   title?: string;
   content?: string;
@@ -91,6 +111,14 @@ export interface UpdateItemData {
   fileType?: string;
   fileUrl?: string;
   thumbnail?: string;
+  // 🔥 НОВОЕ ПОЛЕ для нескольких фото
+  images?: Array<{
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    fileUrl: string;
+    thumbnail?: string;
+  }>;
 }
 
 export interface LibraryResponse<T> {

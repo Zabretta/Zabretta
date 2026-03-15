@@ -325,7 +325,7 @@ export class LibraryController {
       console.log('👤 Пользователь:', req.user.id, req.user.login);
       console.log('📦 Тело запроса:', JSON.stringify(req.body, null, 2));
 
-      const { title, content, type, sectionId, subsectionId, fileName, fileSize, fileType, fileUrl, thumbnail } = req.body;
+      const { title, content, type, sectionId, subsectionId, fileName, fileSize, fileType, fileUrl, thumbnail, images } = req.body;
 
       // Валидация
       if (!title || title.trim().length < 3) {
@@ -355,12 +355,14 @@ export class LibraryController {
       }
 
       // Для других типов проверяем наличие файла
-      if (type !== 'text' && !fileUrl) {
-        res.status(400).json(createErrorResponse('Необходимо загрузить файл'));
+      if (type !== 'text' && !fileUrl && (!images || images.length === 0)) {
+        res.status(400).json(createErrorResponse('Необходимо загрузить файл или фотографии'));
         return;
       }
 
-      const item = await LibraryService.createItem({
+      console.log('📸 Количество images в запросе:', images ? images.length : 0);
+
+      const itemData: any = {
         title: title.trim(),
         content: content?.trim() || '',
         type,
@@ -374,9 +376,20 @@ export class LibraryController {
         fileType,
         fileUrl,
         thumbnail
-      });
+      };
+
+      // 🔥 ВАЖНО: добавляем images в данные
+      if (images && images.length > 0) {
+        itemData.images = images;
+        console.log('📸 Добавляем images в itemData:', images.length);
+      }
+
+      const item = await LibraryService.createItem(itemData);
 
       console.log(`✅ Документ "${item.title}" успешно создан с ID: ${item.id}`);
+      if (item.images && (item.images as any[]).length > 0) {
+        console.log(`📸 Сохранено фотографий: ${(item.images as any[]).length}`);
+      }
       
       res.json(createSuccessResponse(item));
     } catch (error: any) {
@@ -475,10 +488,10 @@ export class LibraryController {
       }
 
       const { itemId } = req.params;
-      const { title, content, fileName, fileSize, fileType, fileUrl, thumbnail } = req.body;
+      const { title, content, fileName, fileSize, fileType, fileUrl, thumbnail, images } = req.body;
 
       console.log('👤 Пользователь:', req.user.id, req.user.login);
-      console.log('📦 Данные для обновления:', { title, content, fileName, fileSize });
+      console.log('📦 Данные для обновления:', { title, content, fileName, fileSize, imagesCount: images?.length });
 
       // Валидация
       if (title && title.trim().length < 3) {
@@ -494,6 +507,12 @@ export class LibraryController {
       if (fileType) updateData.fileType = fileType;
       if (fileUrl) updateData.fileUrl = fileUrl;
       if (thumbnail) updateData.thumbnail = thumbnail;
+      
+      // 🔥 ВАЖНО: добавляем images в данные обновления
+      if (images) {
+        updateData.images = images;
+        console.log('📸 Обновляем images:', images.length);
+      }
 
       const updatedItem = await LibraryService.updateItem(
         itemId,
@@ -502,6 +521,9 @@ export class LibraryController {
       );
 
       console.log(`✅ Документ "${updatedItem.title}" успешно обновлен`);
+      if (updatedItem.images && (updatedItem.images as any[]).length > 0) {
+        console.log(`📸 Обновлено фотографий: ${(updatedItem.images as any[]).length}`);
+      }
       
       res.json(createSuccessResponse(updatedItem));
     } catch (error: any) {

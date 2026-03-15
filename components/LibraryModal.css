@@ -1,5 +1,7 @@
 /* LibraryModal.css - ПОЛНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ */
 
+/* ===== ОСНОВНЫЕ СТИЛИ БИБЛИОТЕКИ ===== */
+
 /* Затемнение фона для всей библиотеки - ПРОЗРАЧНОЕ И НЕ КЛИКАБЕЛЬНОЕ */
 .library-modal-overlay {
   position: fixed;
@@ -35,7 +37,7 @@
   animation: slideIn 0.4s ease-out;
 }
 
-/* Кнопка закрытия */
+/* Кнопка закрытия библиотеки */
 .library-close-button {
   position: absolute;
   top: 15px;
@@ -84,7 +86,8 @@
   font-style: italic;
 }
 
-/* Основной контейнер с ГОРИЗОНТАЛЬНЫМ СКРОЛЛОМ */
+/* ===== ГОРИЗОНТАЛЬНЫЙ СКРОЛЛ ===== */
+
 .library-main {
   flex: 1;
   display: flex;
@@ -97,7 +100,6 @@
   max-height: calc(85vh - 64px);
 }
 
-/* Стили для скроллбара */
 .library-main::-webkit-scrollbar {
   height: 16px;
   background: #5D4037;
@@ -133,7 +135,8 @@
   background: #D2691E;
 }
 
-/* Стрелка-подсказка */
+/* ===== СТРЕЛКА-ПОДСКАЗКА ===== */
+
 .scroll-hint {
   position: absolute;
   right: 30px;
@@ -198,7 +201,8 @@
   }
 }
 
-/* Стеллажи */
+/* ===== СТЕЛЛАЖИ ===== */
+
 .library-shelves {
   display: flex;
   padding: 15px 20px;
@@ -209,7 +213,6 @@
   height: 100%;
 }
 
-/* Отдельный стеллаж */
 .library-shelf {
   display: flex;
   align-items: stretch;
@@ -221,7 +224,6 @@
   position: relative;
 }
 
-/* Специальный класс для стеллажа "Полезные советы" */
 .library-shelf.advice-shelf .shelf-label {
   min-height: 300px;
   padding: 20px 5px;
@@ -251,7 +253,6 @@
   border-right: none;
 }
 
-/* Боковина стеллажа */
 .shelf-side {
   width: 200px;
   background: linear-gradient(135deg, #8B4513, #5D4037);
@@ -271,7 +272,6 @@
   border-radius: 0 8px 8px 0;
 }
 
-/* Надпись на стеллаже */
 .shelf-label {
   display: flex;
   flex-direction: column;
@@ -286,13 +286,11 @@
   min-height: 250px;
 }
 
-/* Иконка на стеллаже */
 .shelf-icon {
   font-size: 2.5em;
   filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.5));
 }
 
-/* Контейнер для слов */
 .shelf-words {
   display: flex;
   flex-direction: row;
@@ -304,7 +302,6 @@
   padding: 5px 0;
 }
 
-/* Каждое слово вертикально */
 .shelf-word {
   writing-mode: vertical-rl;
   text-orientation: upright;
@@ -325,7 +322,6 @@
   border-radius: 0;
 }
 
-/* Корешки книг */
 .book-spines {
   flex: 1;
   display: flex;
@@ -388,7 +384,6 @@
   flex-shrink: 0;
 }
 
-/* Люстра в проходе */
 .passage-lamp {
   width: 25px;
   height: 25px;
@@ -423,7 +418,8 @@
   pointer-events: none;
 }
 
-/* Панель подразделов */
+/* ===== ПАНЕЛЬ ПОДРАЗДЕЛОВ ===== */
+
 .library-subsections-panel {
   width: 250px;
   background: linear-gradient(135deg, #3d2e1b, #2c1e0e);
@@ -443,7 +439,6 @@
   border-bottom: 2px solid #D2691E;
 }
 
-/* Зеленая кнопка добавления раздела */
 .add-subsection-button {
   width: 100%;
   padding: 12px 15px;
@@ -479,7 +474,16 @@
   gap: 10px;
 }
 
+/* ===== ИСПРАВЛЕННЫЙ БЛОК ДЛЯ ПОДРАЗДЕЛОВ ===== */
+.subsection-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
 .subsection-button {
+  flex: 1;
   display: flex;
   align-items: center;
   padding: 12px 15px;
@@ -489,7 +493,6 @@
   color: #FFF8DC;
   cursor: pointer;
   transition: all 0.3s ease;
-  width: 100%;
   text-align: left;
 }
 
@@ -521,9 +524,54 @@
   border-radius: 12px;
   font-size: 0.8em;
   color: #F5DEB3;
+  margin-left: 8px;
 }
 
-/* Панель документов */
+/* Кнопки действий для подразделов - В ОДНУ ЛИНИЮ СПРАВА */
+.subsection-actions {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.subsection-item:hover .subsection-actions {
+  opacity: 1;
+}
+
+.subsection-edit-button,
+.subsection-delete-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 2px solid #8B4513;
+  background: rgba(139, 69, 19, 0.3);
+  color: #F5DEB3;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.subsection-edit-button:hover {
+  background: #4CAF50;
+  border-color: #FFD700;
+  transform: scale(1.1);
+}
+
+.subsection-delete-button:hover {
+  background: #DC143C;
+  border-color: #FFD700;
+  transform: scale(1.1);
+}
+
+/* ===== ПАНЕЛЬ ДОКУМЕНТОВ ===== */
+
 .library-items-panel {
   width: 350px;
   background: linear-gradient(135deg, #2c1e0e, #3d2e1b);
@@ -533,7 +581,6 @@
   height: 100%;
 }
 
-/* Заголовок панели документов с кнопкой */
 .items-header {
   display: flex;
   justify-content: space-between;
@@ -549,7 +596,6 @@
   margin: 0;
 }
 
-/* Зеленая кнопка добавления документа */
 .add-document-button {
   background: linear-gradient(135deg, #2E8B57, #228B22);
   border: 2px solid #D2691E;
@@ -638,9 +684,361 @@
   gap: 3px;
 }
 
-/* ========== СТИЛИ ДЛЯ СТАТИСТИКИ ПОХВАЛ ========== */
+.empty-items {
+  text-align: center;
+  padding: 40px;
+  color: #8B7355;
+  font-style: italic;
+  background: rgba(139, 69, 19, 0.1);
+  border-radius: 10px;
+  border: 2px dashed #8B4513;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
 
-/* Компактная статистика в карточке документа */
+.empty-items p {
+  margin: 0;
+}
+
+.add-first-document-button {
+  background: linear-gradient(135deg, #2E8B57, #228B22);
+  border: 2px solid #D2691E;
+  border-radius: 30px;
+  color: white;
+  font-size: 1em;
+  font-weight: bold;
+  padding: 12px 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.add-first-document-button:hover {
+  background: linear-gradient(135deg, #3CB371, #2E8B57);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(46, 139, 87, 0.5);
+  border-color: #FFD700;
+}
+
+/* ===== МОДАЛЬНОЕ ОКНО ПРОСМОТРА ДОКУМЕНТА ===== */
+
+.item-view-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: transparent;
+  backdrop-filter: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 11000;
+  animation: fadeIn 0.3s ease-out;
+  pointer-events: none;
+}
+
+.item-view-content {
+  pointer-events: auto;
+  position: relative;
+  width: calc(90% + 200px);
+  max-width: 1200px;
+  max-height: 90vh;
+  background: linear-gradient(135deg, #2c1e0e, #3d2e1b);
+  border: 4px solid #8B4513;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: scaleIn 0.3s ease-out;
+  margin-top: 78px;
+  margin-bottom: 55px;
+}
+
+/* Кнопка закрытия модального окна документа */
+.item-view-close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #D2691E;
+  border: 2px solid #FF8C00;
+  color: white;
+  font-size: 24px;
+  cursor: pointer !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 11001 !important;
+  transition: all 0.3s ease;
+  pointer-events: auto !important;
+  opacity: 1;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.item-view-close:hover {
+  transform: scale(1.1) rotate(90deg);
+  background: #FF8C00;
+  box-shadow: 0 0 20px #FF8C00;
+}
+
+.item-view-close:focus {
+  outline: none;
+}
+
+.item-view-header {
+  padding: 25px 30px;
+  background: linear-gradient(to right, #8B4513, #A0522D);
+  border-bottom: 3px solid #D2691E;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.item-view-header * {
+  pointer-events: auto;
+}
+
+.item-view-header h2 {
+  color: #FFF8DC;
+  font-size: 1.8em;
+  margin: 0 0 10px;
+  text-shadow: 2px 2px 0 #5D4037;
+  word-break: break-word;
+  padding-right: 200px;
+}
+
+.item-view-meta {
+  display: flex;
+  gap: 30px;
+  color: #F5DEB3;
+  font-size: 0.95em;
+  flex-wrap: wrap;
+}
+
+.item-view-body {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+  color: #FFF8DC;
+  line-height: 1.6;
+  font-size: 1.1em;
+  min-height: 400px;
+  max-height: 600px;
+  scrollbar-width: thin;
+  scrollbar-color: #8B4513 #5D4037;
+}
+
+.item-view-body::-webkit-scrollbar {
+  width: 10px;
+  background: #5D4037;
+}
+
+.item-view-body::-webkit-scrollbar-track {
+  background: #5D4037;
+  border-radius: 5px;
+  border: 1px solid #3d2e1b;
+}
+
+.item-view-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  border-radius: 5px;
+  border: 1px solid #A0522D;
+}
+
+.item-view-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #D2691E, #FF8C00);
+}
+
+.item-text-content {
+  white-space: pre-wrap;
+  font-family: inherit;
+}
+
+.item-image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.item-image-container img {
+  max-width: 100%;
+  max-height: 500px;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.item-video-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.item-video-container video {
+  max-width: 100%;
+  max-height: 500px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.item-drawing-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 400px;
+}
+
+.item-drawing-container img {
+  max-width: 100%;
+  max-height: 500px;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.item-file-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px dashed #8B4513;
+  border-radius: 10px;
+  padding: 30px;
+  text-align: center;
+  gap: 20px;
+}
+
+.placeholder-icon {
+  font-size: 5em;
+  margin-bottom: 20px;
+  opacity: 0.7;
+}
+
+.download-file-button {
+  display: inline-block;
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  border: 2px solid #FFD700;
+  border-radius: 30px;
+  color: white;
+  font-size: 1.1em;
+  font-weight: bold;
+  padding: 12px 30px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  margin-top: 20px;
+}
+
+.download-file-button:hover {
+  transform: scale(1.05);
+  background: linear-gradient(135deg, #A0522D, #FF8C00);
+  border-color: #FFF8DC;
+  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+}
+
+.item-view-footer {
+  padding: 20px 30px;
+  background: linear-gradient(to right, #5D4037, #4E342E);
+  border-top: 3px solid #8B4513;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: auto;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+}
+
+.footer-login {
+  font-size: 1.1em;
+  color: #F5DEB3;
+  background: rgba(139, 69, 19, 0.3);
+  padding: 8px 15px;
+  border-radius: 20px;
+  border: 1px solid #D2691E;
+}
+
+.footer-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 150px;
+}
+
+.item-view-actions {
+  position: absolute;
+  top: 25px;
+  right: 100px;
+  display: flex;
+  gap: 6px;
+  z-index: 20;
+}
+
+.item-view-edit-button,
+.item-view-delete-button {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 2px solid #8B4513;
+  background: rgba(139, 69, 19, 0.3);
+  color: #F5DEB3;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  width: auto;
+  line-height: 1;
+  white-space: nowrap;
+  height: 26px;
+}
+
+.item-view-edit-button span:first-child,
+.item-view-delete-button span:first-child {
+  font-size: 13px;
+  margin-right: 2px;
+}
+
+.item-view-edit-button:hover {
+  background: #4CAF50;
+  border-color: #FFD700;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4);
+}
+
+.item-view-delete-button:hover {
+  background: #DC143C;
+  border-color: #FFD700;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(220, 20, 60, 0.4);
+}
+
+/* ===== СТАТИСТИКА ПОХВАЛ ===== */
+
 .praise-stats-compact {
   display: flex;
   align-items: center;
@@ -673,7 +1071,6 @@
   font-size: 0.8em;
 }
 
-/* Детальная статистика в модальном окне документа */
 .praise-stats-detailed {
   display: flex;
   flex-direction: column;
@@ -797,452 +1194,131 @@
   transform: scale(1.2);
 }
 
-/* Адаптация для мобильных */
-@media (max-width: 768px) {
-  .praise-stats-detailed {
-    min-width: 130px;
-    padding: 3px 6px;
-    gap: 2px;
-  }
-  
-  .total-count {
-    font-size: 0.9em;
-  }
-  
-  .total-label {
-    font-size: 0.6em;
-  }
-  
-  .stat-emoji {
-    font-size: 0.65em;
-    min-width: 16px;
-  }
-  
-  .stat-count {
-    min-width: 20px;
-    font-size: 0.6em;
-  }
-  
-  .stat-bar-container {
-    height: 7px;
-  }
+/* ===== ГАЛЕРЕЯ ФОТОГРАФИЙ ===== */
+
+.item-images-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  padding: 10px;
 }
 
-@media (max-width: 480px) {
-  .praise-stats-detailed {
-    min-width: 110px;
-    padding: 2px 4px;
-  }
-  
-  .total-count {
-    font-size: 0.8em;
-  }
-  
-  .total-icon {
-    font-size: 0.75em;
-  }
-  
-  .stat-emoji {
-    font-size: 0.6em;
-    min-width: 15px;
-  }
-  
-  .stat-count {
-    min-width: 18px;
-    font-size: 0.55em;
-  }
-  
-  .stat-bar-container {
-    height: 6px;
-  }
-}
-
-/* ========== КОНЕЦ СТИЛЕЙ ДЛЯ ПОХВАЛ ========== */
-
-.empty-items {
-  text-align: center;
-  padding: 40px;
-  color: #8B7355;
-  font-style: italic;
-  background: rgba(139, 69, 19, 0.1);
-  border-radius: 10px;
-  border: 2px dashed #8B4513;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  align-items: center;
-}
-
-.empty-items p {
-  margin: 0;
-}
-
-/* Кнопка добавления первого документа */
-.add-first-document-button {
-  background: linear-gradient(135deg, #2E8B57, #228B22);
-  border: 2px solid #D2691E;
-  border-radius: 30px;
-  color: white;
-  font-size: 1em;
-  font-weight: bold;
-  padding: 12px 25px;
+.gallery-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 3px solid #D2691E;
   cursor: pointer;
   transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  aspect-ratio: 1;
 }
 
-.add-first-document-button:hover {
-  background: linear-gradient(135deg, #3CB371, #2E8B57);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(46, 139, 87, 0.5);
-  border-color: #FFD700;
+.gallery-item:hover {
+  transform: scale(1.02);
+  box-shadow: 0 5px 20px rgba(210, 105, 30, 0.5);
 }
 
-/* Затемнение фона для модалки документа - ПРОЗРАЧНОЕ И НЕ КЛИКАБЕЛЬНОЕ */
-.item-view-modal {
+.gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gallery-item-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  color: #FFF8DC;
+  padding: 10px;
+  font-size: 0.9em;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+.gallery-item:hover .gallery-item-caption {
+  transform: translateY(0);
+}
+
+/* ===== МОДАЛЬНОЕ ОКНО ПРОСМОТРА ФОТО ===== */
+
+.photo-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: transparent;
-  backdrop-filter: none;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 11000;
-  animation: fadeIn 0.3s ease-out;
+  z-index: 12000;
+  animation: fadeIn 0.3s ease;
+  padding: 20px;
+  pointer-events: auto;
+}
+
+.photo-modal-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  pointer-events: auto;
+}
+
+.photo-modal-content img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border: 4px solid #D2691E;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
   pointer-events: none;
 }
 
-/* Само окно документа - кликабельно */
-.item-view-content {
-  pointer-events: auto;
-  position: relative;
-  width: calc(90% + 200px);
-  max-width: 1200px;
-  max-height: 90vh;
-  background: linear-gradient(135deg, #2c1e0e, #3d2e1b);
-  border: 4px solid #8B4513;
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: scaleIn 0.3s ease-out;
-  margin-top: 78px;
-  margin-bottom: 55px;
-}
-
-.item-view-close {
+.photo-modal-close {
   position: absolute;
-  top: 20px;
-  right: 30px;
-  width: 40px;
-  height: 40px;
+  top: -45px;
+  right: -45px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: #D2691E;
-  border: 2px solid #FF8C00;
+  border: 3px solid #FF8C00;
   color: white;
-  font-size: 24px;
+  font-size: 26px;
+  font-weight: bold;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  z-index: 12001;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+  line-height: 1;
+  padding: 0;
+  pointer-events: auto;
 }
 
-.item-view-close:hover {
+.photo-modal-close:hover {
   transform: scale(1.1) rotate(90deg);
   background: #FF8C00;
-}
-
-.item-view-header {
-  padding: 25px 30px;
-  background: linear-gradient(to right, #8B4513, #A0522D);
-  border-bottom: 3px solid #D2691E;
-  position: relative;
-}
-
-.item-view-header h2 {
-  color: #FFF8DC;
-  font-size: 1.8em;
-  margin: 0 0 10px;
-  text-shadow: 2px 2px 0 #5D4037;
-  word-break: break-word;
-  padding-right: 200px;
-}
-
-.item-view-meta {
-  display: flex;
-  gap: 30px;
-  color: #F5DEB3;
-  font-size: 0.95em;
-  flex-wrap: wrap;
-}
-
-.item-view-body {
-  flex: 1;
-  padding: 30px;
-  overflow-y: auto;
-  color: #FFF8DC;
-  line-height: 1.6;
-  font-size: 1.1em;
-  min-height: 400px;
-  max-height: 600px;
-}
-
-.item-text-content {
-  white-space: pre-wrap;
-  font-family: inherit;
-}
-
-.item-image-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-}
-
-.item-image-container img {
-  max-width: 100%;
-  max-height: 500px;
-  object-fit: contain;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-.item-video-container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.item-video-container video {
-  max-width: 100%;
-  max-height: 500px;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-.item-drawing-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  min-height: 400px;
-}
-
-.item-drawing-container img {
-  max-width: 100%;
-  max-height: 500px;
-  object-fit: contain;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-.item-file-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 300px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 2px dashed #8B4513;
-  border-radius: 10px;
-  padding: 30px;
-  text-align: center;
-  gap: 20px;
-}
-
-.placeholder-icon {
-  font-size: 5em;
-  margin-bottom: 20px;
-  opacity: 0.7;
-}
-
-.image-note {
-  margin-top: 20px;
-  color: #8B7355;
-  font-style: italic;
-}
-
-/* Кнопка скачивания файла */
-.download-file-button {
-  display: inline-block;
-  background: linear-gradient(135deg, #8B4513, #D2691E);
-  border: 2px solid #FFD700;
-  border-radius: 30px;
-  color: white;
-  font-size: 1.1em;
-  font-weight: bold;
-  padding: 12px 30px;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-  margin-top: 20px;
-}
-
-.download-file-button:hover {
-  transform: scale(1.05);
-  background: linear-gradient(135deg, #A0522D, #FF8C00);
-  border-color: #FFF8DC;
-  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
-}
-
-/* Нижняя панель документа */
-.item-view-footer {
-  padding: 20px 30px;
-  background: linear-gradient(to right, #5D4037, #4E342E);
-  border-top: 3px solid #8B4513;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: auto;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.footer-left {
-  display: flex;
-  align-items: center;
-}
-
-.footer-login {
-  font-size: 1.1em;
-  color: #F5DEB3;
-  background: rgba(139, 69, 19, 0.3);
-  padding: 8px 15px;
-  border-radius: 20px;
-  border: 1px solid #D2691E;
-}
-
-.footer-center {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  min-width: 150px;
-}
-
-/* ========== СТИЛИ ДЛЯ КНОПОК РЕДАКТИРОВАНИЯ/УДАЛЕНИЯ ПОДРАЗДЕЛОВ ========== */
-
-.subsection-item {
-  display: flex;
-  align-items: center;
-  position: relative;
-  margin-bottom: 5px;
-}
-
-.subsection-button {
-  flex: 1;
-  margin-right: 5px;
-}
-
-.subsection-actions {
-  display: flex;
-  gap: 5px;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-}
-
-.subsection-item:hover .subsection-actions {
-  opacity: 1;
-}
-
-.subsection-edit-button,
-.subsection-delete-button {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 2px solid #8B4513;
-  background: rgba(139, 69, 19, 0.3);
-  color: #F5DEB3;
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  padding: 0;
-}
-
-.subsection-edit-button:hover {
-  background: #4CAF50;
   border-color: #FFD700;
-  transform: scale(1.1);
+  box-shadow: 0 0 25px #FF8C00;
 }
 
-.subsection-delete-button:hover {
-  background: #DC143C;
-  border-color: #FFD700;
-  transform: scale(1.1);
+.photo-modal-close:active {
+  transform: scale(0.95);
 }
 
-/* ========== СТИЛИ ДЛЯ КНОПОК РЕДАКТИРОВАНИЯ/УДАЛЕНИЯ В МОДАЛКЕ ДОКУМЕНТА ========== */
-/* ЕДИНСТВЕННЫЙ БЛОК СТИЛЕЙ ДЛЯ ЭТИХ КНОПОК */
-
-.item-view-actions {
-  position: absolute;
-  top: 25px;
-  right: 100px; /* Сдвигаем влево на 30px от кнопки закрытия (которая на 30px) */
-  display: flex;
-  gap: 6px;
-  z-index: 20;
+.photo-modal-close:focus {
+  outline: none;
 }
 
-.item-view-edit-button,
-.item-view-delete-button {
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 2px solid #8B4513;
-  background: rgba(139, 69, 19, 0.3);
-  color: #F5DEB3;
-  font-size: 11px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  min-width: 0;
-  width: auto;
-  line-height: 1;
-  white-space: nowrap;
-  height: 26px;
-}
+/* ===== ОБЩИЕ СТИЛИ ДЛЯ МОДАЛЬНЫХ ОКОН ===== */
 
-.item-view-edit-button span:first-child,
-.item-view-delete-button span:first-child {
-  font-size: 13px;
-  margin-right: 2px;
-}
-
-.item-view-edit-button:hover {
-  background: #4CAF50;
-  border-color: #FFD700;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4);
-}
-
-.item-view-delete-button:hover {
-  background: #DC143C;
-  border-color: #FFD700;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(220, 20, 60, 0.4);
-}
-
-/* ========== НОВЫЕ СТИЛИ ДЛЯ МОДАЛЬНЫХ ОКОН ДОБАВЛЕНИЯ ========== */
-
-/* Затемнение фона для модалок - полупрозрачное и кликабельное */
 .add-subsection-modal-overlay,
 .add-document-modal-overlay,
 .edit-subsection-modal-overlay,
@@ -1264,7 +1340,6 @@
   pointer-events: auto;
 }
 
-/* Контент модальных окон */
 .add-subsection-modal-content,
 .add-document-modal-content,
 .edit-subsection-modal-content,
@@ -1274,135 +1349,234 @@
   position: relative;
   width: 500px;
   max-width: 90vw;
-  max-height: 85vh;
   background: linear-gradient(135deg, #2c1e0e, #3d2e1b);
   border: 4px solid #8B4513;
   border-radius: 20px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(139, 69, 19, 0.3);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   animation: scaleIn 0.3s ease-out;
   pointer-events: auto;
+  max-height: none;
 }
 
-/* Контейнер с прокруткой для содержимого модальных окон */
-.add-subsection-modal-content > *:not(.add-subsection-close-button):not(.add-subsection-title):not(.add-subsection-subtitle):not(.add-subsection-buttons),
-.add-document-modal-content > *:not(.add-document-close-button):not(.add-document-title):not(.add-document-subtitle):not(.add-document-buttons),
-.edit-subsection-modal-content > *:not(.edit-subsection-close-button):not(.edit-subsection-title):not(.edit-subsection-subtitle):not(.edit-subsection-buttons),
-.delete-subsection-modal-content > *:not(.delete-subsection-close-button):not(.delete-subsection-title):not(.delete-subsection-info):not(.delete-subsection-warning):not(.delete-subsection-buttons),
-.edit-document-modal-content > *:not(.edit-document-close-button):not(.edit-document-title):not(.edit-document-subtitle):not(.edit-document-buttons),
-.delete-document-modal-content > *:not(.delete-document-close-button):not(.delete-document-title):not(.delete-document-info):not(.delete-document-warning):not(.delete-document-buttons) {
-  overflow-y: auto;
-  flex: 1;
-  padding: 0 30px;
-  scrollbar-width: thin;
-  scrollbar-color: #8B4513 #5D4037;
+/* ===== МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ ДОКУМЕНТА ===== */
+
+.add-document-modal-overlay {
+  overflow-y: auto !important;
+  padding: 20px;
 }
 
-/* Стили для скроллбара внутри модальных окон */
-.add-subsection-modal-content > *::-webkit-scrollbar,
-.add-document-modal-content > *::-webkit-scrollbar,
-.edit-subsection-modal-content > *::-webkit-scrollbar,
-.delete-subsection-modal-content > *::-webkit-scrollbar,
-.edit-document-modal-content > *::-webkit-scrollbar,
-.delete-document-modal-content > *::-webkit-scrollbar {
-  width: 10px;
-  background: #5D4037;
-}
-
-.add-subsection-modal-content > *::-webkit-scrollbar-track,
-.add-document-modal-content > *::-webkit-scrollbar-track,
-.edit-subsection-modal-content > *::-webkit-scrollbar-track,
-.delete-subsection-modal-content > *::-webkit-scrollbar-track,
-.edit-document-modal-content > *::-webkit-scrollbar-track,
-.delete-document-modal-content > *::-webkit-scrollbar-track {
-  background: #5D4037;
-  border-radius: 5px;
-  border: 1px solid #3d2e1b;
-}
-
-.add-subsection-modal-content > *::-webkit-scrollbar-thumb,
-.add-document-modal-content > *::-webkit-scrollbar-thumb,
-.edit-subsection-modal-content > *::-webkit-scrollbar-thumb,
-.delete-subsection-modal-content > *::-webkit-scrollbar-thumb,
-.edit-document-modal-content > *::-webkit-scrollbar-thumb,
-.delete-document-modal-content > *::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #8B4513, #D2691E);
-  border-radius: 5px;
-  border: 1px solid #A0522D;
-}
-
-.add-subsection-modal-content > *::-webkit-scrollbar-thumb:hover,
-.add-document-modal-content > *::-webkit-scrollbar-thumb:hover,
-.edit-subsection-modal-content > *::-webkit-scrollbar-thumb:hover,
-.delete-subsection-modal-content > *::-webkit-scrollbar-thumb:hover,
-.edit-document-modal-content > *::-webkit-scrollbar-thumb:hover,
-.delete-document-modal-content > *::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #D2691E, #FF8C00);
-}
-
-/* Специально для модалки добавления документа - делаем контент прокручиваемым */
 .add-document-modal-content {
-  max-height: 85vh;
-  overflow: hidden;
+  margin: auto;
+}
+
+.add-document-modal-content > * {
+  flex-shrink: 0;
 }
 
 .add-document-modal-content form {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  width: 100%;
 }
 
 .add-document-modal-content .add-document-form-group {
   padding: 0 30px;
   margin-bottom: 20px;
-  flex-shrink: 0;
 }
 
-/* Область с формами, которая должна прокручиваться */
-.add-document-modal-content .scrollable-content {
-  overflow-y: auto;
-  flex: 1;
-  scrollbar-width: thin;
-  scrollbar-color: #8B4513 #5D4037;
-  margin: 0;
-  padding: 0;
+.add-document-modal-content .add-document-previews {
+  padding: 0 30px 20px;
 }
 
-/* Стили для скроллбара прокручиваемого контента */
-.add-document-modal-content .scrollable-content::-webkit-scrollbar {
-  width: 10px;
-  background: #5D4037;
-}
-
-.add-document-modal-content .scrollable-content::-webkit-scrollbar-track {
-  background: #5D4037;
-  border-radius: 5px;
-  border: 1px solid #3d2e1b;
-}
-
-.add-document-modal-content .scrollable-content::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #8B4513, #D2691E);
-  border-radius: 5px;
-  border: 1px solid #A0522D;
-}
-
-.add-document-modal-content .scrollable-content::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #D2691E, #FF8C00);
-}
-
-/* Кнопки действий всегда внизу */
 .add-document-modal-content .add-document-buttons {
-  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
   padding: 20px 30px;
   background: linear-gradient(to right, #5D4037, #4E342E);
   border-top: 3px solid #8B4513;
-  margin-top: 0;
+  position: relative;
+  bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* Кнопки закрытия модальных окон */
+.add-document-modal-content .files-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+/* ===== МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ ДОКУМЕНТА ===== */
+
+.edit-document-modal-overlay {
+  overflow-y: auto !important;
+  padding: 20px;
+}
+
+.edit-document-modal-content {
+  margin: auto;
+}
+
+.edit-document-modal-content > * {
+  flex-shrink: 0;
+}
+
+.edit-document-modal-content form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.edit-document-modal-content .edit-document-form-group {
+  padding: 0 30px;
+  margin-bottom: 20px;
+}
+
+.edit-document-modal-content .edit-document-preview {
+  padding: 0 30px 20px;
+  text-align: center;
+}
+
+.edit-document-modal-content .edit-document-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 3px solid #D2691E;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.edit-document-modal-content .edit-document-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding: 20px 30px;
+  background: linear-gradient(to right, #5D4037, #4E342E);
+  border-top: 3px solid #8B4513;
+  position: relative;
+  bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.edit-document-subtitle {
+  display: none;
+}
+
+/* ===== СТИЛИ ДЛЯ ПРЕДВАРИТЕЛЬНОГО ПРОСМОТРА ФАЙЛОВ ===== */
+
+.files-preview {
+  width: 100%;
+}
+
+.files-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #8B4513 #5D4037;
+}
+
+.files-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.files-list::-webkit-scrollbar-track {
+  background: #5D4037;
+  border-radius: 4px;
+}
+
+.files-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  border-radius: 4px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(139, 69, 19, 0.2);
+  border-radius: 6px;
+  margin-bottom: 5px;
+  border: 1px solid #8B4513;
+}
+
+.file-item .file-icon {
+  font-size: 1.2em;
+}
+
+.file-item .file-name {
+  flex: 1;
+  color: #FFF8DC;
+  font-size: 0.9em;
+  word-break: break-word;
+}
+
+.file-item .file-size {
+  color: #F5DEB3;
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+
+.add-document-previews {
+  padding: 0 30px 20px;
+}
+
+.add-document-previews label {
+  display: block;
+  color: #F5DEB3;
+  font-size: 1em;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.previews-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid #8B4513;
+  scrollbar-width: thin;
+  scrollbar-color: #8B4513 #5D4037;
+}
+
+.previews-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.previews-grid::-webkit-scrollbar-track {
+  background: #5D4037;
+  border-radius: 4px;
+}
+
+.previews-grid::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  border-radius: 4px;
+}
+
+.preview-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid #D2691E;
+}
+
+.preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ===== КНОПКИ ЗАКРЫТИЯ МОДАЛЬНЫХ ОКОН ===== */
+
 .add-subsection-close-button,
 .add-document-close-button,
 .edit-subsection-close-button,
@@ -1438,7 +1612,8 @@
   box-shadow: 0 0 20px #D2691E;
 }
 
-/* Заголовки модальных окон */
+/* ===== ЗАГОЛОВКИ МОДАЛЬНЫХ ОКОН ===== */
+
 .add-subsection-title,
 .add-document-title,
 .edit-subsection-title,
@@ -1465,17 +1640,20 @@
   padding-bottom: 15px;
 }
 
-/* Формы */
+/* ===== ФОРМЫ ===== */
+
 .add-subscription-form-group,
 .add-document-form-group,
-.edit-subsection-form-group {
+.edit-subsection-form-group,
+.edit-document-form-group {
   padding: 0 30px;
   margin-bottom: 20px;
 }
 
 .add-subscription-form-group label,
 .add-document-form-group label,
-.edit-subsection-form-group label {
+.edit-subsection-form-group label,
+.edit-document-form-group label {
   display: block;
   color: #F5DEB3;
   font-size: 1em;
@@ -1520,7 +1698,7 @@
   font-family: inherit;
 }
 
-/* ========== СТИЛИ ДЛЯ СЕЛЕКТОРА ТИПА ДОКУМЕНТА ========== */
+/* ===== СЕЛЕКТОР ТИПА ДОКУМЕНТА ===== */
 
 .document-type-selector {
   display: flex;
@@ -1572,40 +1750,13 @@
   border-color: #FFD700;
 }
 
-/* Иконки в кнопках типов */
 .type-button .type-icon {
   font-size: 1.2em;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
 }
 
-/* Адаптация для мобильных */
-@media (max-width: 768px) {
-  .document-type-selector {
-    gap: 8px;
-  }
-  
-  .type-button {
-    min-width: 60px;
-    padding: 10px 12px;
-    font-size: 0.85em;
-  }
-}
+/* ===== ОБЛАСТЬ ЗАГРУЗКИ ФАЙЛОВ ===== */
 
-@media (max-width: 480px) {
-  .document-type-selector {
-    gap: 5px;
-  }
-  
-  .type-button {
-    min-width: 50px;
-    padding: 8px 10px;
-    font-size: 0.8em;
-  }
-}
-
-/* ========== КОНЕЦ СТИЛЕЙ ДЛЯ СЕЛЕКТОРА ТИПА ДОКУМЕНТА ========== */
-
-/* Область загрузки файлов */
 .add-document-file-area,
 .edit-document-file-area {
   border: 3px dashed #8B4513;
@@ -1656,7 +1807,6 @@
   margin-top: 5px !important;
 }
 
-/* Информация о загруженном файле */
 .add-document-file-info,
 .edit-document-file-info {
   display: flex;
@@ -1707,7 +1857,6 @@
   transform: scale(1.1);
 }
 
-/* Превью изображения */
 .add-document-preview,
 .edit-document-preview {
   padding: 0 30px 20px;
@@ -1723,7 +1872,8 @@
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
 }
 
-/* Предупреждения */
+/* ===== ПРЕДУПРЕЖДЕНИЯ ===== */
+
 .add-subsection-warning,
 .edit-subsection-warning,
 .add-document-warning,
@@ -1748,7 +1898,8 @@
   line-height: 1.4;
 }
 
-/* Кнопки действий */
+/* ===== КНОПКИ ДЕЙСТВИЙ ===== */
+
 .add-subsection-buttons,
 .add-document-buttons,
 .edit-subsection-buttons,
@@ -1819,7 +1970,8 @@
   border-color: #FFD700;
 }
 
-/* Специальные стили для модалок удаления */
+/* ===== СПЕЦИАЛЬНЫЕ СТИЛИ ДЛЯ МОДАЛОК УДАЛЕНИЯ ===== */
+
 .delete-subsection-title,
 .delete-document-title {
   color: #DC143C;
@@ -1889,7 +2041,8 @@
   box-shadow: none !important;
 }
 
-/* Анимации */
+/* ===== АНИМАЦИИ ===== */
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -1941,11 +2094,15 @@
   }
 }
 
-/* Адаптивность */
+/* ===== АДАПТИВНОСТЬ ===== */
+
 @media (max-width: 1200px) {
   .library-subsections-panel { width: 220px; }
   .library-items-panel { width: 300px; }
   .item-view-content { width: calc(95% + 150px); max-width: 1000px; margin-top: -7px; }
+  .item-images-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
 }
 
 @media (max-width: 992px) {
@@ -1958,6 +2115,9 @@
     position: static;
     justify-content: flex-start;
     margin-top: 10px;
+  }
+  .item-images-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
 }
 
@@ -1983,13 +2143,50 @@
   .item-view-footer { flex-direction: column; align-items: stretch; gap: 15px; }
   .footer-center { order: -1; margin-bottom: 5px; min-width: 130px; }
   .footer-left { justify-content: center; }
+  .item-images-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+  .photo-modal-close {
+    top: 10px;
+    right: 10px;
+  }
+  .previews-grid {
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  }
   
-  /* Модальные окна на мобильных */
-  .add-subsection-modal-content,
+  .add-document-modal-overlay,
+  .edit-document-modal-overlay {
+    padding: 10px;
+    align-items: flex-start;
+  }
+  
   .add-document-modal-content,
+  .edit-document-modal-content {
+    margin: 10px auto;
+  }
+  
+  .add-document-modal-content .add-document-form-group,
+  .edit-document-modal-content .edit-document-form-group {
+    padding: 0 20px;
+  }
+  
+  .add-document-modal-content .add-document-buttons,
+  .edit-document-modal-content .edit-document-buttons {
+    padding: 15px 20px;
+    flex-direction: column;
+  }
+  
+  .add-document-modal-content .add-document-cancel,
+  .add-document-modal-content .add-document-submit,
+  .edit-document-modal-content .edit-document-cancel,
+  .edit-document-modal-content .edit-document-submit {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .add-subsection-modal-content,
   .edit-subsection-modal-content,
   .delete-subsection-modal-content,
-  .edit-document-modal-content,
   .delete-document-modal-content {
     width: 95vw;
     max-height: 80vh;
@@ -2013,13 +2210,12 @@
   }
   
   .add-subscription-form-group,
-  .add-document-form-group,
-  .edit-subsection-form-group {
+  .edit-subsection-form-group,
+  .edit-document-form-group {
     padding: 0 20px;
   }
   
   .add-subsection-buttons,
-  .add-document-buttons,
   .edit-subsection-buttons,
   .delete-subsection-buttons,
   .edit-document-buttons,
@@ -2029,13 +2225,11 @@
   }
   
   .add-subsection-cancel,
-  .add-document-cancel,
   .edit-subsection-cancel,
   .delete-subsection-cancel,
   .edit-document-cancel,
   .delete-document-cancel,
   .add-subsection-submit,
-  .add-document-submit,
   .edit-subsection-submit,
   .delete-subsection-confirm,
   .edit-document-submit,
@@ -2066,7 +2260,6 @@
     margin-bottom: 5px;
   }
 
-  /* Селектор типа на мобильных */
   .document-type-selector {
     gap: 8px;
   }
@@ -2111,15 +2304,35 @@
     width: 100%;
     justify-content: center;
   }
+  .item-images-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+  }
+  .file-item {
+    flex-wrap: wrap;
+  }
+  .file-item .file-size {
+    width: 100%;
+    margin-left: 28px;
+  }
   
-  /* Модальные окна на маленьких экранах */
+  .add-document-modal-overlay,
+  .edit-document-modal-overlay {
+    padding: 5px;
+  }
+  
+  .add-document-modal-content,
+  .edit-document-modal-content {
+    margin: 5px auto;
+  }
+  
   .add-subsection-modal-content,
   .add-document-modal-content,
   .edit-subsection-modal-content,
   .delete-subsection-modal-content,
   .edit-document-modal-content,
   .delete-document-modal-content {
-    max-height: 85vh;
+    max-height: none;
   }
   
   .add-subsection-title,
@@ -2146,7 +2359,6 @@
     font-size: 0.9em;
   }
 
-  /* Селектор типа на маленьких экранах */
   .document-type-selector {
     gap: 5px;
   }

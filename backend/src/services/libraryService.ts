@@ -10,6 +10,7 @@ export interface CreateSubsectionData {
   createdBy: string;
 }
 
+// 🔥 ОБНОВЛЕНО: добавлено поле images
 export interface CreateItemData {
   title: string;
   content: string;
@@ -24,12 +25,21 @@ export interface CreateItemData {
   fileType?: string;
   fileUrl?: string;
   thumbnail?: string;
+  // 🔥 НОВОЕ ПОЛЕ для нескольких фото
+  images?: Array<{
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    fileUrl: string;
+    thumbnail?: string;
+  }>;
 }
 
 export interface UpdateSubsectionData {
   title?: string;
 }
 
+// 🔥 ОБНОВЛЕНО: добавлено поле images
 export interface UpdateItemData {
   title?: string;
   content?: string;
@@ -38,6 +48,14 @@ export interface UpdateItemData {
   fileType?: string;
   fileUrl?: string;
   thumbnail?: string;
+  // 🔥 НОВОЕ ПОЛЕ для нескольких фото
+  images?: Array<{
+    fileName: string;
+    fileSize: number;
+    fileType: string;
+    fileUrl: string;
+    thumbnail?: string;
+  }>;
 }
 
 export interface SearchParams {
@@ -480,8 +498,6 @@ export class LibraryService {
         const canEdit = checkUserPermissions(userId || '', item.createdBy, userRole);
         const canDelete = checkUserPermissions(userId || '', item.createdBy, userRole);
 
-        console.log(`📄 Документ ${item.id} (createdBy: ${item.createdBy}): canEdit=${canEdit}, canDelete=${canDelete}`);
-
         return {
           id: item.id,
           title: item.title,
@@ -499,6 +515,8 @@ export class LibraryService {
           fileName: item.fileName,
           fileSize: item.fileSize,
           fileType: item.fileType,
+          // 🔥 НОВОЕ ПОЛЕ для нескольких фото
+          images: item.images,
           views: item.views,
           praises: {
             total: item.praises.length,
@@ -621,6 +639,8 @@ export class LibraryService {
         fileName: item.fileName,
         fileSize: item.fileSize,
         fileType: item.fileType,
+        // 🔥 НОВОЕ ПОЛЕ для нескольких фото
+        images: item.images,
         sectionId: item.sectionId,
         sectionTitle: item.section.title,
         subsectionId: item.subsectionId,
@@ -695,10 +715,12 @@ export class LibraryService {
 
   /**
    * Создать новый документ
+   * 🔥 ОБНОВЛЕНО: добавлена поддержка images с подробными логами
    */
   static async createItem(data: CreateItemData) {
     try {
       console.log('📝 createItem - data:', data);
+      console.log('📸 images в запросе:', data.images ? data.images.length : 0);
       
       // Проверяем существование раздела и подраздела
       const [section, subsection] = await Promise.all([
@@ -718,25 +740,34 @@ export class LibraryService {
         throw new Error('Подраздел не найден');
       }
 
+      // 🔥 Подготавливаем данные для создания
+      const createData: any = {
+        title: data.title,
+        content: data.content,
+        type: data.type,
+        date: new Date(),
+        likes: 0,
+        fileName: data.fileName,
+        fileSize: data.fileSize,
+        fileType: data.fileType,
+        fileUrl: data.fileUrl,
+        thumbnail: data.thumbnail,
+        views: 0,
+        createdBy: data.createdBy,
+        sectionId: data.sectionId,
+        subsectionId: data.subsectionId,
+        editCount: 0,
+        isDeleted: false
+      };
+
+      // 🔥 Добавляем images, если они есть
+      if (data.images && data.images.length > 0) {
+        console.log('📸 Сохраняем images:', data.images.length);
+        createData.images = JSON.parse(JSON.stringify(data.images));
+      }
+
       const item = await prisma.libraryItem.create({
-        data: {
-          title: data.title,
-          content: data.content,
-          type: data.type,
-          date: new Date(),
-          likes: 0,
-          fileName: data.fileName,
-          fileSize: data.fileSize,
-          fileType: data.fileType,
-          fileUrl: data.fileUrl,
-          thumbnail: data.thumbnail,
-          views: 0,
-          createdBy: data.createdBy,
-          sectionId: data.sectionId,
-          subsectionId: data.subsectionId,
-          editCount: 0,
-          isDeleted: false
-        },
+        data: createData,
         include: {
           creator: {
             select: {
@@ -750,6 +781,7 @@ export class LibraryService {
       });
 
       console.log('✅ Документ создан:', item.id);
+      console.log('📸 Количество сохраненных images:', item.images ? (item.images as any[]).length : 0);
 
       return {
         id: item.id,
@@ -767,6 +799,8 @@ export class LibraryService {
         fileType: item.fileType,
         fileUrl: item.fileUrl,
         thumbnail: item.thumbnail,
+        // 🔥 НОВОЕ ПОЛЕ для нескольких фото
+        images: item.images,
         views: 0,
         createdAt: item.date.toISOString()
       };
@@ -827,6 +861,7 @@ export class LibraryService {
 
   /**
    * Обновить документ
+   * 🔥 ОБНОВЛЕНО: добавлена поддержка images
    */
   static async updateItem(itemId: string, userId: string, data: UpdateItemData) {
     try {
@@ -851,13 +886,22 @@ export class LibraryService {
         throw new Error('Нет прав на редактирование этого документа');
       }
 
+      // 🔥 Подготавливаем данные для обновления
+      const updateData: any = {
+        ...data,
+        updatedBy: userId,
+        editCount: { increment: 1 }
+      };
+
+      // 🔥 Обрабатываем images отдельно, если они есть
+      if (data.images) {
+        console.log('📸 Обновляем images:', data.images.length);
+        updateData.images = JSON.parse(JSON.stringify(data.images));
+      }
+
       const updatedItem = await prisma.libraryItem.update({
         where: { id: itemId },
-        data: {
-          ...data,
-          updatedBy: userId,
-          editCount: { increment: 1 }
-        },
+        data: updateData,
         include: {
           creator: {
             select: {
@@ -874,6 +918,7 @@ export class LibraryService {
       const updatedAt = (updatedItem as any).updatedAt;
 
       console.log('✅ Документ обновлен:', updatedItem.id);
+      console.log('📸 Количество images после обновления:', updatedItem.images ? (updatedItem.images as any[]).length : 0);
 
       return {
         id: updatedItem.id,
@@ -884,6 +929,8 @@ export class LibraryService {
         fileSize: updatedItem.fileSize,
         fileUrl: updatedItem.fileUrl,
         thumbnail: updatedItem.thumbnail,
+        // 🔥 НОВОЕ ПОЛЕ для нескольких фото
+        images: updatedItem.images,
         updatedAt: updatedAt ? updatedAt.toISOString() : new Date().toISOString(),
         editCount: updatedItem.editCount
       };
@@ -1314,6 +1361,8 @@ export class LibraryService {
         likes: item.likes,
         views: item.views,
         thumbnail: item.thumbnail,
+        // 🔥 НОВОЕ ПОЛЕ для нескольких фото (опционально в поиске)
+        images: item.images,
         sectionId: item.sectionId,
         sectionTitle: item.section.title,
         subsectionId: item.subsectionId,
